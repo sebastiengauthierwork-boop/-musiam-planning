@@ -1,0 +1,468 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import type { Employee, Schedule, TabProps, Team } from './types'
+
+const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const DAY_LETTER = ['D','L','M','M','J','V','S']
+
+function toISO(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+function getDays(year: number, month: number): Date[] {
+  const n = new Date(year, month + 1, 0).getDate()
+  return Array.from({ length: n }, (_, i) => new Date(year, month, i + 1))
+}
+function getMonday(d: Date): Date {
+  const r = new Date(d)
+  const day = r.getDay()
+  r.setDate(r.getDate() - (day === 0 ? 6 : day - 1))
+  return r
+}
+/** Centièmes display: 7.80 — returns '' if h === 0 */
+function fmtDecimal(h: number): string {
+  if (h === 0) return ''
+  return (Math.round(h * 100) / 100).toFixed(2)
+}
+
+type TeamData = { employees: Employee[]; schedules: Schedule[] }
+
+export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [] }: TabProps) {
+  const days = getDays(year, month)
+
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([teamId])
+  const [teamDataMap, setTeamDataMap] = useState<Record<string, TeamData>>({})
+  const [loading, setLoading] = useState(false)
+
+  // ─── Data loading ──────────────────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
+    if (!selectedTeamIds.length) { setTeamDataMap({}); return }
+    setLoading(true)
+    try {
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+      const [etResults, schedRes] = await Promise.all([
+        Promise.all(selectedTeamIds.map(tid =>
+          supabase.from('employee_teams')
+            .select('employee_id, employees(id, first_name, last_name, contract_type, weekly_contract_hours, statut, fonction, is_active)')
+            .eq('team_id', tid)
+            .eq('is_primary', true)
+            .then(r => ({ teamId: tid, data: r.data ?? [] }))
+        )),
+        supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate),
+      ])
+
+      const allSchedules: Schedule[] = schedRes.data ?? []
+      const newMap: Record<string, TeamData> = {}
+
+      for (const { teamId: tid, data } of etResults) {
+        const empList: Employee[] = []
+        const seen = new Set<string>()
+        for (const et of data as any[]) {
+          const e = et.employees
+          if (!e || !e.is_active || seen.has(e.id)) continue
+          seen.add(e.id)
+          empList.push({
+            id: e.id,
+            first_name: e.first_name,
+            last_name: e.last_name,
+            contract_type: e.contract_type,
+            weekly_contract_hours: e.weekly_contract_hours,
+            statut: e.statut ?? null,
+            fonction: e.fonction ?? null,
+          })
+        }
+        empList.sort((a, b) => a.last_name.localeCompare(b.last_name))
+        const empIds = new Set(empList.map(e => e.id))
+        const teamSchedules = allSchedules.filter(s => empIds.has(s.employee_id))
+        newMap[tid] = { employees: empList, schedules: teamSchedules }
+      }
+      setTeamDataMap(newMap)
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedTeamIds, month, year])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // ─── Hours attribution by shift code's team ────────────────────────────────
+  /**
+   * For a given schedule, which team's counter does it count toward?
+   * - If the shift code has a team_id → that team's hours
+   * - If team_id is null (common code) → the schedule's own team_id
+   */
+  function effectiveTeamId(schedule: Schedule): string {
+    if (!schedule.code) return schedule.team_id
+    const sc = shiftCodes.find(c => c.code === schedule.code)
+    if (!sc) return schedule.team_id
+    return sc.team_id ?? schedule.team_id
+  }
+
+  function netHours(schedule: Schedule): number {
+    if (!schedule.code) return 0
+    const sc = shiftCodes.find(c => c.code === schedule.code)
+    return sc?.net_hours ? Number(sc.net_hours) : 0
+  }
+
+  // ─── Team toggles ─────────────────────────────────────────────────────────
+  const allSelected = teams.length > 0 && selectedTeamIds.length === teams.length
+  function toggleTeam(tid: string) {
+    setSelectedTeamIds(prev => prev.includes(tid) ? prev.filter(id => id !== tid) : [...prev, tid])
+  }
+  function toggleAll() {
+    setSelectedTeamIds(allSelected ? [] : teams.map(t => t.id))
+  }
+
+  // ─── Per-team per-day aggregations (by code team attribution) ─────────────
+  function getDayHoursForTeam(tid: string, dateStr: string): { total: number; nbPersonnes: number } {
+    const data = teamDataMap[tid]
+    if (!data) return { total: 0, nbPersonnes: 0 }
+    const relevant = data.schedules.filter(s => s.date === dateStr && effectiveTeamId(s) === tid)
+    const empSet = new Set<string>()
+    let total = 0
+    for (const s of relevant) {
+      const h = netHours(s)
+      if (h > 0) { total += h; empSet.add(s.employee_id) }
+    }
+    return { total, nbPersonnes: empSet.size }
+  }
+
+  function getEmpDayHoursForTeam(tid: string, empId: string, dateStr: string): number {
+    const data = teamDataMap[tid]
+    if (!data) return 0
+    const s = data.schedules.find(sch =>
+      sch.employee_id === empId && sch.date === dateStr && effectiveTeamId(sch) === tid
+    )
+    return s ? netHours(s) : 0
+  }
+
+  function getEmpMonthHoursForTeam(tid: string, empId: string): number {
+    return days.reduce((sum, d) => sum + getEmpDayHoursForTeam(tid, empId, toISO(d)), 0)
+  }
+
+  // Employees who have at least one schedule attributed to this team in the month
+  function getActiveEmpsForTeam(tid: string): Employee[] {
+    const data = teamDataMap[tid]
+    if (!data) return []
+    const activeIds = new Set<string>()
+    for (const s of data.schedules) {
+      if (effectiveTeamId(s) === tid && netHours(s) > 0) activeIds.add(s.employee_id)
+    }
+    return data.employees.filter(e => activeIds.has(e.id))
+  }
+
+  // ─── Excel export ──────────────────────────────────────────────────────────
+  async function handleExportExcel() {
+    const XLSX = await import('xlsx')
+    const wb = XLSX.utils.book_new()
+
+    // ── Sheet 1: Résumé par jour ──
+    const summaryRows: any[][] = []
+    for (const tid of selectedTeamIds) {
+      const team = teams.find(t => t.id === tid)
+      summaryRows.push([`Équipe : ${team?.name ?? tid}`])
+      summaryRows.push(['Jour', 'Total heures', 'Nb personnes', 'Moy h/personne'])
+      let teamTotalH = 0; let teamTotalPersons = 0
+      for (const d of days) {
+        const dateStr = toISO(d)
+        const { total, nbPersonnes } = getDayHoursForTeam(tid, dateStr)
+        const moy = nbPersonnes > 0 ? total / nbPersonnes : 0
+        summaryRows.push([
+          `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`,
+          total > 0 ? parseFloat(fmtDecimal(total) || '0') : 0,
+          nbPersonnes,
+          moy > 0 ? parseFloat((Math.round(moy * 100) / 100).toFixed(2)) : 0,
+        ])
+        teamTotalH += total; teamTotalPersons += nbPersonnes
+      }
+      const avgPersons = days.length > 0 ? teamTotalPersons / days.length : 0
+      summaryRows.push([
+        'Total',
+        parseFloat(fmtDecimal(teamTotalH) || '0'),
+        teamTotalPersons,
+        avgPersons > 0 ? parseFloat((Math.round(avgPersons * 100) / 100).toFixed(2)) : 0,
+      ])
+      summaryRows.push([]) // spacer
+    }
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryRows)
+    XLSX.utils.book_append_sheet(wb, ws1, 'Résumé par jour')
+
+    // ── Sheet 2: Détail salariés ──
+    const detailRows: any[][] = []
+    for (const tid of selectedTeamIds) {
+      const team = teams.find(t => t.id === tid)
+      detailRows.push([`Détail par salarié — ${team?.name ?? tid}`])
+      const header = ['Salarié', ...days.map(d => d.getDate()), 'Total']
+      detailRows.push(header)
+      const activeEmps = getActiveEmpsForTeam(tid)
+      const dayTotals = new Array(days.length).fill(0)
+      let grandTotal = 0
+      for (const emp of activeEmps) {
+        const row: any[] = [`${emp.last_name} ${emp.first_name}`]
+        let empTotal = 0
+        days.forEach((d, i) => {
+          const h = getEmpDayHoursForTeam(tid, emp.id, toISO(d))
+          row.push(h > 0 ? parseFloat(fmtDecimal(h) || '0') : '')
+          dayTotals[i] += h
+          empTotal += h
+        })
+        row.push(parseFloat(fmtDecimal(empTotal) || '0'))
+        grandTotal += empTotal
+        detailRows.push(row)
+      }
+      // Total row
+      const totalRow: any[] = ['Total', ...dayTotals.map(h => h > 0 ? parseFloat(fmtDecimal(h) || '0') : ''), parseFloat(fmtDecimal(grandTotal) || '0')]
+      detailRows.push(totalRow)
+      detailRows.push([]) // spacer
+    }
+    const ws2 = XLSX.utils.aoa_to_sheet(detailRows)
+    XLSX.utils.book_append_sheet(wb, ws2, 'Détail salariés')
+
+    XLSX.writeFile(wb, `compteur-heures-${MONTHS[month].toLowerCase()}-${year}.xlsx`)
+  }
+
+  const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6
+
+  return (
+    <div className="flex flex-col h-full">
+
+      {/* ── Top bar: team checkboxes + export ── */}
+      <div className="shrink-0 px-6 py-3 border-b border-gray-200 bg-white flex items-center gap-3 flex-wrap">
+        <span className="text-sm font-semibold text-gray-700">Équipes :</span>
+
+        <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-slate-700" />
+          <span className="font-medium">Toutes</span>
+        </label>
+
+        <span className="text-gray-300">|</span>
+
+        {teams.map(t => (
+          <label key={t.id} className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={selectedTeamIds.includes(t.id)}
+              onChange={() => toggleTeam(t.id)}
+              className="accent-slate-700"
+            />
+            {t.name}
+          </label>
+        ))}
+
+        <div className="ml-auto">
+          <button
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium border border-green-200 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+            </svg>
+            Exporter Excel
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main content ── */}
+      <div className="flex-1 overflow-auto bg-gray-50/50">
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Chargement…</div>
+        ) : selectedTeamIds.length === 0 ? (
+          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Sélectionnez au moins une équipe.</div>
+        ) : (
+          <div className="p-6 space-y-10">
+
+            {/* ══════════════════ PARTIE HAUTE ══════════════════ */}
+            <section>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                <span className="inline-block h-px flex-1 bg-slate-200" />
+                Résumé par jour
+                <span className="inline-block h-px flex-1 bg-slate-200" />
+              </h2>
+
+              <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }}>
+                {selectedTeamIds.map(tid => {
+                  const team = teams.find(t => t.id === tid)
+                  let totalH = 0; let totalPersons = 0
+
+                  return (
+                    <div key={tid} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                      <div className="px-4 py-2.5 bg-slate-800 text-slate-100 text-xs font-semibold uppercase tracking-wider">
+                        {team?.name ?? tid}
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wide">
+                              <th className="px-3 py-2 text-left font-semibold w-20">Jour</th>
+                              <th className="px-3 py-2 text-right font-semibold">Total heures</th>
+                              <th className="px-3 py-2 text-right font-semibold">Nb personnes</th>
+                              <th className="px-3 py-2 text-right font-semibold">Moy h/pers</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {days.map(d => {
+                              const dateStr = toISO(d)
+                              const { total, nbPersonnes } = getDayHoursForTeam(tid, dateStr)
+                              const moy = nbPersonnes > 0 ? total / nbPersonnes : 0
+                              const isWE = isWeekend(d)
+                              totalH += total; totalPersons += nbPersonnes
+                              return (
+                                <tr key={dateStr} className={`border-t border-gray-100 ${isWE ? 'bg-slate-50/70' : 'hover:bg-yellow-50/20'}`}>
+                                  <td className={`px-3 py-1.5 font-medium ${isWE ? 'text-slate-400' : 'text-gray-700'}`}>
+                                    <span className="mr-1 text-[10px] text-gray-400">{DAY_LETTER[d.getDay()]}</span>
+                                    {d.getDate()}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-mono text-gray-700">
+                                    {total > 0 ? fmtDecimal(total) : ''}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right text-gray-600">
+                                    {nbPersonnes > 0 ? nbPersonnes : ''}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-mono text-gray-500">
+                                    {moy > 0 ? fmtDecimal(moy) : ''}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-slate-300 bg-slate-800 text-white">
+                              <td className="px-3 py-2 font-bold text-xs uppercase">Total</td>
+                              <td className="px-3 py-2 text-right font-bold font-mono">{fmtDecimal(totalH) || '0.00'}</td>
+                              <td className="px-3 py-2 text-right font-semibold">{totalPersons}</td>
+                              <td className="px-3 py-2 text-right font-mono text-slate-300">
+                                {totalPersons > 0 ? fmtDecimal(totalH / days.length) : ''}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* ══════════════════ PARTIE BASSE ══════════════════ */}
+            <section>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                <span className="inline-block h-px flex-1 bg-slate-200" />
+                Détail par salarié
+                <span className="inline-block h-px flex-1 bg-slate-200" />
+              </h2>
+
+              <div className="space-y-6">
+                {selectedTeamIds.map(tid => {
+                  const team = teams.find(t => t.id === tid)
+                  const activeEmps = getActiveEmpsForTeam(tid)
+
+                  return (
+                    <div key={tid} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                      <div className="px-4 py-2.5 bg-slate-800 text-slate-100 text-xs font-semibold">
+                        Détail par salarié — {team?.name ?? tid}
+                      </div>
+
+                      {activeEmps.length === 0 ? (
+                        <div className="flex items-center justify-center h-16 text-gray-400 text-xs">
+                          Aucune donnée pour cette équipe ce mois-ci.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="text-xs border-collapse w-max min-w-full">
+                            <thead className="sticky top-0 z-10">
+                              <tr className="bg-slate-700 text-slate-100">
+                                <th className="sticky left-0 z-20 bg-slate-700 px-3 py-2 text-left font-semibold min-w-[140px] border-r border-slate-600">
+                                  Salarié
+                                </th>
+                                {days.map(d => {
+                                  const isWE = isWeekend(d)
+                                  return (
+                                    <th key={toISO(d)}
+                                      className={`px-1 py-2 text-center w-9 min-w-[36px] border-r border-slate-600 ${isWE ? 'bg-slate-600' : ''}`}>
+                                      <div className="text-[9px] text-slate-400">{DAY_LETTER[d.getDay()]}</div>
+                                      <div className={`font-bold text-xs ${isWE ? 'text-slate-300' : 'text-slate-100'}`}>{d.getDate()}</div>
+                                    </th>
+                                  )
+                                })}
+                                <th className="sticky right-0 z-20 bg-slate-800 px-3 py-2 text-center font-bold min-w-[60px] border-l-2 border-slate-500">
+                                  Total
+                                </th>
+                              </tr>
+                            </thead>
+
+                            <tbody>
+                              {activeEmps.map((emp, empIdx) => {
+                                const empTotal = getEmpMonthHoursForTeam(tid, emp.id)
+                                return (
+                                  <tr key={emp.id} className={`${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-yellow-50/30 group`}>
+                                    <td className="sticky left-0 z-10 bg-inherit group-hover:bg-yellow-50/30 border-b border-r border-gray-100 px-3 py-1.5 whitespace-nowrap">
+                                      <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
+                                      <span className="text-gray-500">{emp.first_name}</span>
+                                    </td>
+                                    {days.map(d => {
+                                      const dateStr = toISO(d)
+                                      const h = getEmpDayHoursForTeam(tid, emp.id, dateStr)
+                                      const isWE = isWeekend(d)
+                                      return (
+                                        <td key={dateStr}
+                                          className={`border-b border-r border-gray-100 text-center py-1.5 h-7 ${isWE ? 'bg-slate-50' : ''}`}>
+                                          {h > 0 && <span className="font-mono text-gray-700">{fmtDecimal(h)}</span>}
+                                        </td>
+                                      )
+                                    })}
+                                    <td className="sticky right-0 z-10 bg-white group-hover:bg-yellow-50/30 border-b border-l-2 border-gray-200 text-center py-1.5 h-7 font-bold text-gray-800">
+                                      {empTotal > 0 ? fmtDecimal(empTotal) : '—'}
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+
+                            {/* Total row */}
+                            <tfoot className="sticky bottom-0 z-10">
+                              <tr style={{ background: '#0f172a' }}>
+                                <td className="sticky left-0 z-20 px-3 py-2 font-bold text-xs text-white uppercase tracking-wide" style={{ background: '#0f172a' }}>
+                                  Total
+                                </td>
+                                {days.map(d => {
+                                  const dateStr = toISO(d)
+                                  const h = activeEmps.reduce((s, e) => s + getEmpDayHoursForTeam(tid, e.id, dateStr), 0)
+                                  const isWE = isWeekend(d)
+                                  return (
+                                    <td key={dateStr}
+                                      className={`border-r border-slate-700 text-center py-2 h-7 font-mono ${isWE ? 'text-slate-400' : h > 0 ? 'text-white font-medium' : 'text-slate-600'}`}>
+                                      {h > 0 ? fmtDecimal(h) : ''}
+                                    </td>
+                                  )
+                                })}
+                                {(() => {
+                                  const grand = activeEmps.reduce((s, e) => s + getEmpMonthHoursForTeam(tid, e.id), 0)
+                                  return (
+                                    <td className="sticky right-0 z-20 border-l-2 border-slate-600 text-center py-2 h-7 font-bold text-white text-sm" style={{ background: '#0f172a' }}>
+                                      {fmtDecimal(grand) || '0.00'}
+                                    </td>
+                                  )
+                                })()}
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

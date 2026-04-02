@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(clip)",
+      "Bash(clip echo:*)",
+      "Bash(echo \"-- Modifier annual_calendar : ajouter team_id et changer la contrainte unique sur \\(date, team_id\\):*)",
+      "Bash(cat:*)",
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

@@ -25,3 +25,72 @@ body {
     text-wrap: balance;
   }
 }
+
+@layer components {
+  .input {
+    @apply w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-colors;
+  }
+}
+
+/* ─── PRINT STYLES ──────────────────────────────────────────────────────────
+ * Technique visibility : masque tout, révèle uniquement .print-planning-area.
+ * Le * { overflow: visible } est critique : sans lui, les conteneurs parents
+ * avec overflow:hidden (flex layout) tronquent la zone absolue à l'impression.
+ * ─────────────────────────────────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+
+  /* Forcer l'impression couleur dans tous les navigateurs */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* CRITIQUE : lever TOUTES les contraintes overflow/height sur tous les
+     éléments — sans ça, les parents flex avec overflow:hidden tronquent
+     la zone de print positionnée en absolu. */
+  * {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+  }
+
+  html, body {
+    width: 100% !important;
+  }
+
+  /* Masquer tout par défaut */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Révéler uniquement la zone d'impression */
+  .print-planning-area,
+  .print-planning-area *,
+  .print-gantt-area,
+  .print-gantt-area * {
+    visibility: visible;
+  }
+
+  /* Positionner la zone en haut à gauche, pleine largeur */
+  .print-planning-area,
+  .print-gantt-area {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Toujours masquer les éléments no-print */
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}
