@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
+import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,9 +18,10 @@ function getDays(year: number, month: number): Date[] {
   const n = new Date(year, month + 1, 0).getDate()
   return Array.from({ length: n }, (_, i) => new Date(year, month, i + 1))
 }
-function getNetHours(code: string | null | undefined, shiftCodes: ShiftCode[]): number {
+function getPaidHours(code: string | null | undefined, shiftCodes: ShiftCode[], teamId: string): number {
   if (!code) return 0
-  return Number(shiftCodes.find(c => c.code === code)?.net_hours ?? 0)
+  const sc = shiftCodes.find(c => c.code === code && (c.team_id === teamId || c.team_id === null))
+  return Number(sc?.paid_hours ?? 0)
 }
 function fmtH(h: number) { return decimalToHMin(h) }
 
@@ -246,6 +248,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiving, setArchiving] = useState(false)
+  const [archiveStep, setArchiveStep] = useState<'pdf' | 'saving' | null>(null)
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -261,11 +264,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const saveCell = useCallback(async (empId: string, dateStr: string, code: string) => {
     const key = `${empId}|${dateStr}`
     const prevCode = cellValues[key] ?? ''
-    if (code === prevCode) {
-      console.log(`[Saisie] skip key=${key} code="${code}"`)
-      return
-    }
-    console.log(`[Saisie] saving key=${key} "${prevCode}" → "${code}"`)
+    if (code === prevCode) return
 
     setCellValues(cur => { const n = { ...cur }; if (code) n[key] = code; else delete n[key]; return n })
     setCellStatus(cur => ({ ...cur, [key]: 'saving' }))
@@ -274,8 +273,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     try {
       if (!code) {
         const { error } = await supabase.from('schedules').delete().eq('employee_id', empId).eq('date', dateStr)
-        if (error) { console.error('[Saisie] DELETE error:', error); throw error }
-        console.log('[Saisie] DELETE ok')
+        if (error) throw error
       } else {
         const sc = shiftCodes.find(c => c.code === code)
         const upsertPayload = {
@@ -284,12 +282,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           start_time: sc?.start_time ?? null, end_time: sc?.end_time ?? null,
           break_minutes: sc?.break_minutes ?? 0, status: 'brouillon', notes: null,
         }
-        console.log('[Saisie] UPSERT payload:', upsertPayload)
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('schedules').upsert(upsertPayload, { onConflict: 'employee_id,date' })
-          .select('id, employee_id, date, code, type')
-        if (error) { console.error('[Saisie] UPSERT error:', error); throw error }
-        console.log('[Saisie] UPSERT ok:', data)
+        if (error) throw error
       }
 
       setCellStatus(cur => ({ ...cur, [key]: 'saved' }))
@@ -314,21 +309,53 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   // ── Archivage ─────────────────────────────────────────────────────────────
   async function archivePlanning() {
     setArchiving(true)
+    let pdfUrl: string | null = null
+
     try {
+      // 1. Générer le PDF
+      setArchiveStep('pdf')
+      try {
+        const { blob, dataUrl } = await generatePlanningPdf({
+          employees, schedules, shiftCodes, absenceCodes, year, month, teamName,
+        })
+
+        // Essayer d'uploader dans Supabase Storage (bucket privé)
+        const storagePath = `${teamId}/${year}-${String(month + 1).padStart(2, '0')}.pdf`
+        const { error: uploadError } = await supabase.storage
+          .from('planning-pdfs')
+          .upload(storagePath, blob, { contentType: 'application/pdf', upsert: true })
+
+        if (!uploadError) {
+          // Stocker uniquement le PATH — l'URL signée est générée à la demande dans TabArchives
+          pdfUrl = storagePath
+        } else {
+          // Fallback : stocker le dataUrl base64 directement (commence par "data:")
+          console.warn('Storage upload failed, falling back to base64:', uploadError.message)
+          pdfUrl = dataUrl
+        }
+      } catch (pdfErr) {
+        console.warn('Génération PDF échouée, archivage sans PDF :', pdfErr)
+      }
+
+      // 2. Insérer l'archive
+      setArchiveStep('saving')
       const { error } = await supabase.from('planning_archives').insert({
         team_id: teamId,
         month: month + 1,
         year,
         archived_by: 'Utilisateur',
         status: 'archived',
+        pdf_url: pdfUrl,
       })
       if (error) throw error
+
       setShowArchiveModal(false)
       onArchived?.()
     } catch (err: any) {
       setGlobalError(err?.message ?? 'Erreur lors de l\'archivage')
     } finally {
       setArchiving(false)
+      setArchiveStep(null)
     }
   }
 
@@ -359,12 +386,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     if (!first) return
     const code = cellValues[first] ?? ''
     setClipboard(code)
-    console.log(`[Saisie] copy "${code}" (${selected.size} cell${selected.size > 1 ? 's' : ''} selected)`)
   }, [selected, cellValues])
 
   const pasteToSelected = useCallback(() => {
     if (!clipboard) return
-    console.log(`[Saisie] paste "${clipboard}" → ${selected.size} cell(s)`)
     for (const key of selected) {
       const [empId, dateStr] = key.split('|')
       saveCell(empId, dateStr, clipboard)
@@ -440,16 +465,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     const structId = calStructureIdMap[dateStr] ?? null
     const positions = structId ? (structurePositions[structId] ?? []) : []
     const required = positions.reduce((s, p) => s + p.required_count, 0)
+    const codeInTeam = (code: string) =>
+      shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null))
     const presents = employees.filter(e => {
       const code = cellValues[`${e.id}|${dateStr}`]
-      if (!code) return false
-      if (e.is_primary !== false) {
-        // Employé principal : compte si code horaire quelconque
-        return shiftCodes.some(s => s.code === code)
-      } else {
-        // Renfort : compte uniquement si code appartient à l'équipe courante
-        return shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null))
-      }
+      return code ? codeInTeam(code) : false
     }).length
     const byCode: Record<string, { required: number; actual: number }> = {}
     for (const p of positions) {
@@ -457,9 +477,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         required: p.required_count,
         actual: employees.filter(e => {
           const code = cellValues[`${e.id}|${dateStr}`]
-          if (code !== p.position_name) return false
-          if (e.is_primary !== false) return true
-          return shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null))
+          return code === p.position_name && codeInTeam(code)
         }).length,
       }
     }
@@ -483,16 +501,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   function dayPresents(dateStr: string): number {
     return employees.filter(e => {
       const code = cellValues[`${e.id}|${dateStr}`]
-      return code ? shiftCodes.some(s => s.code === code) : false
+      return code ? shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null)) : false
     }).length
   }
 
   // ── Totals ────────────────────────────────────────────────────────────────
   function empMonthlyH(empId: string): number {
-    return days.reduce((s, d) => s + getNetHours(cellValues[`${empId}|${toISO(d)}`], shiftCodes), 0)
+    return days.reduce((s, d) => s + getPaidHours(cellValues[`${empId}|${toISO(d)}`], shiftCodes, teamId), 0)
   }
   function dayTotalH(dateStr: string): number {
-    return employees.reduce((s, e) => s + getNetHours(cellValues[`${e.id}|${dateStr}`], shiftCodes), 0)
+    return employees.reduce((s, e) => s + getPaidHours(cellValues[`${e.id}|${dateStr}`], shiftCodes, teamId), 0)
   }
   function monthlyLimit(emp: Employee): number { return (emp.weekly_contract_hours ?? 35) * 52 / 12 }
 
@@ -539,7 +557,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               </button>
               <button onClick={archivePlanning} disabled={archiving}
                 className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50">
-                {archiving ? 'Archivage…' : 'Confirmer l\'archivage'}
+                {archiveStep === 'pdf' ? 'Génération PDF…' : archiveStep === 'saving' ? 'Archivage…' : 'Confirmer l\'archivage'}
               </button>
             </div>
           </div>
@@ -760,7 +778,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               const over = monthH > limit + 0.5
               const isRenfort = emp.is_primary === false
               return (
-                <>
+                <Fragment key={emp.id}>
                   {isFirstRenfort && secondaryEmployees.length > 0 && (
                     <tr key="renforts-separator">
                       <td
@@ -813,7 +831,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {weeks.map(w => {
-                      const wh = w.days.reduce((s, d) => s + getNetHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes), 0)
+                      const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
                       const over35 = wh > 35.5
                       return (
                         <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-7 text-center text-xs font-semibold ${
@@ -828,7 +846,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
                     </td>
                   </tr>
-                </>
+                </Fragment>
               )
             })}
           </tbody>
@@ -851,7 +869,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               })}
               {weeks.map(w => {
                 const wh = employees.reduce((s, e) =>
-                  s + w.days.reduce((ss, d) => ss + getNetHours(cellValues[`${e.id}|${toISO(d)}`], shiftCodes), 0), 0)
+                  s + w.days.reduce((ss, d) => ss + getPaidHours(cellValues[`${e.id}|${toISO(d)}`], shiftCodes, teamId), 0), 0)
                 return (
                   <td key={w.label} className={`border-t border-r border-indigo-200 text-center py-1.5 text-xs font-bold bg-indigo-50 ${wh > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
                     {wh > 0 ? fmtH(wh) : ''}

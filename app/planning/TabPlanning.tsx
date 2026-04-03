@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { TabProps } from './types'
+import { generatePlanningPdf, downloadPdf } from '@/lib/generatePlanningPdf'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S'] // index 0=dim, 1=lun …
@@ -41,6 +42,7 @@ const S = {
 export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName }: TabProps) {
   const days = getDays(year, month)
   const [printTime, setPrintTime] = useState<Date | null>(null)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   // Capture l'heure exacte juste avant l'impression
   useEffect(() => {
@@ -52,6 +54,19 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   function handlePrint() {
     setPrintTime(new Date())
     setTimeout(() => window.print(), 30)
+  }
+
+  async function handleGeneratePdf() {
+    setGeneratingPdf(true)
+    try {
+      const { blob } = await generatePlanningPdf({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName })
+      downloadPdf(blob, `planning-${teamName.replace(/\s+/g, '-').toLowerCase()}-${MONTHS[month].toLowerCase()}-${year}.pdf`)
+    } catch (err) {
+      console.error('Erreur génération PDF:', err)
+      alert('Erreur lors de la génération du PDF.')
+    } finally {
+      setGeneratingPdf(false)
+    }
   }
 
   // Build lookup: "empId|YYYY-MM-DD" → code
@@ -89,15 +104,27 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
       {/* ── Toolbar (hors print-planning-area → masqué automatiquement à l'impression) ── */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-white shrink-0">
         <span className="text-sm text-gray-500">Format A3 paysage · couleurs fidèles à l'impression</span>
-        <button
-          onClick={handlePrint}
-          className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-          </svg>
-          Imprimer / PDF
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleGeneratePdf}
+            disabled={generatingPdf}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {generatingPdf ? 'Génération…' : 'Télécharger PDF'}
+          </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Imprimer / PDF
+          </button>
+        </div>
       </div>
 
       {/* ── Zone imprimable — seule visible à l'impression ── */}

@@ -8,13 +8,13 @@ const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Aoû
 function fmtH(h: number): string { return decimalToHMin(h) }
 function fmtEcart(h: number): string { return fmtEcartHMin(h) }
 
-export default function TabHeuresSup({ employees, schedules, shiftCodes, year, month, teamName }: TabProps) {
-  // planned hours per employee
+export default function TabHeuresSup({ employees, schedules, shiftCodes, year, month, teamId, teamName }: TabProps) {
+  // planned hours per employee — only count codes belonging to this team
   const plannedMap: Record<string, number> = {}
   for (const s of schedules) {
-    const sc = shiftCodes.find(c => c.code === s.code)
-    if (sc?.net_hours) {
-      plannedMap[s.employee_id] = (plannedMap[s.employee_id] ?? 0) + Number(sc.net_hours)
+    const sc = shiftCodes.find(c => c.code === s.code && (c.team_id === teamId || c.team_id === null))
+    if (sc?.paid_hours) {
+      plannedMap[s.employee_id] = (plannedMap[s.employee_id] ?? 0) + Number(sc.paid_hours)
     }
   }
 

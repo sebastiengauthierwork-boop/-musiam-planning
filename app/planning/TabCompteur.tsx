@@ -47,47 +47,53 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
       const lastDay = new Date(year, month + 1, 0).getDate()
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-      const [etResults, schedRes] = await Promise.all([
-        Promise.all(selectedTeamIds.map(tid =>
-          supabase.from('employee_teams')
-            .select('employee_id, employees(id, first_name, last_name, contract_type, weekly_contract_hours, statut, fonction, is_active)')
-            .eq('team_id', tid)
-            .eq('is_primary', true)
-            .then(r => ({ teamId: tid, data: r.data ?? [] }))
-        )),
-        supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate),
-      ])
-
+      // Load ALL schedules for the month regardless of team
+      const schedRes = await supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate)
       const allSchedules: Schedule[] = schedRes.data ?? []
+
       const newMap: Record<string, TeamData> = {}
 
-      for (const { teamId: tid, data } of etResults) {
-        const empList: Employee[] = []
-        const seen = new Set<string>()
-        for (const et of data as any[]) {
-          const e = et.employees
-          if (!e || !e.is_active || seen.has(e.id)) continue
-          seen.add(e.id)
-          empList.push({
-            id: e.id,
-            first_name: e.first_name,
-            last_name: e.last_name,
-            contract_type: e.contract_type,
-            weekly_contract_hours: e.weekly_contract_hours,
-            statut: e.statut ?? null,
-            fonction: e.fonction ?? null,
-          })
+      for (const tid of selectedTeamIds) {
+        // Keep only schedules whose shift code belongs to this team (or is a common code on this team's schedule)
+        const teamSchedules = allSchedules.filter(s => {
+          if (!s.code) return false
+          const sc = shiftCodes.find(c => c.code === s.code)
+          const effectiveTid = sc ? (sc.team_id ?? s.team_id) : s.team_id
+          return effectiveTid === tid
+        })
+
+        // Collect all employee IDs that appear in those schedules
+        const empIdSet = new Set(teamSchedules.map(s => s.employee_id))
+        if (empIdSet.size === 0) {
+          newMap[tid] = { employees: [], schedules: [] }
+          continue
         }
+
+        // Load employee info for those IDs
+        const empRes = await supabase
+          .from('employees')
+          .select('id, first_name, last_name, contract_type, weekly_contract_hours, statut, fonction, is_active')
+          .in('id', [...empIdSet])
+          .eq('is_active', true)
+
+        const empList: Employee[] = (empRes.data ?? []).map((e: any) => ({
+          id: e.id,
+          first_name: e.first_name,
+          last_name: e.last_name,
+          contract_type: e.contract_type,
+          weekly_contract_hours: e.weekly_contract_hours,
+          statut: e.statut ?? null,
+          fonction: e.fonction ?? null,
+        }))
         empList.sort((a, b) => a.last_name.localeCompare(b.last_name))
-        const empIds = new Set(empList.map(e => e.id))
-        const teamSchedules = allSchedules.filter(s => empIds.has(s.employee_id))
+
         newMap[tid] = { employees: empList, schedules: teamSchedules }
       }
       setTeamDataMap(newMap)
     } finally {
       setLoading(false)
     }
-  }, [selectedTeamIds, month, year])
+  }, [selectedTeamIds, month, year, shiftCodes])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -104,10 +110,10 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     return sc.team_id ?? schedule.team_id
   }
 
-  function netHours(schedule: Schedule): number {
+  function paidHours(schedule: Schedule): number {
     if (!schedule.code) return 0
     const sc = shiftCodes.find(c => c.code === schedule.code)
-    return sc?.net_hours ? Number(sc.net_hours) : 0
+    return sc?.paid_hours ? Number(sc.paid_hours) : 0
   }
 
   // ─── Team toggles ─────────────────────────────────────────────────────────
@@ -127,7 +133,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     const empSet = new Set<string>()
     let total = 0
     for (const s of relevant) {
-      const h = netHours(s)
+      const h = paidHours(s)
       if (h > 0) { total += h; empSet.add(s.employee_id) }
     }
     return { total, nbPersonnes: empSet.size }
@@ -139,7 +145,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     const s = data.schedules.find(sch =>
       sch.employee_id === empId && sch.date === dateStr && effectiveTeamId(sch) === tid
     )
-    return s ? netHours(s) : 0
+    return s ? paidHours(s) : 0
   }
 
   function getEmpMonthHoursForTeam(tid: string, empId: string): number {
@@ -152,7 +158,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     if (!data) return []
     const activeIds = new Set<string>()
     for (const s of data.schedules) {
-      if (effectiveTeamId(s) === tid && netHours(s) > 0) activeIds.add(s.employee_id)
+      if (effectiveTeamId(s) === tid && paidHours(s) > 0) activeIds.add(s.employee_id)
     }
     return data.employees.filter(e => activeIds.has(e.id))
   }

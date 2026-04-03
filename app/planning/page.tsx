@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, CalendarDay, Employee, Schedule, ShiftCode, Team } from './types'
@@ -40,7 +42,7 @@ export default function PlanningPage() {
   const [isArchived, setIsArchived]   = useState(false)
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
 
-  // Load teams + codes once
+  // Load teams + codes — re-run if role/allowedTeams change (auth resolves after mount)
   useEffect(() => {
     Promise.all([
       supabase.from('teams').select('id, name, type').order('name'),
@@ -53,28 +55,44 @@ export default function PlanningPage() {
         t = t.filter(team => allowedTeams.includes(team.id))
       }
       setTeams(t)
-      if (t.length > 0) setTeamId(t[0].id)
+      setTeamId(prev => (prev && t.find(x => x.id === prev)) ? prev : (t[0]?.id ?? ''))
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
     })
-  }, [])
+  }, [role, allowedTeams])
 
   const loadEmployeesAndSchedules = useCallback(async () => {
     if (!teamId) return
     setLoading(true)
     setError(null)
+    // Réinitialiser explicitement avant chaque chargement pour ne pas garder
+    // un état périmé entre navigations
+    setIsArchived(false)
+    setArchiveDate(null)
     try {
       const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
       const lastDay = new Date(year, month + 1, 0).getDate()
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`
 
-      const [etRes, schedRes] = await Promise.all([
+      const [etRes, schedRes, archRes] = await Promise.all([
         supabase
           .from('employee_teams')
           .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active)')
           .eq('team_id', teamId),
         supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate),
+        // Vérification archive — toujours exécutée, succès ou échec des autres requêtes
+        supabase
+          .from('planning_archives')
+          .select('archived_at')
+          .eq('team_id', teamId)
+          .eq('month', month + 1)
+          .eq('year', year)
+          .maybeSingle(),
       ])
+
+      // Statut d'archivage — appliqué immédiatement, indépendamment des autres erreurs
+      setIsArchived(!!archRes.data)
+      setArchiveDate(archRes.data?.archived_at ?? null)
 
       // Fetch calendar days (non-blocking — table may not exist yet)
       try {
@@ -115,21 +133,6 @@ export default function PlanningPage() {
       setSchedules((schedRes.data ?? []).filter(s => empIds.has(s.employee_id)))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
-      // Vérifier le statut d'archivage
-      try {
-        const { data: archData } = await supabase
-          .from('planning_archives')
-          .select('archived_at')
-          .eq('team_id', teamId)
-          .eq('month', month + 1)
-          .eq('year', year)
-          .maybeSingle()
-        setIsArchived(!!archData)
-        setArchiveDate(archData?.archived_at ?? null)
-      } catch {
-        setIsArchived(false)
-        setArchiveDate(null)
-      }
     } finally {
       setLoading(false)
     }

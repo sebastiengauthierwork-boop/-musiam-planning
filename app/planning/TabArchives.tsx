@@ -4,6 +4,21 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { TabProps } from './types'
 
+async function resolveSignedUrl(pdfUrl: string): Promise<string | null> {
+  if (!pdfUrl) return null
+  // Fallback base64 : utiliser directement
+  if (pdfUrl.startsWith('data:')) return pdfUrl
+  // Path Storage : générer une URL signée valable 1h
+  const { data, error } = await supabase.storage
+    .from('planning-pdfs')
+    .createSignedUrl(pdfUrl, 3600)
+  if (error || !data?.signedUrl) {
+    console.error('createSignedUrl error:', error)
+    return null
+  }
+  return data.signedUrl
+}
+
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
 type PlanningArchive = {
@@ -64,21 +79,18 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
     load()
   }, [teamId])
 
-  function handleView(archive: PlanningArchive) {
-    if (onViewArchive) {
-      onViewArchive(archive)
-    } else {
-      setViewingArchive(archive)
-    }
+  async function handleView(archive: PlanningArchive) {
+    if (!archive.pdf_url) { setViewingArchive(archive); return }
+    const url = await resolveSignedUrl(archive.pdf_url)
+    // Injecter l'URL signée dans l'archive affichée pour que l'iframe puisse la charger
+    setViewingArchive({ ...archive, pdf_url: url })
   }
 
-  function handlePrint(archive: PlanningArchive) {
-    if (archive.pdf_url) {
-      const win = window.open(archive.pdf_url, '_blank')
-      if (win) { win.focus(); win.print() }
-    } else {
-      window.print()
-    }
+  async function handleDownload(archive: PlanningArchive) {
+    if (!archive.pdf_url) return
+    const url = await resolveSignedUrl(archive.pdf_url)
+    if (!url) { alert('Impossible de générer le lien de téléchargement.'); return }
+    window.open(url, '_blank')
   }
 
   return (
@@ -176,42 +188,30 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-2">
                           {/* Voir */}
-                          <button
-                            onClick={() => handleView(archive)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            Voir
-                          </button>
-
-                          {/* Imprimer */}
-                          <button
-                            onClick={() => handlePrint(archive)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                            </svg>
-                            Imprimer
-                          </button>
+                          {archive.pdf_url && (
+                            <button
+                              onClick={() => handleView(archive)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Voir
+                            </button>
+                          )}
 
                           {/* Télécharger PDF */}
                           {archive.pdf_url && (
-                            <a
-                              href={archive.pdf_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download
+                            <button
+                              onClick={() => handleDownload(archive)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               Télécharger PDF
-                            </a>
+                            </button>
                           )}
                         </div>
                       </td>
