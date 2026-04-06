@@ -1,96 +1,94 @@
 -- ============================================================
 -- RLS POLICIES — Musiam Planning
--- Allows full access via the anon key (no auth system yet).
--- Restrict to authenticated users once auth is in place.
+-- Seuls les utilisateurs authentifiés ont accès (auth requis).
 -- ============================================================
 
--- ============================================================
--- TEAMS
--- ============================================================
-DROP POLICY IF EXISTS "teams_select"  ON teams;
-DROP POLICY IF EXISTS "teams_insert"  ON teams;
-DROP POLICY IF EXISTS "teams_update"  ON teams;
-DROP POLICY IF EXISTS "teams_delete"  ON teams;
-
-CREATE POLICY "teams_select" ON teams FOR SELECT TO anon USING (true);
-CREATE POLICY "teams_insert" ON teams FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "teams_update" ON teams FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "teams_delete" ON teams FOR DELETE TO anon USING (true);
-
--- ============================================================
--- EMPLOYEES
--- ============================================================
-DROP POLICY IF EXISTS "employees_select" ON employees;
-DROP POLICY IF EXISTS "employees_insert" ON employees;
-DROP POLICY IF EXISTS "employees_update" ON employees;
-DROP POLICY IF EXISTS "employees_delete" ON employees;
-
-CREATE POLICY "employees_select" ON employees FOR SELECT TO anon USING (true);
-CREATE POLICY "employees_insert" ON employees FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "employees_update" ON employees FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "employees_delete" ON employees FOR DELETE TO anon USING (true);
+-- Supprimer TOUTES les anciennes politiques permissives
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT schemaname, tablename, policyname
+        FROM pg_policies
+        WHERE schemaname = 'public'
+    ) LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
+    END LOOP;
+END $$;
 
 -- ============================================================
--- EMPLOYEE_TEAMS
+-- SELECT : authenticated
 -- ============================================================
-DROP POLICY IF EXISTS "employee_teams_select" ON employee_teams;
-DROP POLICY IF EXISTS "employee_teams_insert" ON employee_teams;
-DROP POLICY IF EXISTS "employee_teams_update" ON employee_teams;
-DROP POLICY IF EXISTS "employee_teams_delete" ON employee_teams;
-
-CREATE POLICY "employee_teams_select" ON employee_teams FOR SELECT TO anon USING (true);
-CREATE POLICY "employee_teams_insert" ON employee_teams FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "employee_teams_update" ON employee_teams FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "employee_teams_delete" ON employee_teams FOR DELETE TO anon USING (true);
-
--- ============================================================
--- SHIFT_TEMPLATES
--- ============================================================
-DROP POLICY IF EXISTS "shift_templates_select" ON shift_templates;
-DROP POLICY IF EXISTS "shift_templates_insert" ON shift_templates;
-DROP POLICY IF EXISTS "shift_templates_update" ON shift_templates;
-DROP POLICY IF EXISTS "shift_templates_delete" ON shift_templates;
-
-CREATE POLICY "shift_templates_select" ON shift_templates FOR SELECT TO anon USING (true);
-CREATE POLICY "shift_templates_insert" ON shift_templates FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "shift_templates_update" ON shift_templates FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "shift_templates_delete" ON shift_templates FOR DELETE TO anon USING (true);
+CREATE POLICY "auth_select" ON teams FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON employees FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON employee_teams FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON shift_codes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON shift_templates FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON absence_codes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON schedules FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON leave_requests FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON users FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON job_functions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON planning_archives FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON staffing_structures FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON staffing_structure_positions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON annual_calendar FOR SELECT TO authenticated USING (true);
+CREATE POLICY "auth_select" ON cycle_schedules FOR SELECT TO authenticated USING (true);
 
 -- ============================================================
--- SCHEDULES
+-- INSERT : authenticated
 -- ============================================================
-DROP POLICY IF EXISTS "schedules_select" ON schedules;
-DROP POLICY IF EXISTS "schedules_insert" ON schedules;
-DROP POLICY IF EXISTS "schedules_update" ON schedules;
-DROP POLICY IF EXISTS "schedules_delete" ON schedules;
-
-CREATE POLICY "schedules_select" ON schedules FOR SELECT TO anon USING (true);
-CREATE POLICY "schedules_insert" ON schedules FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "schedules_update" ON schedules FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "schedules_delete" ON schedules FOR DELETE TO anon USING (true);
-
--- ============================================================
--- LEAVE_REQUESTS
--- ============================================================
-DROP POLICY IF EXISTS "leave_requests_select" ON leave_requests;
-DROP POLICY IF EXISTS "leave_requests_insert" ON leave_requests;
-DROP POLICY IF EXISTS "leave_requests_update" ON leave_requests;
-DROP POLICY IF EXISTS "leave_requests_delete" ON leave_requests;
-
-CREATE POLICY "leave_requests_select" ON leave_requests FOR SELECT TO anon USING (true);
-CREATE POLICY "leave_requests_insert" ON leave_requests FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "leave_requests_update" ON leave_requests FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "leave_requests_delete" ON leave_requests FOR DELETE TO anon USING (true);
+CREATE POLICY "auth_insert" ON teams FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON employees FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON employee_teams FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON shift_codes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON shift_templates FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON absence_codes FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON schedules FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON leave_requests FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON users FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON job_functions FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON planning_archives FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON staffing_structures FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON staffing_structure_positions FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON annual_calendar FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "auth_insert" ON cycle_schedules FOR INSERT TO authenticated WITH CHECK (true);
 
 -- ============================================================
--- USERS
+-- UPDATE : authenticated
 -- ============================================================
-DROP POLICY IF EXISTS "users_select" ON users;
-DROP POLICY IF EXISTS "users_insert" ON users;
-DROP POLICY IF EXISTS "users_update" ON users;
-DROP POLICY IF EXISTS "users_delete" ON users;
+CREATE POLICY "auth_update" ON teams FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON employees FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON employee_teams FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON shift_codes FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON shift_templates FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON absence_codes FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON schedules FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON leave_requests FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON users FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON job_functions FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON planning_archives FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON staffing_structures FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON staffing_structure_positions FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON annual_calendar FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "auth_update" ON cycle_schedules FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 
-CREATE POLICY "users_select" ON users FOR SELECT TO anon USING (true);
-CREATE POLICY "users_insert" ON users FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "users_update" ON users FOR UPDATE TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "users_delete" ON users FOR DELETE TO anon USING (true);
+-- ============================================================
+-- DELETE : authenticated
+-- ============================================================
+CREATE POLICY "auth_delete" ON teams FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON employees FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON employee_teams FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON shift_codes FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON shift_templates FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON absence_codes FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON schedules FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON leave_requests FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON users FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON job_functions FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON planning_archives FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON staffing_structures FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON staffing_structure_positions FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON annual_calendar FOR DELETE TO authenticated USING (true);
+CREATE POLICY "auth_delete" ON cycle_schedules FOR DELETE TO authenticated USING (true);

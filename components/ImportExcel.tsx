@@ -12,13 +12,35 @@ type Props<T extends ImportRow> = {
   label: string              // "codes horaires", "employés", etc.
 }
 
-function downloadTemplate(columns: string[], filename: string) {
-  const header = columns.join(',')
-  const blob = new Blob([header + '\n'], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url; a.download = filename; a.click()
-  URL.revokeObjectURL(url)
+async function downloadTemplate(columns: string[], filename: string) {
+  const XLSX = await import('xlsx')
+
+  // Feuille avec une ligne d'en-tête
+  const ws = XLSX.utils.aoa_to_sheet([columns])
+
+  // En-têtes en gras + fond gris clair
+  columns.forEach((_, c) => {
+    const ref = XLSX.utils.encode_cell({ r: 0, c })
+    if (!ws[ref]) ws[ref] = { v: columns[c], t: 's' }
+    ws[ref].s = {
+      font: { bold: true, color: { rgb: '1E293B' } },
+      fill: { fgColor: { rgb: 'E2E8F0' }, patternType: 'solid' },
+      alignment: { horizontal: 'center' },
+      border: {
+        bottom: { style: 'thin', color: { rgb: '94A3B8' } },
+      },
+    }
+  })
+
+  // Largeur automatique : max(longueur colonne + marge, 10)
+  ws['!cols'] = columns.map(col => ({ wch: Math.max(col.length + 4, 10) }))
+
+  // Figer la première ligne
+  ws['!views'] = [{ state: 'frozen', ySplit: 1 }]
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Modèle')
+  XLSX.writeFile(wb, filename, { cellStyles: true })
 }
 
 export default function ImportExcel<T extends ImportRow>({
@@ -69,7 +91,7 @@ export default function ImportExcel<T extends ImportRow>({
       </button>
 
       <button onClick={() => downloadTemplate(columns, templateFilename)}
-        title="Télécharger le modèle CSV"
+        title="Télécharger le modèle Excel"
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-emerald-200 bg-emerald-50 rounded-lg hover:bg-emerald-100 text-emerald-700 transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

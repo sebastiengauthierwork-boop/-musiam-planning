@@ -1,11 +1,14 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Team = {
   id: string
   name: string
+  cdpf: string | null
   type: 'point_de_vente' | 'metier'
   description: string | null
   created_at: string
@@ -15,11 +18,12 @@ type TeamWithCount = Team & { employeeCount: number }
 
 type FormData = {
   name: string
+  cdpf: string
   type: 'point_de_vente' | 'metier'
   description: string
 }
 
-const emptyForm: FormData = { name: '', type: 'point_de_vente', description: '' }
+const emptyForm: FormData = { name: '', cdpf: '', type: 'point_de_vente', description: '' }
 
 export default function EquipesPage() {
   const [teams, setTeams] = useState<TeamWithCount[]>([])
@@ -60,7 +64,7 @@ export default function EquipesPage() {
 
   function openEdit(team: Team) {
     setEditingTeam(team)
-    setFormData({ name: team.name, type: team.type, description: team.description ?? '' })
+    setFormData({ name: team.name, cdpf: team.cdpf ?? '', type: team.type, description: team.description ?? '' })
     setShowModal(true)
   }
 
@@ -70,6 +74,7 @@ export default function EquipesPage() {
     try {
       const payload = {
         name: formData.name.trim(),
+        cdpf: formData.cdpf.trim() || null,
         type: formData.type,
         description: formData.description.trim() || null,
       }
@@ -122,6 +127,7 @@ export default function EquipesPage() {
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">CDPF</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
               <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employés</th>
@@ -131,12 +137,13 @@ export default function EquipesPage() {
           <tbody className="divide-y divide-gray-100">
             {teams.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-gray-400">Aucune équipe</td>
+                <td colSpan={6} className="px-5 py-10 text-center text-gray-400">Aucune équipe</td>
               </tr>
             )}
             {teams.map((team) => (
               <tr key={team.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-5 py-3.5 font-medium text-gray-900">{team.name}</td>
+                <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{team.cdpf ?? <span className="text-gray-300">—</span>}</td>
                 <td className="px-5 py-3.5"><TypeBadge type={team.type} /></td>
                 <td className="px-5 py-3.5 text-gray-500 max-w-xs truncate">{team.description ?? '—'}</td>
                 <td className="px-5 py-3.5 text-right text-gray-600">{team.employeeCount}</td>
@@ -172,6 +179,15 @@ export default function EquipesPage() {
                 className="input"
                 placeholder="Café Richelieu"
                 autoFocus
+              />
+            </Field>
+            <Field label="CDPF">
+              <input
+                type="text"
+                value={formData.cdpf}
+                onChange={(e) => setFormData({ ...formData, cdpf: e.target.value })}
+                className="input font-mono"
+                placeholder="9603-10"
               />
             </Field>
             <Field label="Type *">

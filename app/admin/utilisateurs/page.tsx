@@ -1,8 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState, Fragment } from 'react'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { teamLabel } from '@/lib/teamUtils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,6 +14,7 @@ import { supabase } from '@/lib/supabase'
 interface Team {
   id: string
   name: string
+  cdpf: string | null
 }
 
 interface AppUser {
@@ -82,7 +86,7 @@ export default function UtilisateursPage() {
     setError(null)
     const [usersRes, teamsRes] = await Promise.all([
       supabase.from('users').select('*').order('email'),
-      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('teams').select('id, name, cdpf').order('name'),
     ])
     if (usersRes.error) {
       setError(usersRes.error.message)
@@ -180,7 +184,7 @@ export default function UtilisateursPage() {
       // must be created via the Supabase Dashboard or a server-side function.
       // Here we only insert/upsert the profile row in the public users table.
       if (!form.email.trim()) {
-        setModalError('L'adresse e-mail est requise.')
+        setModalError("L'adresse e-mail est requise.")
         setSaving(false)
         return
       }
@@ -241,7 +245,8 @@ export default function UtilisateursPage() {
   // -------------------------------------------------------------------------
 
   function teamName(id: string): string {
-    return teams.find((t) => t.id === id)?.name ?? id.slice(0, 8)
+    const t = teams.find((t) => t.id === id)
+    return t ? teamLabel(t) : id.slice(0, 8)
   }
 
   // -------------------------------------------------------------------------
@@ -393,7 +398,7 @@ export default function UtilisateursPage() {
           {/* Panel */}
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl p-7">
             <h2 className="text-lg font-semibold text-slate-900 mb-5">
-              {modalMode === 'add' ? 'Ajouter un utilisateur' : 'Modifier l'utilisateur'}
+              {modalMode === 'add' ? 'Ajouter un utilisateur' : "Modifier l'utilisateur"}
             </h2>
 
             <div className="space-y-4">
@@ -461,7 +466,7 @@ export default function UtilisateursPage() {
                             className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
                           />
                           <span className="text-sm text-slate-700 group-hover:text-slate-900 transition-colors">
-                            {team.name}
+                            {teamLabel(team)}
                           </span>
                         </label>
                       ))}

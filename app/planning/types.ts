@@ -27,6 +27,7 @@ export type ShiftCode = {
   end_time: string | null
   break_minutes: number
   net_hours: number | null
+  paid_hours: number | null
 }
 
 export type AbsenceCode = {
@@ -50,7 +51,7 @@ export type Schedule = {
   notes: string | null
 }
 
-export type Team = { id: string; name: string; type: string }
+export type Team = { id: string; name: string; cdpf: string | null; type: string }
 
 export type TabProps = {
   employees: Employee[]

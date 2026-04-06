@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
@@ -243,6 +243,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     for (const s of schedules) { if (s.code) m[`${s.employee_id}|${s.date}`] = s.code }
     return m
   })
+  // Ref toujours à jour — permet à saveCell de lire la dernière valeur sans être dans ses deps
+  const cellValuesRef = useRef(cellValues)
+  cellValuesRef.current = cellValues
   const [cellStatus, setCellStatus] = useState<Record<string, CellStatus>>({})
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -263,7 +266,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   // ── Save ──────────────────────────────────────────────────────────────────
   const saveCell = useCallback(async (empId: string, dateStr: string, code: string) => {
     const key = `${empId}|${dateStr}`
-    const prevCode = cellValues[key] ?? ''
+    const prevCode = cellValuesRef.current[key] ?? ''
     if (code === prevCode) return
 
     setCellValues(cur => { const n = { ...cur }; if (code) n[key] = code; else delete n[key]; return n })
@@ -304,7 +307,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         return cur
       }), 6000)
     }
-  }, [cellValues, shiftCodes, absenceCodes, teamId])
+  }, [shiftCodes, absenceCodes, teamId])
 
   // ── Archivage ─────────────────────────────────────────────────────────────
   async function archivePlanning() {
@@ -460,7 +463,49 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       })
   }, [calendarDays])
 
-  // ── Stats par jour (requis vs présents, avec logique renfort) ────────────
+  const DAY_LETTER = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+
+  // ── Codes filtrés par équipe — mémoïsé, recalculé seulement si shiftCodes/teamId changent
+  const teamShiftCodes = useMemo(
+    () => shiftCodes.filter(c => c.team_id === teamId || c.team_id === null),
+    [shiftCodes, teamId]
+  )
+
+  // ── Codes horaires uniques présents dans les structures du mois
+  const monthCodes = useMemo(() => {
+    const seen = new Set<string>()
+    const codes: string[] = []
+    for (const dateStr of Object.keys(calStructureIdMap)) {
+      const sid = calStructureIdMap[dateStr]
+      for (const p of (structurePositions[sid] ?? [])) {
+        if (!seen.has(p.position_name)) { seen.add(p.position_name); codes.push(p.position_name) }
+      }
+    }
+    return codes.sort()
+  }, [calStructureIdMap, structurePositions])
+
+  // ── Totaux mensuels par employé — recalculé uniquement si cellValues/shiftCodes/teamId changent
+  const empMonthlyTotals = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const emp of employees) {
+      map[emp.id] = days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
+    }
+    return map
+  }, [cellValues, employees, days, shiftCodes, teamId])
+
+  // ── Totaux journaliers par date
+  const dayTotals = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const d of days) {
+      const dateStr = toISO(d)
+      map[dateStr] = employees.reduce((s, e) => s + getPaidHours(cellValues[`${e.id}|${dateStr}`], shiftCodes, teamId), 0)
+    }
+    return map
+  }, [cellValues, employees, days, shiftCodes, teamId])
+
+  function monthlyLimit(emp: Employee): number { return (emp.weekly_contract_hours ?? 35) * 52 / 12 }
+
+  // ── Stats par jour (requis vs présents)
   function getDayStats(dateStr: string) {
     const structId = calStructureIdMap[dateStr] ?? null
     const positions = structId ? (structurePositions[structId] ?? []) : []
@@ -484,40 +529,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     return { required, presents, ecart: presents - required, byCode, hasStructure: !!structId }
   }
 
-  // Codes horaires uniques présents dans au moins une structure ce mois
-  const monthCodes: string[] = []
-  {
-    const seen = new Set<string>()
-    for (const dateStr of Object.keys(calStructureIdMap)) {
-      const sid = calStructureIdMap[dateStr]
-      for (const p of (structurePositions[sid] ?? [])) {
-        if (!seen.has(p.position_name)) { seen.add(p.position_name); monthCodes.push(p.position_name) }
-      }
-    }
-    monthCodes.sort()
-  }
-
-  // ── Présents par jour ─────────────────────────────────────────────────────
   function dayPresents(dateStr: string): number {
     return employees.filter(e => {
       const code = cellValues[`${e.id}|${dateStr}`]
       return code ? shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null)) : false
     }).length
   }
-
-  // ── Totals ────────────────────────────────────────────────────────────────
-  function empMonthlyH(empId: string): number {
-    return days.reduce((s, d) => s + getPaidHours(cellValues[`${empId}|${toISO(d)}`], shiftCodes, teamId), 0)
-  }
-  function dayTotalH(dateStr: string): number {
-    return employees.reduce((s, e) => s + getPaidHours(cellValues[`${e.id}|${dateStr}`], shiftCodes, teamId), 0)
-  }
-  function monthlyLimit(emp: Employee): number { return (emp.weekly_contract_hours ?? 35) * 52 / 12 }
-
-  const DAY_LETTER = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
-
-  // Codes filtrés par équipe courante (pour les suggestions de l'autocomplétion)
-  const teamShiftCodes = shiftCodes.filter(c => c.team_id === teamId || c.team_id === null)
 
   // Séparation principaux / renforts
   const primaryEmployees = employees.filter(e => e.is_primary !== false)
@@ -773,7 +790,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
             {[...primaryEmployees, ...secondaryEmployees].map((emp, globalIdx) => {
               // Insert "Renforts" separator before first secondary employee
               const isFirstRenfort = emp.is_primary === false && (globalIdx === 0 || employees[globalIdx - 1]?.is_primary !== false)
-              const monthH = empMonthlyH(emp.id)
+              const monthH = empMonthlyTotals[emp.id] ?? 0
               const limit = monthlyLimit(emp)
               const over = monthH > limit + 0.5
               const isRenfort = emp.is_primary === false
@@ -858,7 +875,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               </td>
               {days.map(d => {
                 const dateStr = toISO(d)
-                const h = dayTotalH(dateStr)
+                const h = dayTotals[dateStr] ?? 0
                 const isWE = d.getDay() === 0 || d.getDay() === 6
                 return (
                   <td key={dateStr}
@@ -877,7 +894,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 )
               })}
               <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-200 px-2 py-1.5 text-center font-bold text-gray-700">
-                {fmtH(days.reduce((s, d) => s + dayTotalH(toISO(d)), 0))}
+                {fmtH(Object.values(dayTotals).reduce((s, h) => s + h, 0))}
               </td>
             </tr>
           </tfoot>

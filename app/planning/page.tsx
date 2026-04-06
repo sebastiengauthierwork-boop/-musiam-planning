@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, CalendarDay, Employee, Schedule, ShiftCode, Team } from './types'
+import { teamLabel } from '@/lib/teamUtils'
 import TabSaisie from './TabSaisie'
 import TabPlanning from './TabPlanning'
 import TabCompteur from './TabCompteur'
@@ -26,7 +27,7 @@ type TabId = typeof TABS[number]['id']
 
 export default function PlanningPage() {
   const now = new Date()
-  const { role, allowedTeams } = useAuth()
+  const { role, allowedTeams, loading: authLoading } = useAuth()
   const [teamId, setTeamId]     = useState<string>('')
   const [month, setMonth]       = useState(now.getMonth())
   const [year, setYear]         = useState(now.getFullYear())
@@ -42,15 +43,15 @@ export default function PlanningPage() {
   const [isArchived, setIsArchived]   = useState(false)
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
 
-  // Load teams + codes — re-run if role/allowedTeams change (auth resolves after mount)
+  // Load teams + codes — attend que l'auth soit résolue pour éviter un double-fetch
   useEffect(() => {
+    if (authLoading) return
     Promise.all([
-      supabase.from('teams').select('id, name, type').order('name'),
-      supabase.from('shift_codes').select('*').order('code'),
-      supabase.from('absence_codes').select('*').order('code'),
+      supabase.from('teams').select('id, name, cdpf, type').order('name'),
+      supabase.from('shift_codes').select('id, code, label, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
+      supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
       let t = tRes.data ?? []
-      // Filtrer les équipes selon le rôle (managers ne voient que leurs équipes autorisées)
       if (role === 'manager' && allowedTeams.length > 0) {
         t = t.filter(team => allowedTeams.includes(team.id))
       }
@@ -59,7 +60,7 @@ export default function PlanningPage() {
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
     })
-  }, [role, allowedTeams])
+  }, [role, allowedTeams, authLoading])
 
   const loadEmployeesAndSchedules = useCallback(async () => {
     if (!teamId) return
@@ -79,8 +80,12 @@ export default function PlanningPage() {
           .from('employee_teams')
           .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active)')
           .eq('team_id', teamId),
-        supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate),
-        // Vérification archive — toujours exécutée, succès ou échec des autres requêtes
+        supabase
+          .from('schedules')
+          .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
+          .eq('team_id', teamId)
+          .gte('date', startDate)
+          .lte('date', endDate),
         supabase
           .from('planning_archives')
           .select('archived_at')
@@ -128,9 +133,8 @@ export default function PlanningPage() {
         return a.last_name.localeCompare(b.last_name)
       })
 
-      const empIds = new Set(empList.map(e => e.id))
       setEmployees(empList)
-      setSchedules((schedRes.data ?? []).filter(s => empIds.has(s.employee_id)))
+      setSchedules(schedRes.data ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -150,7 +154,8 @@ export default function PlanningPage() {
     prevTabRef.current = tab
   }, [tab, loadEmployeesAndSchedules])
 
-  const currentTeamName = teams.find(t => t.id === teamId)?.name ?? ''
+  const currentTeam = teams.find(t => t.id === teamId)
+  const currentTeamName = currentTeam ? teamLabel(currentTeam) : ''
 
   const tabProps = {
     employees,
@@ -173,6 +178,18 @@ export default function PlanningPage() {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i)
 
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+        <svg className="animate-spin h-5 w-5 mr-2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+        Chargement…
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* ── Top bar ── */}
@@ -182,7 +199,7 @@ export default function PlanningPage() {
         {/* Team */}
         <select value={teamId} onChange={e => setTeamId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
-          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {teams.map(t => <option key={t.id} value={t.id}>{teamLabel(t)}</option>)}
         </select>
 
         {/* Month */}

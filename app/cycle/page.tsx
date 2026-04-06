@@ -1,9 +1,12 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { teamLabel } from '@/lib/teamUtils'
 
-type Team = { id: string; name: string }
+type Team = { id: string; name: string; cdpf: string | null }
 type Employee = { id: string; first_name: string; last_name: string; fonction: string | null }
 type ShiftCode = { id: string; code: string; label: string; start_time: string | null; end_time: string | null; net_hours: number | null }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
@@ -41,7 +44,7 @@ export default function CyclePage() {
   // Load teams + codes once
   useEffect(() => {
     Promise.all([
-      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('teams').select('id, name, cdpf').order('name'),
       supabase.from('shift_codes').select('id, code, label, start_time, end_time, net_hours').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
@@ -200,7 +203,7 @@ export default function CyclePage() {
         <h1 className="text-lg font-bold text-gray-900 mr-2">Cycles / Rotations</h1>
         <select value={teamId} onChange={e => setTeamId(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
-          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {teams.map(t => <option key={t.id} value={t.id}>{teamLabel(t)}</option>)}
         </select>
         {saving && <span className="text-xs text-blue-400 animate-pulse">Sauvegarde…</span>}
         <div className="ml-auto flex items-center gap-3">

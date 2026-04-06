@@ -1,9 +1,12 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { decimalToHMin, hMinToDecimal } from '@/lib/timeUtils'
 import ImportExcel from '@/components/ImportExcel'
+import { teamLabel } from '@/lib/teamUtils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -16,7 +19,7 @@ type ShiftCode = {
   meal_included: boolean
 }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
-type TeamOption = { id: string; name: string }
+type TeamOption = { id: string; name: string; cdpf: string | null }
 type JobFunction = { id: string; name: string; is_active: boolean }
 
 type ShiftForm = {
@@ -139,7 +142,7 @@ function CodesHoraires() {
   async function load() {
     const [codesRes, teamsRes] = await Promise.all([
       supabase.from('shift_codes').select('*').order('code'),
-      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('teams').select('id, name, cdpf').order('name'),
     ])
     setCodes(codesRes.data ?? [])
     setTeams(teamsRes.data ?? [])
@@ -188,8 +191,6 @@ function CodesHoraires() {
     setSaving(true); setSaveError(null)
     const ph = form.paid_hours ? hMinToDecimal(form.paid_hours) : null
     const dressMin = parseInt(form.dressing_minutes) || 0
-    // net_hours = heures travail effectif = payées − habillage (en centièmes)
-    const netHours = ph != null ? Math.round((ph - dressMin / 60) * 10000) / 10000 : null
     const payload = {
       code: form.code.trim().toUpperCase(),
       label: form.label.trim(),
@@ -198,7 +199,6 @@ function CodesHoraires() {
       location_prefix: null,
       paid_hours: ph,
       target_hours: ph,
-      net_hours: netHours,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
       arrival_time: form.arrival_time || null,
@@ -243,7 +243,7 @@ function CodesHoraires() {
         <div className="flex items-center gap-2">
           <ImportExcel
             label="codes horaires"
-            templateFilename="modele_codes_horaires.csv"
+            templateFilename="modele_codes_horaires.xlsx"
             columns={['code','label','team_id','paid_hours','start_time','break_minutes','dressing_minutes','meal_included']}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
@@ -260,7 +260,6 @@ function CodesHoraires() {
                 await supabase.from('shift_codes').upsert({
                   code: String(r.code).trim().toUpperCase(), label: String(r.label).trim(),
                   team_id: r.team_id || null, paid_hours: ph, target_hours: ph,
-                  net_hours: ph != null ? Math.round((ph - dress / 60) * 10000) / 10000 : null,
                   start_time: r.start_time || null, break_minutes: parseInt(String(r.break_minutes ?? 0)) || 0,
                   dressing_minutes: dress, meal_included: String(r.meal_included).toLowerCase() === 'true' || r.meal_included === 1,
                   pause_minutes: 0,
@@ -291,7 +290,8 @@ function CodesHoraires() {
               <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400">Aucun code horaire</td></tr>
             )}
             {codes.map(c => {
-              const teamName = teams.find(t => t.id === c.team_id)?.name
+              const teamOption = teams.find(t => t.id === c.team_id)
+              const teamName = teamOption ? teamLabel(teamOption) : undefined
               return (
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-3 py-2.5">
@@ -357,7 +357,7 @@ function CodesHoraires() {
             <Field label="Équipe" hint="Laisser vide = code commun à toutes les équipes">
               <select value={form.team_id} onChange={e => updateForm({ team_id: e.target.value })} className="input">
                 <option value="">— Toutes les équipes —</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teams.map(t => <option key={t.id} value={t.id}>{teamLabel(t)}</option>)}
               </select>
             </Field>
 
@@ -506,7 +506,7 @@ function CodesAbsence() {
         <div className="flex items-center gap-2">
           <ImportExcel
             label="codes absence"
-            templateFilename="modele_codes_absence.csv"
+            templateFilename="modele_codes_absence.xlsx"
             columns={['code','label','is_paid']}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
@@ -1246,7 +1246,7 @@ function Fonctions() {
         <div className="flex items-center gap-2">
           <ImportExcel
             label="fonctions"
-            templateFilename="modele_fonctions.csv"
+            templateFilename="modele_fonctions.xlsx"
             columns={['name']}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
@@ -1364,7 +1364,7 @@ function Calendrier() {
   // Load teams + structures once
   useEffect(() => {
     Promise.all([
-      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('teams').select('id, name, cdpf').order('name'),
       supabase.from('staffing_structures').select('id, name').order('name'),
     ]).then(([tRes, sRes]) => {
       const tList = tRes.data ?? []

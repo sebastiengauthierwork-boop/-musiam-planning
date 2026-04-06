@@ -1,7 +1,10 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { teamLabel } from '@/lib/teamUtils'
 
 type Stats = {
   teamCount: number
@@ -12,6 +15,7 @@ type Stats = {
 type TeamSummary = {
   id: string
   name: string
+  cdpf: string | null
   type: 'point_de_vente' | 'metier'
   employeeCount: number
 }
@@ -28,7 +32,7 @@ export default function TableauDeBord() {
         const today = new Date().toISOString().split('T')[0]
 
         const [teamsRes, employeesRes, shiftsRes, etRes] = await Promise.all([
-          supabase.from('teams').select('id, name, type').order('name'),
+          supabase.from('teams').select('id, name, cdpf, type').order('name'),
           supabase.from('employees').select('id', { count: 'exact' }).eq('is_active', true),
           supabase.from('schedules').select('id', { count: 'exact' }).eq('date', today).eq('type', 'shift'),
           supabase.from('employee_teams').select('team_id'),
@@ -123,7 +127,7 @@ export default function TableauDeBord() {
             <tbody className="divide-y divide-gray-100">
               {teams.map((team) => (
                 <tr key={team.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-gray-900">{team.name}</td>
+                  <td className="px-5 py-3.5 font-medium text-gray-900">{teamLabel(team)}</td>
                   <td className="px-5 py-3.5">
                     <TypeBadge type={team.type} />
                   </td>

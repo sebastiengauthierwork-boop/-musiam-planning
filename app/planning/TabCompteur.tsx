@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Employee, Schedule, TabProps, Team } from './types'
+import { teamLabel } from '@/lib/teamUtils'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -48,7 +49,11 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
       // Load ALL schedules for the month regardless of team
-      const schedRes = await supabase.from('schedules').select('*').gte('date', startDate).lte('date', endDate)
+      const schedRes = await supabase
+        .from('schedules')
+        .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
+        .gte('date', startDate)
+        .lte('date', endDate)
       const allSchedules: Schedule[] = schedRes.data ?? []
 
       const newMap: Record<string, TeamData> = {}
@@ -164,23 +169,56 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
   }
 
   // ─── Excel export ──────────────────────────────────────────────────────────
+
+  /** Applique gras + fond gris sur la ligne r de la feuille ws (n colonnes). */
+  function styleHeader(XLSX: any, ws: any, r: number, ncols: number) {
+    for (let c = 0; c < ncols; c++) {
+      const ref = XLSX.utils.encode_cell({ r, c })
+      if (!ws[ref]) continue
+      ws[ref].s = {
+        font: { bold: true, color: { rgb: '1E293B' } },
+        fill: { fgColor: { rgb: 'E2E8F0' }, patternType: 'solid' },
+        alignment: { horizontal: c === 0 ? 'left' : 'center' },
+        border: { bottom: { style: 'thin', color: { rgb: '94A3B8' } } },
+      }
+    }
+  }
+
+  /** Calcule la largeur max d'une colonne parmi toutes les lignes. */
+  function colWidths(rows: any[][]): { wch: number }[] {
+    if (!rows.length) return []
+    const ncols = Math.max(...rows.map(r => r.length))
+    return Array.from({ length: ncols }, (_, c) => ({
+      wch: Math.max(
+        ...rows.map(r => String(r[c] ?? '').length),
+        10
+      ) + 2,
+    }))
+  }
+
   async function handleExportExcel() {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
 
     // ── Sheet 1: Résumé par jour ──
     const summaryRows: any[][] = []
+    const summaryHeaderRows: number[] = [] // indices des lignes d'en-tête à styler
+
     for (const tid of selectedTeamIds) {
       const team = teams.find(t => t.id === tid)
-      summaryRows.push([`Équipe : ${team?.name ?? tid}`])
+      // Titre équipe
+      summaryRows.push([`Équipe : ${team ? teamLabel(team) : tid}`])
+      // En-tête
+      summaryHeaderRows.push(summaryRows.length)
       summaryRows.push(['Jour', 'Total heures', 'Nb personnes', 'Moy h/personne'])
+
       let teamTotalH = 0; let teamTotalPersons = 0
       for (const d of days) {
         const dateStr = toISO(d)
         const { total, nbPersonnes } = getDayHoursForTeam(tid, dateStr)
         const moy = nbPersonnes > 0 ? total / nbPersonnes : 0
         summaryRows.push([
-          `${d.getDate()} ${MONTHS[d.getMonth()].slice(0,3)}`,
+          `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`,
           total > 0 ? parseFloat(fmtDecimal(total) || '0') : 0,
           nbPersonnes,
           moy > 0 ? parseFloat((Math.round(moy * 100) / 100).toFixed(2)) : 0,
@@ -189,23 +227,30 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
       }
       const avgPersons = days.length > 0 ? teamTotalPersons / days.length : 0
       summaryRows.push([
-        'Total',
+        'TOTAL',
         parseFloat(fmtDecimal(teamTotalH) || '0'),
         teamTotalPersons,
         avgPersons > 0 ? parseFloat((Math.round(avgPersons * 100) / 100).toFixed(2)) : 0,
       ])
-      summaryRows.push([]) // spacer
+      summaryRows.push([])
     }
     const ws1 = XLSX.utils.aoa_to_sheet(summaryRows)
+    ws1['!cols'] = colWidths(summaryRows)
+    ws1['!views'] = [{ state: 'frozen', ySplit: 1 }]
+    summaryHeaderRows.forEach(r => styleHeader(XLSX, ws1, r, 4))
     XLSX.utils.book_append_sheet(wb, ws1, 'Résumé par jour')
 
     // ── Sheet 2: Détail salariés ──
     const detailRows: any[][] = []
+    const detailHeaderRows: number[] = []
+
     for (const tid of selectedTeamIds) {
       const team = teams.find(t => t.id === tid)
-      detailRows.push([`Détail par salarié — ${team?.name ?? tid}`])
+      detailRows.push([`Détail par salarié — ${team ? teamLabel(team) : tid}`])
+      detailHeaderRows.push(detailRows.length)
       const header = ['Salarié', ...days.map(d => d.getDate()), 'Total']
       detailRows.push(header)
+
       const activeEmps = getActiveEmpsForTeam(tid)
       const dayTotals = new Array(days.length).fill(0)
       let grandTotal = 0
@@ -222,15 +267,22 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
         grandTotal += empTotal
         detailRows.push(row)
       }
-      // Total row
-      const totalRow: any[] = ['Total', ...dayTotals.map(h => h > 0 ? parseFloat(fmtDecimal(h) || '0') : ''), parseFloat(fmtDecimal(grandTotal) || '0')]
+      const totalRow: any[] = ['TOTAL', ...dayTotals.map(h => h > 0 ? parseFloat(fmtDecimal(h) || '0') : ''), parseFloat(fmtDecimal(grandTotal) || '0')]
       detailRows.push(totalRow)
-      detailRows.push([]) // spacer
+      detailRows.push([])
     }
     const ws2 = XLSX.utils.aoa_to_sheet(detailRows)
+    ws2['!cols'] = colWidths(detailRows)
+    ws2['!views'] = [{ state: 'frozen', ySplit: 1 }]
+    detailHeaderRows.forEach(r => styleHeader(XLSX, ws2, r, days.length + 2))
     XLSX.utils.book_append_sheet(wb, ws2, 'Détail salariés')
 
-    XLSX.writeFile(wb, `compteur-heures-${MONTHS[month].toLowerCase()}-${year}.xlsx`)
+    // Nom de fichier : compteur_heures_[equipe(s)]_[mois]_[annee].xlsx
+    const teamSlug = selectedTeamIds.length === 1
+      ? (teams.find(t => t.id === selectedTeamIds[0])?.name ?? 'equipe')
+          .toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+      : `${selectedTeamIds.length}-equipes`
+    XLSX.writeFile(wb, `compteur_heures_${teamSlug}_${MONTHS[month].toLowerCase()}_${year}.xlsx`, { cellStyles: true })
   }
 
   const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6
@@ -257,7 +309,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
               onChange={() => toggleTeam(t.id)}
               className="accent-slate-700"
             />
-            {t.name}
+            {teamLabel(t)}
           </label>
         ))}
 
@@ -299,7 +351,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                   return (
                     <div key={tid} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
                       <div className="px-4 py-2.5 bg-slate-800 text-slate-100 text-xs font-semibold uppercase tracking-wider">
-                        {team?.name ?? tid}
+                        {team ? teamLabel(team) : tid}
                       </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs border-collapse">
@@ -371,7 +423,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                   return (
                     <div key={tid} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
                       <div className="px-4 py-2.5 bg-slate-800 text-slate-100 text-xs font-semibold">
-                        Détail par salarié — {team?.name ?? tid}
+                        Détail par salarié — {team ? teamLabel(team) : tid}
                       </div>
 
                       {activeEmps.length === 0 ? (

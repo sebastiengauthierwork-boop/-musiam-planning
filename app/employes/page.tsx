@@ -1,8 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import ImportExcel from '@/components/ImportExcel'
+import { teamLabel } from '@/lib/teamUtils'
 
 type Employee = {
   id: string
@@ -21,11 +24,11 @@ type Employee = {
   created_at: string
 }
 
-type Team = { id: string; name: string }
+type Team = { id: string; name: string; cdpf: string | null }
 type JobFunction = { id: string; name: string; is_active: boolean }
 
 type EmployeeWithTeams = Employee & {
-  teams: { team_id: string; name: string; is_primary: boolean }[]
+  teams: { team_id: string; name: string; cdpf: string | null; is_primary: boolean }[]
 }
 
 type FormData = {
@@ -74,19 +77,20 @@ export default function EmployesPage() {
   async function loadData() {
     const [empRes, etRes, teamsRes, fnRes] = await Promise.all([
       supabase.from('employees').select('*').order('last_name'),
-      supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name)'),
-      supabase.from('teams').select('id, name').order('name'),
+      supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)'),
+      supabase.from('teams').select('id, name, cdpf').order('name'),
       supabase.from('job_functions').select('id, name, is_active').eq('is_active', true).order('name'),
     ])
 
     if (empRes.error) { setError(empRes.error.message); return }
 
-    const teamsByEmployee: Record<string, { team_id: string; name: string; is_primary: boolean }[]> = {}
+    const teamsByEmployee: Record<string, { team_id: string; name: string; cdpf: string | null; is_primary: boolean }[]> = {}
     for (const et of (etRes.data ?? []) as any[]) {
       if (!teamsByEmployee[et.employee_id]) teamsByEmployee[et.employee_id] = []
       teamsByEmployee[et.employee_id].push({
         team_id: et.team_id,
         name: et.teams?.name ?? '',
+        cdpf: et.teams?.cdpf ?? null,
         is_primary: et.is_primary,
       })
     }
@@ -201,7 +205,7 @@ export default function EmployesPage() {
         <div className="flex items-center gap-2">
           <ImportExcel
             label="employés"
-            templateFilename="modele_employes.csv"
+            templateFilename="modele_employes.xlsx"
             columns={['last_name','first_name','email','phone','contract_type','statut','fonction','weekly_contract_hours','matricule','work_days_per_week','equipe_principale','equipe_secondaire']}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
@@ -308,7 +312,7 @@ export default function EmployesPage() {
                     {emp.teams.length === 0 && <span className="text-gray-400">—</span>}
                     {emp.teams.map((t) => (
                       <span key={t.team_id} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.is_primary ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-500'}`}>
-                        {t.name}
+                        {teamLabel(t)}
                       </span>
                     ))}
                   </div>
@@ -412,7 +416,7 @@ export default function EmployesPage() {
                   <label key={team.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
                     <input type="checkbox" checked={formData.selectedTeamIds.includes(team.id)} onChange={() => toggleTeam(team.id)} className="rounded border-gray-300 text-slate-900" />
                     <span className="text-sm text-gray-700">
-                      {team.name}
+                      {teamLabel(team)}
                       {formData.selectedTeamIds[0] === team.id && (
                         <span className="ml-2 text-xs text-slate-500">(principale)</span>
                       )}

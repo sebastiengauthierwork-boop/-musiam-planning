@@ -8,7 +8,16 @@
       "Bash(cat:*)",
       "Bash(npm install:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(Get-Content \"C:\\\\Users\\\\sebas\\\\musiam-planning\\\\supabase\\\\migration_v2.sql\")",
+      "Bash(Set-Clipboard)",
+      "Bash(powershell.exe -Command \"Get-Content 'C:\\\\\\\\Users\\\\\\\\sebas\\\\\\\\musiam-planning\\\\\\\\supabase\\\\\\\\migration_v2.sql' | Set-Clipboard\")",
+      "Bash(npm run:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(fuser -k 3000/tcp)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(node:*)",
+      "Bash(grep -l \"force-dynamic\" app/**/*.tsx app/*.tsx)"
     ]
   }
 }

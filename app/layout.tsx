@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import localFont from "next/font/local"
 import "./globals.css"
-import Sidebar from "@/components/Sidebar"
+import AppShell from "@/components/AppShell"
 import { AuthProvider } from "@/lib/auth"
 
 const geistSans = localFont({
@@ -27,12 +27,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-y-auto bg-gray-50">
-              {children}
-            </main>
-          </div>
+          <AppShell>{children}</AppShell>
         </AuthProvider>
       </body>
     </html>
