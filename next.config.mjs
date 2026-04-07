@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   experimental: {
     // Désactiver le Router Cache côté client pour les pages dynamiques.
     // Sans ça, Next.js 14.2 sert le HTML en cache lors des navigations SPA

@@ -17,7 +17,11 @@
       "Bash(fuser -k 3000/tcp)",
       "Bash(taskkill /F /IM node.exe)",
       "Bash(node:*)",
-      "Bash(grep -l \"force-dynamic\" app/**/*.tsx app/*.tsx)"
+      "Bash(grep -l \"force-dynamic\" app/**/*.tsx app/*.tsx)",
+      "Bash(gh --version)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)"
     ]
   }
 }
