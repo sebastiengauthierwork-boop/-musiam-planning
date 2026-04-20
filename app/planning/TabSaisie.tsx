@@ -453,7 +453,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     supabase.from('staffing_structure_positions')
       .select('structure_id, position_name, required_count')
       .in('structure_id', usedIds)
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         const map: Record<string, { position_name: string; required_count: number }[]> = {}
         for (const row of (data ?? [])) {
           if (!map[row.structure_id]) map[row.structure_id] = []

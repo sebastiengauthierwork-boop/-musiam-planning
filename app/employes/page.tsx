@@ -95,7 +95,7 @@ export default function EmployesPage() {
       })
     }
 
-    setEmployees((empRes.data ?? []).map((emp) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })))
+    setEmployees((empRes.data ?? []).map((emp: any) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })))
     setAllTeams(teamsRes.data ?? [])
     setJobFunctions(fnRes.data ?? [])
   }

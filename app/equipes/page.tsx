@@ -48,7 +48,7 @@ export default function EquipesPage() {
     }
 
     setTeams(
-      (teamsRes.data ?? []).map((t) => ({ ...t, employeeCount: countByTeam[t.id] ?? 0 }))
+      (teamsRes.data ?? []).map((t: any) => ({ ...t, employeeCount: countByTeam[t.id] ?? 0 }))
     )
   }
 

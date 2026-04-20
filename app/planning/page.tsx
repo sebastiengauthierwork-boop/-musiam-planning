@@ -53,10 +53,10 @@ export default function PlanningPage() {
     ]).then(([tRes, scRes, acRes]) => {
       let t = tRes.data ?? []
       if (role === 'manager' && allowedTeams.length > 0) {
-        t = t.filter(team => allowedTeams.includes(team.id))
+        t = t.filter((team: any) => allowedTeams.includes(team.id))
       }
       setTeams(t)
-      setTeamId(prev => (prev && t.find(x => x.id === prev)) ? prev : (t[0]?.id ?? ''))
+      setTeamId(prev => (prev && t.find((x: any) => x.id === prev)) ? prev : (t[0]?.id ?? ''))
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
     })

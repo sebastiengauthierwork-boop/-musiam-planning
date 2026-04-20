@@ -1387,7 +1387,7 @@ function Calendrier() {
       .eq('team_id', teamId)
       .gte('date', `${year}-01-01`)
       .lte('date', `${year}-12-31`)
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         const map: Record<string, string | null> = {}
         for (const c of (data ?? [])) map[c.date] = c.structure_id
         setCalMap(map)

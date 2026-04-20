@@ -46,7 +46,7 @@ export default function TableauDeBord() {
           countByTeam[et.team_id] = (countByTeam[et.team_id] ?? 0) + 1
         }
 
-        const teamSummaries: TeamSummary[] = (teamsRes.data ?? []).map((t) => ({
+        const teamSummaries: TeamSummary[] = (teamsRes.data ?? []).map((t: any) => ({
           ...t,
           employeeCount: countByTeam[t.id] ?? 0,
         }))
