@@ -212,35 +212,64 @@ export default function EmployesPage() {
             templateFilename="modele_employes.xlsx"
             columns={['last_name','first_name','email','phone','contract_type','statut','fonction','weekly_contract_hours','matricule','work_days_per_week','equipe_principale','equipe_secondaire']}
             onParse={rows => {
-              const valid: any[] = []; const errors: string[] = []
+              const valid: any[] = []
+              const errors: string[] = []
               rows.forEach((r: any, i) => {
-                if (!r.last_name || !r.first_name || !r.email) { errors.push(`Ligne ${i+2} : nom, prénom et email requis`); return }
-                if (!['CDI','CDD','extra'].includes(String(r.contract_type ?? ''))) { errors.push(`Ligne ${i+2} : contract_type doit être CDI, CDD ou extra`); return }
-                valid.push(r)
+                const lineNum = i + 2
+                const lastName = r.last_name ? String(r.last_name).trim() : ''
+                const firstName = r.first_name ? String(r.first_name).trim() : ''
+                if (!lastName && !firstName) { errors.push(`Ligne ${lineNum} : nom et prénom manquants`); return }
+                if (!lastName) { errors.push(`Ligne ${lineNum} : nom manquant`); return }
+                if (!firstName) { errors.push(`Ligne ${lineNum} : prénom manquant`); return }
+
+                const warnings: string[] = []
+                if (!r.email) warnings.push('email manquant')
+                const rawContract = String(r.contract_type ?? '').trim()
+                const contractType = ['CDI', 'CDD', 'extra'].includes(rawContract) ? rawContract : 'CDI'
+                if (!rawContract) warnings.push('contrat → CDI par défaut')
+                else if (contractType === 'CDI' && rawContract !== 'CDI') warnings.push(`contrat "${rawContract}" invalide → CDI`)
+                if (!r.statut) warnings.push('statut → employé par défaut')
+                if (!r.weekly_contract_hours) warnings.push('heures/semaine → 151.67 par défaut')
+
+                valid.push({
+                  ...r,
+                  last_name: lastName,
+                  first_name: firstName,
+                  contract_type: contractType,
+                  statut: r.statut || 'employe',
+                  weekly_contract_hours: r.weekly_contract_hours ? parseFloat(String(r.weekly_contract_hours)) : 151.67,
+                  work_days_per_week: r.work_days_per_week ? parseInt(String(r.work_days_per_week)) : 5,
+                  ...(warnings.length > 0 ? { __warnings: warnings } : {}),
+                })
               })
               return { valid, errors }
             }}
             onImport={async rows => {
               for (const r of rows) {
-                // Créer ou récupérer l'employé
+                const email = r.email ? String(r.email).trim().toLowerCase() : null
                 const payload = {
                   last_name: String(r.last_name).trim(),
                   first_name: String(r.first_name).trim(),
-                  email: String(r.email).trim().toLowerCase(),
+                  email,
                   phone: r.phone ? String(r.phone).trim() : null,
                   matricule: r.matricule ? String(r.matricule).trim() : null,
                   contract_type: r.contract_type,
                   statut: r.statut || null,
                   fonction: r.fonction ? String(r.fonction).trim() : null,
-                  weekly_contract_hours: r.weekly_contract_hours ? parseFloat(String(r.weekly_contract_hours)) : null,
-                  work_days_per_week: r.work_days_per_week ? parseInt(String(r.work_days_per_week)) : null,
+                  weekly_contract_hours: (r.weekly_contract_hours as number) ?? null,
+                  work_days_per_week: (r.work_days_per_week as number) ?? null,
                   is_active: true,
                 }
-                const { data: empData, error: empErr } = await supabase
-                  .from('employees').upsert(payload, { onConflict: 'email' }).select('id').single()
+                let empData: any, empErr: any
+                if (email) {
+                  const res = await supabase.from('employees').upsert(payload, { onConflict: 'email' }).select('id').single()
+                  empData = res.data; empErr = res.error
+                } else {
+                  const res = await supabase.from('employees').insert(payload).select('id').single()
+                  empData = res.data; empErr = res.error
+                }
                 if (empErr || !empData) continue
                 const empId = empData.id
-                // Créer les liens équipes
                 for (const [field, isPrimary] of [['equipe_principale', true], ['equipe_secondaire', false]] as const) {
                   const teamName = r[field] ? String(r[field]).trim() : null
                   if (!teamName) continue
