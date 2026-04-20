@@ -85,7 +85,8 @@ export default function PlanningPage() {
           .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
           .eq('team_id', teamId)
           .gte('date', startDate)
-          .lte('date', endDate),
+          .lte('date', endDate)
+          .limit(5000),
         supabase
           .from('planning_archives')
           .select('archived_at')

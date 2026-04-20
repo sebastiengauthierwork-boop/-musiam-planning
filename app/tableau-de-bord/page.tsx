@@ -35,7 +35,7 @@ export default function TableauDeBord() {
           supabase.from('teams').select('id, name, cdpf, type').order('name'),
           supabase.from('employees').select('id', { count: 'exact' }).eq('is_active', true),
           supabase.from('schedules').select('id', { count: 'exact' }).eq('date', today).eq('type', 'shift'),
-          supabase.from('employee_teams').select('team_id'),
+          supabase.from('employee_teams').select('team_id').limit(2000),
         ])
 
         if (teamsRes.error) throw new Error(teamsRes.error.message)

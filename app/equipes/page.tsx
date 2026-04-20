@@ -37,8 +37,8 @@ export default function EquipesPage() {
 
   async function loadTeams() {
     const [teamsRes, etRes] = await Promise.all([
-      supabase.from('teams').select('*').order('name'),
-      supabase.from('employee_teams').select('team_id'),
+      supabase.from('teams').select('id, name, cdpf, type, description, created_at').order('name').limit(100),
+      supabase.from('employee_teams').select('team_id').limit(2000),
     ])
     if (teamsRes.error) { setError(teamsRes.error.message); return }
 

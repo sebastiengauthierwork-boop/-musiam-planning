@@ -76,10 +76,14 @@ export default function EmployesPage() {
 
   async function loadData() {
     const [empRes, etRes, teamsRes, fnRes] = await Promise.all([
-      supabase.from('employees').select('*').order('last_name'),
-      supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)'),
-      supabase.from('teams').select('id, name, cdpf').order('name'),
-      supabase.from('job_functions').select('id, name, is_active').eq('is_active', true).order('name'),
+      supabase.from('employees')
+        .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at')
+        .order('last_name').limit(500),
+      supabase.from('employee_teams')
+        .select('employee_id, team_id, is_primary, teams(name, cdpf)')
+        .limit(2000),
+      supabase.from('teams').select('id, name, cdpf').order('name').limit(100),
+      supabase.from('job_functions').select('id, name, is_active').eq('is_active', true).order('name').limit(100),
     ])
 
     if (empRes.error) { setError(empRes.error.message); return }
