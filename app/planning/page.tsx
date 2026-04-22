@@ -147,9 +147,13 @@ export default function PlanningPage() {
         seen.add(e.id)
         empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type, weekly_contract_hours: e.weekly_contract_hours, hourly_rate: e.hourly_rate ?? null, statut: e.statut ?? null, fonction: e.fonction ?? null, is_primary: et.is_primary ?? true })
       }
-      // Primary employees first, each group sorted by last name
+      // Primary employees first, then sort by statut (cadre > agent_de_maitrise > employé), then alphabetical
+      const STATUT_ORDER: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
       empList.sort((a, b) => {
         if ((a.is_primary ?? true) !== (b.is_primary ?? true)) return (b.is_primary ?? true) ? 1 : -1
+        const sa = STATUT_ORDER[a.statut ?? ''] ?? 4
+        const sb = STATUT_ORDER[b.statut ?? ''] ?? 4
+        if (sa !== sb) return sa - sb
         return a.last_name.localeCompare(b.last_name)
       })
 

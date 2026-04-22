@@ -25,6 +25,13 @@ function getPaidHours(code: string | null | undefined, shiftCodes: ShiftCode[], 
 }
 function fmtH(h: number) { return decimalToHMin(h) }
 
+function getMonday(d: Date): Date {
+  const r = new Date(d)
+  const dow = (r.getDay() + 6) % 7
+  r.setDate(r.getDate() - dow)
+  return r
+}
+
 function getWeeksOfMonth(days: Date[]): { label: string; days: Date[] }[] {
   const weekMap = new Map<string, Date[]>()
   const weekOrder: string[] = []
@@ -253,6 +260,13 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [archiving, setArchiving] = useState(false)
   const [archiveStep, setArchiveStep] = useState<'pdf' | 'saving' | null>(null)
 
+  // ── Cycle modal ──
+  const [showCycleModal, setShowCycleModal] = useState(false)
+  const [cycleStartWeek, setCycleStartWeek] = useState(1)
+  const [cycleOverwrite, setCycleOverwrite] = useState(false)
+  const [cycleApplying, setCycleApplying] = useState(false)
+  const [cycleResult, setCycleResult] = useState<{ filled: number; kept: number; noData: number } | null>(null)
+
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
   const [structurePositions, setStructurePositions] = useState<Record<string, { position_name: string; required_count: number }[]>>({})
@@ -359,6 +373,80 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     } finally {
       setArchiving(false)
       setArchiveStep(null)
+    }
+  }
+
+  // ── Cycle ─────────────────────────────────────────────────────────────────
+  async function applyCycle() {
+    setCycleApplying(true)
+    setCycleResult(null)
+    try {
+      const { data: cycleData, error: cycleErr } = await supabase
+        .from('cycle_schedules')
+        .select('employee_id, week_number, day_of_week, code')
+        .eq('team_id', teamId)
+      if (cycleErr) throw cycleErr
+
+      // lookup: empId (or 'ALL') -> week_number -> day_of_week -> code
+      const cycleLookup: Record<string, Record<number, Record<number, string>>> = {}
+      for (const row of (cycleData ?? [])) {
+        const empKey = row.employee_id ?? 'ALL'
+        if (!cycleLookup[empKey]) cycleLookup[empKey] = {}
+        if (!cycleLookup[empKey][row.week_number]) cycleLookup[empKey][row.week_number] = {}
+        cycleLookup[empKey][row.week_number][row.day_of_week] = row.code
+      }
+
+      const firstMonday = getMonday(new Date(year, month, 1))
+      const toUpsert: any[] = []
+      let filled = 0, kept = 0, noData = 0
+
+      for (const d of days) {
+        const dayMonday = getMonday(d)
+        const weekOffset = Math.round((dayMonday.getTime() - firstMonday.getTime()) / (7 * 24 * 3600 * 1000))
+        const cycleWeek = ((weekOffset + cycleStartWeek - 1) % 6) + 1
+        const dow = (d.getDay() + 6) % 7 + 1 // 1=Mon..7=Sun
+        const dateStr = toISO(d)
+
+        for (const emp of employees) {
+          const key = `${emp.id}|${dateStr}`
+          const existingCode = cellValuesRef.current[key]
+          const cycleCode = cycleLookup[emp.id]?.[cycleWeek]?.[dow]
+            ?? cycleLookup['ALL']?.[cycleWeek]?.[dow]
+            ?? null
+
+          if (!cycleCode) { noData++; continue }
+          if (existingCode && !cycleOverwrite) { kept++; continue }
+
+          const sc = shiftCodes.find(c => c.code === cycleCode)
+          toUpsert.push({
+            employee_id: emp.id, team_id: teamId, date: dateStr, code: cycleCode,
+            type: getScheduleType(cycleCode, shiftCodes, absenceCodes),
+            start_time: sc?.start_time ?? null, end_time: sc?.end_time ?? null,
+            break_minutes: sc?.break_minutes ?? 0, status: 'brouillon', notes: null,
+          })
+          filled++
+        }
+      }
+
+      if (toUpsert.length > 0) {
+        for (let i = 0; i < toUpsert.length; i += 500) {
+          const { error } = await supabase.from('schedules')
+            .upsert(toUpsert.slice(i, i + 500), { onConflict: 'employee_id,date' })
+          if (error) throw error
+        }
+        setCellValues(cur => {
+          const n = { ...cur }
+          for (const row of toUpsert) n[`${row.employee_id}|${row.date}`] = row.code
+          return n
+        })
+      }
+
+      setCycleResult({ filled, kept, noData })
+    } catch (err: any) {
+      setGlobalError(err?.message ?? 'Erreur lors de l\'application du cycle')
+      setShowCycleModal(false)
+    } finally {
+      setCycleApplying(false)
     }
   }
 
@@ -581,6 +669,52 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </div>
       )}
 
+      {/* Cycle modal */}
+      {showCycleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { if (!cycleApplying) setShowCycleModal(false) }} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Appliquer le cycle</h2>
+            <p className="text-sm text-gray-500 mb-4">{teamName} — {MONTHS_FR[month]} {year}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Semaine de début du cycle</label>
+                <select value={cycleStartWeek} onChange={e => setCycleStartWeek(Number(e.target.value))}
+                  disabled={cycleApplying || !!cycleResult}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50">
+                  {[1,2,3,4,5,6].map(w => <option key={w} value={w}>S{w}</option>)}
+                </select>
+              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input type="checkbox" checked={cycleOverwrite} onChange={e => setCycleOverwrite(e.target.checked)}
+                  disabled={cycleApplying || !!cycleResult}
+                  className="accent-indigo-600 w-4 h-4" />
+                <span className="text-sm text-gray-700">Écraser les cases déjà remplies</span>
+              </label>
+              {cycleResult && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-800">
+                  <strong>{cycleResult.filled}</strong> case{cycleResult.filled !== 1 ? 's' : ''} remplie{cycleResult.filled !== 1 ? 's' : ''}
+                  {cycleResult.kept > 0 && <> · <strong>{cycleResult.kept}</strong> conservée{cycleResult.kept !== 1 ? 's' : ''}</>}
+                  {cycleResult.noData > 0 && <> · <strong>{cycleResult.noData}</strong> sans données de cycle</>}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-5">
+              <button onClick={() => setShowCycleModal(false)} disabled={cycleApplying}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                {cycleResult ? 'Fermer' : 'Annuler'}
+              </button>
+              {!cycleResult && (
+                <button onClick={applyCycle} disabled={cycleApplying}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+                  {cycleApplying ? 'Application…' : 'Appliquer'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error banner */}
       {globalError && (
         <div className="shrink-0 flex items-start justify-between gap-3 bg-red-50 border-b border-red-200 px-4 py-2.5 text-sm text-red-700">
@@ -608,16 +742,25 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </div>
       )}
 
-      {/* Archive button bar */}
-      {!isArchived && year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
-        <div className="shrink-0 flex items-center justify-end px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
-          <button onClick={() => setShowArchiveModal(true)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+      {/* Action bar: cycle + archive */}
+      {!isArchived && (
+        <div className="shrink-0 flex items-center justify-between px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
+          <button onClick={() => { setCycleResult(null); setCycleStartWeek(1); setCycleOverwrite(false); setShowCycleModal(true) }}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Archiver le mois
+            Appliquer le cycle
           </button>
+          {year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
+            <button onClick={() => setShowArchiveModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
+              </svg>
+              Archiver le mois
+            </button>
+          )}
         </div>
       )}
 
