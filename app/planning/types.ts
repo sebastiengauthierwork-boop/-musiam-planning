@@ -20,7 +20,8 @@ export type ShiftCode = {
   id: string
   code: string
   label: string
-  team_id: string | null     // FK vers teams — null = code commun toutes équipes
+  site_id: string | null     // FK vers sites — le code appartient à un site
+  team_id: string | null     // conservé pour rétrocompatibilité, non utilisé pour le filtrage
   team_prefix: string | null
   location_prefix: string | null
   start_time: string | null  // "HH:MM:SS"

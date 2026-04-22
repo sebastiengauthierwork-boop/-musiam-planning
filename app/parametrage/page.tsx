@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { decimalToHMin, hMinToDecimal } from '@/lib/timeUtils'
 import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
+import { useSite } from '@/lib/site-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ type TeamOption = { id: string; name: string; cdpf: string | null }
 type JobFunction = { id: string; name: string; is_active: boolean }
 
 type ShiftForm = {
-  code: string; label: string; team_id: string
+  code: string; label: string
   paid_hours: string   // heures nettes/payées — champ principal
   start_time: string   // prise de poste — champ principal
   break_minutes: string   // temps de repas (min)
@@ -38,7 +39,7 @@ type StructurePosition = { id: string; structure_id: string; position_name: stri
 type CalendarEntry = { date: string; team_id: string | null; structure_id: string | null }
 
 const emptyShiftForm: ShiftForm = {
-  code: '', label: '', team_id: '',
+  code: '', label: '',
   paid_hours: '', start_time: '',
   break_minutes: '0', dressing_minutes: '0',
   meal_included: false,
@@ -129,8 +130,8 @@ function ConfirmDelete({ onConfirm, onCancel }: { onConfirm: () => void; onCance
 // ─── Codes Horaires ───────────────────────────────────────────────────────────
 
 function CodesHoraires() {
+  const { selectedSiteId } = useSite()
   const [codes, setCodes] = useState<ShiftCode[]>([])
-  const [teams, setTeams] = useState<TeamOption[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<'add' | 'edit' | null>(null)
   const [editing, setEditing] = useState<ShiftCode | null>(null)
@@ -140,15 +141,13 @@ function CodesHoraires() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function load() {
-    const [codesRes, teamsRes] = await Promise.all([
-      supabase.from('shift_codes').select('*').order('code'),
-      supabase.from('teams').select('id, name, cdpf').order('name'),
-    ])
-    setCodes(codesRes.data ?? [])
-    setTeams(teamsRes.data ?? [])
+    let q = supabase.from('shift_codes').select('*').order('code')
+    if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
+    const { data } = await q
+    setCodes(data ?? [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [selectedSiteId])
 
   function openAdd() {
     setEditing(null); setForm(emptyShiftForm); setSaveError(null); setModal('add')
@@ -158,7 +157,6 @@ function CodesHoraires() {
     const base: ShiftForm = {
       code: c.code,
       label: c.label,
-      team_id: c.team_id ?? '',
       paid_hours: c.paid_hours != null ? decimalToHMin(c.paid_hours) : '',
       start_time: c.start_time?.slice(0, 5) ?? '',
       break_minutes: String(c.break_minutes ?? 0),
@@ -194,7 +192,8 @@ function CodesHoraires() {
     const payload = {
       code: form.code.trim().toUpperCase(),
       label: form.label.trim(),
-      team_id: form.team_id || null,
+      site_id: selectedSiteId || null,
+      team_id: null,
       team_prefix: null,
       location_prefix: null,
       paid_hours: ph,
@@ -244,7 +243,7 @@ function CodesHoraires() {
           <ImportExcel
             label="codes horaires"
             templateFilename="modele_codes_horaires.xlsx"
-            columns={['code','label','team_id','paid_hours','start_time','break_minutes','dressing_minutes','meal_included']}
+            columns={['code','label','paid_hours','start_time','break_minutes','dressing_minutes','meal_included']}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
               rows.forEach((r: any, i) => {
@@ -259,11 +258,12 @@ function CodesHoraires() {
                 const dress = parseInt(String(r.dressing_minutes ?? 0)) || 0
                 await supabase.from('shift_codes').upsert({
                   code: String(r.code).trim().toUpperCase(), label: String(r.label).trim(),
-                  team_id: r.team_id || null, paid_hours: ph, target_hours: ph,
+                  site_id: selectedSiteId || null, team_id: null,
+                  paid_hours: ph, target_hours: ph,
                   start_time: r.start_time || null, break_minutes: parseInt(String(r.break_minutes ?? 0)) || 0,
                   dressing_minutes: dress, meal_included: String(r.meal_included).toLowerCase() === 'true' || r.meal_included === 1,
                   pause_minutes: 0,
-                }, { onConflict: 'code' })
+                }, { onConflict: 'code,site_id' })
               }
               await load()
             }}
@@ -279,7 +279,7 @@ function CodesHoraires() {
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              {['Code', 'Label', 'Équipe', 'Arrivée', 'Prise de poste', 'Fin de poste', 'Départ', 'Repas', 'Habill.', 'Repas ✓', 'Payées'].map(h => (
+              {['Code', 'Label', 'Arrivée', 'Prise de poste', 'Fin de poste', 'Départ', 'Repas', 'Habill.', 'Repas ✓', 'Payées'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
               <th className="px-3 py-2.5" />
@@ -287,11 +287,9 @@ function CodesHoraires() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {codes.length === 0 && (
-              <tr><td colSpan={12} className="px-4 py-8 text-center text-gray-400">Aucun code horaire</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Aucun code horaire</td></tr>
             )}
             {codes.map(c => {
-              const teamOption = teams.find(t => t.id === c.team_id)
-              const teamName = teamOption ? teamLabel(teamOption) : undefined
               return (
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-3 py-2.5">
@@ -300,7 +298,6 @@ function CodesHoraires() {
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-gray-700 max-w-[180px] truncate">{c.label}</td>
-                  <td className="px-3 py-2.5 text-gray-500 text-xs">{teamName ?? <span className="text-gray-300">Toutes</span>}</td>
                   <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{c.arrival_time?.slice(0, 5) ?? '—'}</td>
                   <td className="px-3 py-2.5 text-gray-700 font-mono text-xs font-semibold">{c.start_time?.slice(0, 5) ?? '—'}</td>
                   <td className="px-3 py-2.5 text-gray-700 font-mono text-xs font-semibold">{c.end_time?.slice(0, 5) ?? '—'}</td>
@@ -352,14 +349,6 @@ function CodesHoraires() {
                   className="input" placeholder="Bibliothèque Matin" />
               </Field>
             </div>
-
-            {/* c) Équipe */}
-            <Field label="Équipe" hint="Laisser vide = code commun à toutes les équipes">
-              <select value={form.team_id} onChange={e => updateForm({ team_id: e.target.value })} className="input">
-                <option value="">— Toutes les équipes —</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{teamLabel(t)}</option>)}
-              </select>
-            </Field>
 
             {/* d) Heures nettes + e) Prise de poste — champs principaux */}
             <div className="grid grid-cols-2 gap-4">

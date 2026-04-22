@@ -59,13 +59,9 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
       const newMap: Record<string, TeamData> = {}
 
       for (const tid of selectedTeamIds) {
-        // Keep only schedules whose shift code belongs to this team (or is a common code on this team's schedule)
-        const teamSchedules = allSchedules.filter(s => {
-          if (!s.code) return false
-          const sc = shiftCodes.find(c => c.code === s.code)
-          const effectiveTid = sc ? (sc.team_id ?? s.team_id) : s.team_id
-          return effectiveTid === tid
-        })
+        // Les codes horaires sont désormais par site, pas par équipe.
+        // Les heures sont comptées par l'équipe du schedule.
+        const teamSchedules = allSchedules.filter(s => s.team_id === tid && !!s.code)
 
         // Collect all employee IDs that appear in those schedules
         const empIdSet = new Set(teamSchedules.map(s => s.employee_id))
@@ -102,17 +98,10 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ─── Hours attribution by shift code's team ────────────────────────────────
-  /**
-   * For a given schedule, which team's counter does it count toward?
-   * - If the shift code has a team_id → that team's hours
-   * - If team_id is null (common code) → the schedule's own team_id
-   */
+  // ─── Hours attribution ─────────────────────────────────────────────────────
+  // Les codes sont par site — les heures comptent pour l'équipe du schedule
   function effectiveTeamId(schedule: Schedule): string {
-    if (!schedule.code) return schedule.team_id
-    const sc = shiftCodes.find(c => c.code === schedule.code)
-    if (!sc) return schedule.team_id
-    return sc.team_id ?? schedule.team_id
+    return schedule.team_id
   }
 
   function paidHours(schedule: Schedule): number {
