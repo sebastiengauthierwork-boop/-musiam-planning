@@ -13,6 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabHeuresSup from './TabHeuresSup'
 import TabArchives from './TabArchives'
 import { useAuth } from '@/lib/auth'
+import { useSite } from '@/lib/site-context'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TABS = [
@@ -28,6 +29,7 @@ type TabId = typeof TABS[number]['id']
 export default function PlanningPage() {
   const now = new Date()
   const { role, allowedTeams, loading: authLoading } = useAuth()
+  const { selectedSiteId } = useSite()
   const [teamId, setTeamId]     = useState<string>('')
   const [month, setMonth]       = useState(now.getMonth())
   const [year, setYear]         = useState(now.getFullYear())
@@ -35,7 +37,6 @@ export default function PlanningPage() {
   const [allTeams, setAllTeams]   = useState<Team[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
   const [absenceCodes, setAbsenceCodes] = useState<AbsenceCode[]>([])
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([])
   const [loading, setLoading]   = useState(true)
@@ -43,18 +44,28 @@ export default function PlanningPage() {
   const [isArchived, setIsArchived]   = useState(false)
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
 
-  // Filtre manager appliqué réactivement sur la liste complète — sans re-fetch
+  // Filtre par site + filtre manager, réactifs sans re-fetch
   const teams = useMemo(() => {
+    let t = allTeams
+    if (selectedSiteId) t = t.filter(team => team.site_id === selectedSiteId)
     if (!authLoading && role === 'manager' && allowedTeams.length > 0) {
-      return allTeams.filter(t => allowedTeams.includes(t.id))
+      t = t.filter(team => allowedTeams.includes(team.id))
     }
-    return allTeams
-  }, [allTeams, role, allowedTeams, authLoading])
+    return t
+  }, [allTeams, selectedSiteId, role, allowedTeams, authLoading])
+
+  // Shift codes filtrés par site (codes globaux team_id=null toujours inclus)
+  const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
+  const filteredShiftCodes = useMemo(() => {
+    if (!selectedSiteId) return shiftCodes
+    const teamIds = new Set(teams.map(t => t.id))
+    return shiftCodes.filter(sc => !sc.team_id || teamIds.has(sc.team_id))
+  }, [shiftCodes, teams, selectedSiteId])
 
   // Charger équipes + codes immédiatement, sans attendre l'auth
   useEffect(() => {
     Promise.all([
-      supabase.from('teams').select('id, name, cdpf, type').order('name'),
+      supabase.from('teams').select('id, name, cdpf, type, site_id').order('name'),
       supabase.from('shift_codes').select('id, code, label, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
@@ -169,7 +180,7 @@ export default function PlanningPage() {
   const tabProps = {
     employees,
     schedules,
-    shiftCodes,
+    shiftCodes: filteredShiftCodes,
     absenceCodes,
     year,
     month,

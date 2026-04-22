@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
+import { useSite } from '@/lib/site-context'
 
 type Employee = {
   id: string
@@ -62,6 +63,7 @@ const emptyForm: FormData = {
 }
 
 export default function EmployesPage() {
+  const { selectedSiteId } = useSite()
   const [employees, setEmployees] = useState<EmployeeWithTeams[]>([])
   const [allTeams, setAllTeams] = useState<Team[]>([])
   const [jobFunctions, setJobFunctions] = useState<JobFunction[]>([])
@@ -75,14 +77,18 @@ export default function EmployesPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   async function loadData() {
+    let empQ = supabase.from('employees')
+      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at')
+      .order('last_name').limit(500)
+    if (selectedSiteId) empQ = empQ.eq('site_id', selectedSiteId)
+
+    let teamsQ = supabase.from('teams').select('id, name, cdpf').order('name').limit(100)
+    if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
+
     const [empRes, etRes, teamsRes, fnRes] = await Promise.all([
-      supabase.from('employees')
-        .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at')
-        .order('last_name').limit(500),
-      supabase.from('employee_teams')
-        .select('employee_id, team_id, is_primary, teams(name, cdpf)')
-        .limit(2000),
-      supabase.from('teams').select('id, name, cdpf').order('name').limit(100),
+      empQ,
+      supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
+      teamsQ,
       supabase.from('job_functions').select('id, name, is_active').eq('is_active', true).order('name').limit(100),
     ])
 
@@ -104,7 +110,7 @@ export default function EmployesPage() {
     setJobFunctions(fnRes.data ?? [])
   }
 
-  useEffect(() => { loadData().finally(() => setLoading(false)) }, [])
+  useEffect(() => { loadData().finally(() => setLoading(false)) }, [selectedSiteId])
 
   function openAdd() {
     setEditingEmployee(null); setFormData(emptyForm); setSaveError(null); setShowModal(true)
@@ -157,7 +163,9 @@ export default function EmployesPage() {
         const { error: delErr } = await supabase.from('employee_teams').delete().eq('employee_id', employeeId)
         if (delErr) throw delErr
       } else {
-        const { data, error } = await supabase.from('employees').insert(payload).select('id').single()
+        const { data, error } = await supabase.from('employees')
+          .insert({ ...payload, ...(selectedSiteId ? { site_id: selectedSiteId } : {}) })
+          .select('id').single()
         if (error) throw error
         employeeId = data.id
       }

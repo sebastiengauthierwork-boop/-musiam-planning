@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
+import { useSite } from '@/lib/site-context'
 
 type Stats = {
   teamCount: number
@@ -21,6 +22,7 @@ type TeamSummary = {
 }
 
 export default function TableauDeBord() {
+  const { selectedSiteId } = useSite()
   const [stats, setStats] = useState<Stats>({ teamCount: 0, employeeCount: 0, todayShiftCount: 0 })
   const [teams, setTeams] = useState<TeamSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -31,9 +33,15 @@ export default function TableauDeBord() {
       try {
         const today = new Date().toISOString().split('T')[0]
 
+        let teamsQ = supabase.from('teams').select('id, name, cdpf, type').order('name')
+        if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
+
+        let empQ = supabase.from('employees').select('id', { count: 'exact' }).eq('is_active', true)
+        if (selectedSiteId) empQ = empQ.eq('site_id', selectedSiteId)
+
         const [teamsRes, employeesRes, shiftsRes, etRes] = await Promise.all([
-          supabase.from('teams').select('id, name, cdpf, type').order('name'),
-          supabase.from('employees').select('id', { count: 'exact' }).eq('is_active', true),
+          teamsQ,
+          empQ,
           supabase.from('schedules').select('id', { count: 'exact' }).eq('date', today).eq('type', 'shift'),
           supabase.from('employee_teams').select('team_id').limit(2000),
         ])
@@ -64,7 +72,7 @@ export default function TableauDeBord() {
       }
     }
     load()
-  }, [])
+  }, [selectedSiteId])
 
   if (loading) return <LoadingScreen />
   if (error) return <ErrorScreen message={error} />

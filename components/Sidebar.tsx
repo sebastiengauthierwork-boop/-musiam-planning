@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth'
+import { useSite } from '@/lib/site-context'
 
 type NavItem = {
   href: string
@@ -14,6 +15,16 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
+  {
+    href: '/sites',
+    label: 'Sites',
+    adminOnly: true,
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+      </svg>
+    ),
+  },
   {
     href: '/tableau-de-bord',
     label: 'Tableau de bord',
@@ -89,6 +100,7 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { role, loading: authLoading, signOut } = useAuth()
+  const { sites, selectedSiteId, setSelectedSiteId } = useSite()
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -112,6 +124,8 @@ export default function Sidebar() {
     return true
   })
 
+  const showSiteSelector = sites.length > 0
+
   return (
     <aside
       className="shrink-0 bg-slate-900 text-white flex flex-col overflow-hidden"
@@ -125,7 +139,7 @@ export default function Sidebar() {
         {!collapsed && (
           <div className="overflow-hidden">
             <div className="text-base font-semibold tracking-tight whitespace-nowrap">Musiam Planning</div>
-            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap">Planification · Louvre</p>
+            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap">Planification multi-sites</p>
           </div>
         )}
         <button
@@ -140,6 +154,39 @@ export default function Sidebar() {
           </svg>
         </button>
       </div>
+
+      {/* Site selector */}
+      {showSiteSelector && (
+        <div
+          className="border-b border-slate-700/60"
+          style={{ padding: collapsed ? '8px 6px' : '8px 12px' }}
+        >
+          {collapsed ? (
+            <div
+              className="flex items-center justify-center py-1 text-slate-300"
+              title={sites.find(s => s.id === selectedSiteId)?.name ?? 'Site'}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+          ) : (
+            <div>
+              <p className="text-slate-500 text-xs mb-1.5 px-1">Site actif</p>
+              <select
+                value={selectedSiteId ?? ''}
+                onChange={e => setSelectedSiteId(e.target.value || null)}
+                className="w-full text-xs bg-slate-800 text-slate-100 border border-slate-600 rounded-md px-2 py-1.5 focus:outline-none focus:border-slate-400"
+              >
+                {role === 'admin' && <option value="">Tous les sites</option>}
+                {sites.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 py-3" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>

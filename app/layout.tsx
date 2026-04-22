@@ -3,6 +3,7 @@ import localFont from "next/font/local"
 import "./globals.css"
 import AppShell from "@/components/AppShell"
 import { AuthProvider } from "@/lib/auth"
+import { SiteProvider } from "@/lib/site-context"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -27,7 +28,9 @@ export default function RootLayout({
     <html lang="fr">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <AppShell>{children}</AppShell>
+          <SiteProvider>
+            <AppShell>{children}</AppShell>
+          </SiteProvider>
         </AuthProvider>
       </body>
     </html>

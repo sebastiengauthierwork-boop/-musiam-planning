@@ -51,7 +51,7 @@ export type Schedule = {
   notes: string | null
 }
 
-export type Team = { id: string; name: string; cdpf: string | null; type: string }
+export type Team = { id: string; name: string; cdpf: string | null; type: string; site_id?: string | null }
 
 export type TabProps = {
   employees: Employee[]
