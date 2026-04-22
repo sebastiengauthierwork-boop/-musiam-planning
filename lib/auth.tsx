@@ -40,37 +40,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    let timedOut = false
+
+    // Timeout 3s : si getSession() ne répond pas, on considère l'utilisateur
+    // non connecté et on redirige vers /login pour ne pas bloquer indéfiniment.
+    const timeout = setTimeout(() => {
+      timedOut = true
+      setUser(null); setRole(null); setAllowedTeams([])
+      setLoading(false)
+      redirectIfNeeded(null, null)
+    }, 3000)
+
     supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: any } }) => {
+      if (timedOut) return
+      clearTimeout(timeout)
+
       if (session?.user) {
         setUser(session.user)
-        const userRole = await fetchUserProfile(session.user)
-        redirectIfNeeded(session.user, userRole)
+        // Déverrouiller le rendu immédiatement — le profil charge en arrière-plan
+        setLoading(false)
+        fetchUserProfile(session.user).then(userRole => {
+          redirectIfNeeded(session.user, userRole)
+        })
       } else {
         setUser(null); setRole(null); setAllowedTeams([])
+        setLoading(false)
         redirectIfNeeded(null, null)
       }
-      setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       if (session?.user) {
         setUser(session.user)
-        const userRole = await fetchUserProfile(session.user)
-        redirectIfNeeded(session.user, userRole)
+        setLoading(false)
+        fetchUserProfile(session.user).then(userRole => {
+          redirectIfNeeded(session.user, userRole)
+        })
       } else {
         setUser(null); setRole(null); setAllowedTeams([])
+        setLoading(false)
         redirectIfNeeded(null, null)
       }
-      setLoading(false)
     })
 
-    return () => { subscription.unsubscribe() }
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
   }, [])
 
   function signOut() {
     supabase.auth.signOut().then(() => { window.location.href = '/login' })
   }
 
+  // Children toujours rendus — chaque page gère son propre état de chargement
   return (
     <AuthContext.Provider value={{ user, role, allowedTeams, loading, signOut }}>
       {children}

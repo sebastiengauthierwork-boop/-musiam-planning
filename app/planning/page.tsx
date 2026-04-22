@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, CalendarDay, Employee, Schedule, ShiftCode, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
@@ -32,7 +32,7 @@ export default function PlanningPage() {
   const [month, setMonth]       = useState(now.getMonth())
   const [year, setYear]         = useState(now.getFullYear())
   const [tab, setTab]           = useState<TabId>('saisie')
-  const [teams, setTeams]       = useState<Team[]>([])
+  const [allTeams, setAllTeams]   = useState<Team[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
@@ -43,24 +43,32 @@ export default function PlanningPage() {
   const [isArchived, setIsArchived]   = useState(false)
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
 
-  // Load teams + codes — attend que l'auth soit résolue pour éviter un double-fetch
+  // Filtre manager appliqué réactivement sur la liste complète — sans re-fetch
+  const teams = useMemo(() => {
+    if (!authLoading && role === 'manager' && allowedTeams.length > 0) {
+      return allTeams.filter(t => allowedTeams.includes(t.id))
+    }
+    return allTeams
+  }, [allTeams, role, allowedTeams, authLoading])
+
+  // Charger équipes + codes immédiatement, sans attendre l'auth
   useEffect(() => {
-    if (authLoading) return
     Promise.all([
       supabase.from('teams').select('id, name, cdpf, type').order('name'),
       supabase.from('shift_codes').select('id, code, label, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
-      let t = tRes.data ?? []
-      if (role === 'manager' && allowedTeams.length > 0) {
-        t = t.filter((team: any) => allowedTeams.includes(team.id))
-      }
-      setTeams(t)
-      setTeamId(prev => (prev && t.find((x: any) => x.id === prev)) ? prev : (t[0]?.id ?? ''))
+      setAllTeams(tRes.data ?? [])
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
     })
-  }, [role, allowedTeams, authLoading])
+  }, [])
+
+  // Ajuster la sélection d'équipe quand la liste filtrée change
+  useEffect(() => {
+    if (teams.length === 0) return
+    setTeamId(prev => (prev && teams.find((x: any) => x.id === prev)) ? prev : (teams[0]?.id ?? ''))
+  }, [teams])
 
   const loadEmployeesAndSchedules = useCallback(async () => {
     if (!teamId) return
@@ -179,17 +187,6 @@ export default function PlanningPage() {
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i)
 
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-        <svg className="animate-spin h-5 w-5 mr-2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-        </svg>
-        Chargement…
-      </div>
-    )
-  }
 
   return (
     <div className="flex flex-col h-full">
