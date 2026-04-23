@@ -230,7 +230,7 @@ type ContextMenu = { x: number; y: number; keys: string[] }
 
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
-export default function TabSaisie({ employees, schedules, shiftCodes, absenceCodes, year, month, teamId, teamName, calendarDays, isArchived, archiveDate, onArchived }: TabProps) {
+export default function TabSaisie({ employees, schedules, shiftCodes, absenceCodes, year, month, teamId, teamName, calendarDays, isArchived, archiveDate, onArchived, onRefresh }: TabProps) {
   const days = getDays(year, month)
   const today = toISO(new Date())
   const weeks = getWeeksOfMonth(days)
@@ -268,6 +268,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [cycleOverwrite, setCycleOverwrite] = useState(false)
   const [cycleApplying, setCycleApplying] = useState(false)
   const [cycleResult, setCycleResult] = useState<{ filled: number; emps: number; kept: number; noData: number } | null>(null)
+
+  // ── Intérimaires ──
+  const [showAddInterim, setShowAddInterim] = useState(false)
+  const [newInterimLabel, setNewInterimLabel] = useState('')
+  const [interimAdding, setInterimAdding] = useState(false)
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -462,6 +467,45 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     }
   }
 
+  // ── Intérimaires ─────────────────────────────────────────────────────────
+  async function handleAddInterim() {
+    const label = newInterimLabel.trim()
+    if (!label) return
+    setInterimAdding(true)
+    try {
+      const { data: empData, error: empErr } = await supabase
+        .from('employees')
+        .insert({ first_name: label, last_name: '', email: null, contract_type: 'INTERIM', is_active: true, weekly_contract_hours: 35 })
+        .select('id')
+        .single()
+      if (empErr) throw empErr
+      const { error: etErr } = await supabase
+        .from('employee_teams')
+        .insert({ employee_id: empData.id, team_id: teamId, is_primary: false })
+      if (etErr) throw etErr
+      setNewInterimLabel('')
+      setShowAddInterim(false)
+      onRefresh?.()
+    } catch (err: any) {
+      setGlobalError(err?.message ?? 'Erreur lors de l\'ajout de l\'intérimaire')
+    } finally {
+      setInterimAdding(false)
+    }
+  }
+
+  async function handleDeleteInterim(empId: string) {
+    try {
+      await supabase.from('schedules').delete().eq('employee_id', empId).eq('team_id', teamId)
+      await supabase.from('employee_teams').delete().eq('employee_id', empId).eq('team_id', teamId)
+      const { count } = await supabase.from('employee_teams')
+        .select('id', { count: 'exact', head: true }).eq('employee_id', empId)
+      if (!count) await supabase.from('employees').delete().eq('id', empId)
+      onRefresh?.()
+    } catch (err: any) {
+      setGlobalError(err?.message ?? 'Erreur lors de la suppression de l\'intérimaire')
+    }
+  }
+
   // ── Selection helpers ──────────────────────────────────────────────────────
   function selectSingle(empId: string, dateStr: string) {
     anchorRef.current = { empId, dateStr }
@@ -636,9 +680,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     }).length
   }
 
-  // Séparation principaux / renforts
-  const primaryEmployees = employees.filter(e => e.is_primary !== false)
-  const secondaryEmployees = employees.filter(e => e.is_primary === false)
+  // Séparation principaux / renforts / intérimaires
+  const primaryEmployees = employees.filter(e => e.is_primary !== false && e.contract_type !== 'INTERIM')
+  const secondaryEmployees = employees.filter(e => e.is_primary === false && e.contract_type !== 'INTERIM')
+  const interimEmployees = employees.filter(e => e.contract_type === 'INTERIM')
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -1033,6 +1078,121 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 </Fragment>
               )
             })}
+          {/* ── Intérimaires ── */}
+          {(!isArchived || interimEmployees.length > 0) && (
+            <>
+              <tr>
+                <td
+                  colSpan={days.length + weeks.length + 2}
+                  className="bg-amber-50 border-t border-b border-amber-200 px-4 py-1 text-[10px] font-semibold text-amber-700 uppercase tracking-widest"
+                >
+                  <div className="flex items-center justify-between">
+                    <span>Intérimaires{interimEmployees.length > 0 ? ` · ${interimEmployees.length}` : ''}</span>
+                    {!isArchived && !showAddInterim && (
+                      <button onClick={() => setShowAddInterim(true)}
+                        className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1">
+                        + Ajouter
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+
+              {interimEmployees.map(emp => {
+                const monthH = empMonthlyTotals[emp.id] ?? 0
+                return (
+                  <tr key={emp.id} className="group bg-amber-50/20 hover:bg-amber-50/50">
+                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-7 whitespace-nowrap bg-amber-50/30 group-hover:bg-amber-50/70">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-semibold text-amber-800 text-xs">{emp.first_name || emp.last_name}</span>
+                        {!isArchived && (
+                          <button onClick={() => handleDeleteInterim(emp.id)}
+                            className="p-0.5 text-amber-300 hover:text-red-500 rounded transition-colors shrink-0" title="Supprimer l'intérimaire">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                    {days.map(d => {
+                      const dateStr = toISO(d)
+                      const isWE = d.getDay() === 0 || d.getDay() === 6
+                      const key = `${emp.id}|${dateStr}`
+                      const isSel = selected.has(key)
+                      return (
+                        <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-7 relative">
+                          {isArchived ? (
+                            <div className={`w-full h-full flex items-center justify-center text-xs font-mono ${isWE ? 'bg-slate-100 text-slate-400' : cellValues[key] ? 'bg-amber-50 text-amber-900' : 'bg-amber-50/30'}`}>
+                              {cellValues[key] || ''}
+                            </div>
+                          ) : (
+                            <CellInput
+                              saved={cellValues[key] ?? ''}
+                              status={cellStatus[key] ?? 'idle'}
+                              errorMsg={cellErrors[key]}
+                              shiftCodes={shiftCodes}
+                              teamShiftCodes={teamShiftCodes}
+                              absenceCodes={absenceCodes}
+                              onSave={code => saveCell(emp.id, dateStr, code)}
+                              isWeekend={isWE}
+                              isSelected={isSel}
+                              onNormalClick={() => selectSingle(emp.id, dateStr)}
+                              onShiftClick={() => extendSelection(emp.id, dateStr)}
+                              onContextMenu={e => {
+                                const keys = isSel ? Array.from(selected) : [key]
+                                if (!isSel) selectSingle(emp.id, dateStr)
+                                setContextMenu({ x: e.clientX, y: e.clientY, keys })
+                              }}
+                            />
+                          )}
+                        </td>
+                      )
+                    })}
+                    {weeks.map(w => {
+                      const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
+                      return (
+                        <td key={w.label} className={`border-b border-r border-amber-100 px-1 h-7 text-center text-xs font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
+                          {wh > 0 ? fmtH(wh) : ''}
+                        </td>
+                      )
+                    })}
+                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-7 text-center font-semibold bg-amber-50/30 group-hover:bg-amber-50/70 text-amber-800">
+                      {fmtH(monthH)}
+                    </td>
+                  </tr>
+                )
+              })}
+
+              {showAddInterim && !isArchived && (
+                <tr>
+                  <td colSpan={days.length + weeks.length + 2} className="border-b border-amber-200 px-3 py-2 bg-amber-50/60">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={newInterimLabel}
+                        onChange={e => setNewInterimLabel(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleAddInterim()
+                          if (e.key === 'Escape') { setShowAddInterim(false); setNewInterimLabel('') }
+                        }}
+                        placeholder="Nom de l'intérimaire ou agence…"
+                        className="flex-1 border border-amber-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      />
+                      <button onClick={handleAddInterim} disabled={interimAdding || !newInterimLabel.trim()}
+                        className="px-3 py-1 text-xs font-medium bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50">
+                        {interimAdding ? 'Ajout…' : 'Ajouter'}
+                      </button>
+                      <button onClick={() => { setShowAddInterim(false); setNewInterimLabel('') }}
+                        className="px-3 py-1 text-xs font-medium border border-gray-300 text-gray-600 rounded hover:bg-gray-50">
+                        Annuler
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </>
+          )}
           </tbody>
 
           <tfoot className="sticky bottom-0 z-20 bg-gray-50">

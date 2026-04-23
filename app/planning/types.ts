@@ -68,4 +68,5 @@ export type TabProps = {
   isArchived?: boolean        // true = planning verrouillé
   archiveDate?: string | null // date d'archivage ISO
   onArchived?: () => void     // callback après archivage réussi
+  onRefresh?: () => void      // callback pour recharger employees + schedules
 }

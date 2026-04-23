@@ -194,6 +194,7 @@ export default function PlanningPage() {
     isArchived,
     archiveDate,
     onArchived: () => { setIsArchived(true); loadEmployeesAndSchedules() },
+    onRefresh: loadEmployeesAndSchedules,
   }
 
   // The key forces TabSaisie to remount (and reset local state) when team/month/year changes

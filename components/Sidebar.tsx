@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
+import { supabase } from '@/lib/supabase'
 
 type NavItem = {
   href: string
@@ -99,14 +100,35 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const { role, loading: authLoading, signOut } = useAuth()
+  const { role, allowedTeams, loading: authLoading, signOut } = useAuth()
   const { sites, selectedSiteId, setSelectedSiteId } = useSite()
+  const [managerSiteIds, setManagerSiteIds] = useState<Set<string> | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === 'true') setCollapsed(true)
     setMounted(true)
   }, [])
+
+  // Pour les managers : calculer les sites accessibles via leurs équipes autorisées
+  useEffect(() => {
+    if (role !== 'manager' || allowedTeams.length === 0) { setManagerSiteIds(null); return }
+    supabase.from('teams').select('site_id').in('id', allowedTeams).then(({ data }: { data: { site_id: string | null }[] | null }) => {
+      const ids = new Set<string>(
+        (data ?? []).map(t => t.site_id).filter((id): id is string => !!id)
+      )
+      setManagerSiteIds(ids)
+    })
+  }, [role, allowedTeams])
+
+  // Auto-corriger le site sélectionné si le manager n'y a pas accès
+  useEffect(() => {
+    if (!managerSiteIds || !selectedSiteId) return
+    if (!managerSiteIds.has(selectedSiteId)) {
+      const first = sites.find(s => managerSiteIds.has(s.id))
+      if (first) setSelectedSiteId(first.id)
+    }
+  }, [managerSiteIds, sites, selectedSiteId])
 
   function toggle() {
     setCollapsed(prev => {
@@ -124,6 +146,7 @@ export default function Sidebar() {
     return true
   })
 
+  const visibleSites = managerSiteIds ? sites.filter(s => managerSiteIds.has(s.id)) : sites
   const showSiteSelector = sites.length > 0
 
   return (
@@ -179,7 +202,7 @@ export default function Sidebar() {
                 className="w-full text-xs bg-slate-800 text-slate-100 border border-slate-600 rounded-md px-2 py-1.5 focus:outline-none focus:border-slate-400"
               >
                 {role === 'admin' && <option value="">Tous les sites</option>}
-                {sites.map(s => (
+                {visibleSites.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
