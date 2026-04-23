@@ -89,6 +89,7 @@ export default function UtilisateursPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [saving, setSaving] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
+  const [pageSuccess, setPageSuccess] = useState<string | null>(null)
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null)
@@ -223,32 +224,79 @@ export default function UtilisateursPage() {
         return
       }
 
-      // Create auth account via a temporary client that does not persist the
-      // new session — so the current admin session is left untouched.
+      const emailNorm = form.email.trim().toLowerCase()
+
+      // Vérifie d'abord si un profil existe déjà dans notre table users
+      const { data: existingProfile } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', emailNorm)
+        .maybeSingle()
+
+      if (existingProfile) {
+        // Profil déjà présent → mise à jour du rôle et des équipes
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            role: form.role,
+            allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+            employee_id: form.role === 'salarie' ? form.employeeId || null : null,
+          })
+          .eq('id', existingProfile.id)
+        if (updateError) {
+          setModalError(updateError.message)
+          setSaving(false)
+          return
+        }
+        await loadData()
+        setSaving(false)
+        closeModal()
+        setPageSuccess('Compte mis à jour avec succès.')
+        return
+      }
+
+      // Création via un client temporaire (sans persistance de session)
+      // pour ne pas écraser la session admin en cours.
       const tempClient = createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
       )
       const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
-        email: form.email.trim().toLowerCase(),
+        email: emailNorm,
         password: form.password,
+        options: { data: { role: form.role } },
       })
+
       if (signUpError) {
-        setModalError(signUpError.message)
+        const msg = signUpError.message.toLowerCase()
+        if (msg.includes('already') || msg.includes('registered')) {
+          setModalError(
+            "Ce compte existe déjà dans Supabase Auth mais n'a pas encore de profil. " +
+            "Confirmez-le manuellement dans Dashboard → Authentication → Users, puis réessayez."
+          )
+        } else {
+          setModalError(signUpError.message)
+        }
         setSaving(false)
         return
       }
+
       const authUserId = signUpData.user?.id
       if (!authUserId) {
-        setModalError("Impossible de créer le compte Auth. Vérifiez l'adresse e-mail.")
+        setModalError(
+          "Compte en attente de confirmation e-mail. " +
+          "Pour éviter cela, désactivez la confirmation dans Supabase : " +
+          "Authentication → Settings → Disable email confirmations. " +
+          "Ou confirmez manuellement dans Dashboard → Authentication → Users."
+        )
         setSaving(false)
         return
       }
 
       const { error: insertError } = await supabase.from('users').insert({
         id: authUserId,
-        email: form.email.trim().toLowerCase(),
+        email: emailNorm,
         role: form.role,
         allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
         employee_id: form.role === 'salarie' ? form.employeeId || null : null,
@@ -258,6 +306,10 @@ export default function UtilisateursPage() {
         setSaving(false)
         return
       }
+      await loadData()
+      setSaving(false)
+      closeModal()
+      setPageSuccess('Compte créé avec succès.')
     } else {
       // Edit: update role and allowed_teams
       if (!editingUser) return
@@ -273,11 +325,10 @@ export default function UtilisateursPage() {
         setSaving(false)
         return
       }
+      await loadData()
+      setSaving(false)
+      closeModal()
     }
-
-    await loadData()
-    setSaving(false)
-    closeModal()
   }
 
   // -------------------------------------------------------------------------
@@ -350,11 +401,19 @@ export default function UtilisateursPage() {
       {/* Notice */}
       <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-800">
-          <span className="font-medium">Info :</span> L'ajout d'un utilisateur crée
-          automatiquement son compte Supabase Auth et son profil (rôle et équipes).
-          Un e-mail de confirmation peut être envoyé selon la configuration Supabase.
+          <span className="font-medium">Info :</span> Pour éviter les e-mails de confirmation,
+          désactivez-les dans Supabase : <strong>Authentication → Settings → Disable email confirmations</strong>.
+          Si un compte Auth existe déjà, entrez son e-mail — le profil sera mis à jour sans recréer le compte.
         </p>
       </div>
+
+      {/* Success */}
+      {pageSuccess && (
+        <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-emerald-700 font-medium">{pageSuccess}</p>
+          <button onClick={() => setPageSuccess(null)} className="text-emerald-500 hover:text-emerald-700 ml-4 text-lg leading-none">×</button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (
