@@ -162,8 +162,13 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
               <th style={S.thEmp}>Employé</th>
               {days.map(d => {
                 const isWE = d.getDay() === 0 || d.getDay() === 6
+                const isMonday = d.getDay() === 1
                 return (
-                  <th key={toISO(d)} style={{ ...S.thDay, ...(isWE ? S.thDayWE : S.thDayWD) }}>
+                  <th key={toISO(d)} style={{
+                    ...S.thDay,
+                    ...(isWE ? S.thDayWE : S.thDayWD),
+                    ...(isMonday ? { borderLeft: '2px solid #374151' } : {}),
+                  }}>
                     <div style={{ fontSize: '6px', lineHeight: 1 }}>{DAY_LETTER[d.getDay()]}</div>
                     <div style={{ fontSize: '8px', lineHeight: 1.3, fontWeight: 700 }}>{d.getDate()}</div>
                   </th>
@@ -186,13 +191,18 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 {days.map(d => {
                   const dateStr = toISO(d)
                   const isWE = d.getDay() === 0 || d.getDay() === 6
+                  const isMonday = d.getDay() === 1
                   const cell = cellData(emp.id, dateStr)
                   const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
-                  const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                  const bg = isWE ? S.bgWE : c ? c.bg : S.bgEmpty
+                  const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                  const bg = c ? c.bg : S.bgEmpty
 
                   return (
-                    <td key={dateStr} style={{ ...S.tdBase, background: bg }}>
+                    <td key={dateStr} style={{
+                      ...S.tdBase,
+                      background: bg,
+                      ...(isMonday ? { borderLeft: '2px solid #374151' } : {}),
+                    }}>
                       {cell?.kind === 'shift' && (
                         <>
                           <span style={{ ...S.shiftCode, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>

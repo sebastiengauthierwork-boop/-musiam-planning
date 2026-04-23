@@ -42,12 +42,12 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
   const rowsHtml = employees.map(emp => {
     const cells = days.map(d => {
       const dateStr = toISO(d)
-      const isWE = d.getDay() === 0 || d.getDay() === 6
+      const isMonday = d.getDay() === 1
       const code = schedMap[`${emp.id}|${dateStr}`]
       const sc = code ? shiftCodes.find(c => c.code === code) : undefined
       const isAbsence = code && !sc && absCodeSet.has(code)
-      const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-      const bg = isWE ? '#f1f5f9' : c ? c.bg : '#ffffff'
+      const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+      const bg = c ? c.bg : '#ffffff'
       const textColor = c ? c.text : '#374151'
       const times = sc?.start_time && sc?.end_time ? `${sc.start_time.slice(0, 5)} ${sc.end_time.slice(0, 5)}` : ''
       const inner = sc
@@ -55,7 +55,8 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
         : isAbsence
         ? `<span style="font-weight:700;color:${textColor};font-size:7px;display:block;line-height:1.3;">${code}</span>`
         : ''
-      return `<td style="border:1px solid #cbd5e1;text-align:center;vertical-align:middle;padding:3px 1px;background:${bg};">${inner}</td>`
+      const mondayBorder = isMonday ? 'border-left:2px solid #374151;' : ''
+      return `<td style="border:1px solid #cbd5e1;${mondayBorder}text-align:center;vertical-align:middle;padding:3px 1px;background:${bg};">${inner}</td>`
     }).join('')
     return `<tr>
       <td style="border:1px solid #cbd5e1;padding:3px 5px;font-weight:600;color:#1e293b;background:#f8fafc;overflow:hidden;white-space:nowrap;">
@@ -68,7 +69,9 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
 
   const headerCols = days.map(d => {
     const isWE = d.getDay() === 0 || d.getDay() === 6
-    return `<th style="background:${isWE ? '#e2e8f0' : '#f1f5f9'};color:${isWE ? '#64748b' : '#374151'};border:1px solid #94a3b8;padding:2px 1px;text-align:center;font-weight:700;">
+    const isMonday = d.getDay() === 1
+    const mondayBorder = isMonday ? 'border-left:2px solid #374151;' : ''
+    return `<th style="background:${isWE ? '#e2e8f0' : '#f1f5f9'};color:${isWE ? '#64748b' : '#374151'};border:1px solid #94a3b8;${mondayBorder}padding:2px 1px;text-align:center;font-weight:700;">
       <div style="font-size:6px;line-height:1;">${DAY_LETTER[d.getDay()]}</div>
       <div style="font-size:8px;line-height:1.3;font-weight:700;">${d.getDate()}</div>
     </th>`

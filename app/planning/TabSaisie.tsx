@@ -129,7 +129,7 @@ function CellInput({
   const codeColor = val ? getCodeColors(val, shiftCodes, absenceCodes) : null
   const bgStyle: React.CSSProperties = codeColor
     ? { background: codeColor.bg, color: codeColor.text }
-    : isWeekend ? { background: '#f1f5f9' } : {}
+    : {}
 
   // Priority: error > flash/saved > selected
   const ring = flash
@@ -835,17 +835,19 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               </th>
               {days.map(d => {
                 const isWE = d.getDay() === 0 || d.getDay() === 6
+                const isMonday = d.getDay() === 1
                 const isTo = toISO(d) === today
                 const structName = calStructureMap[toISO(d)]
                 return (
                   <th key={toISO(d)}
-                    className={`w-10 min-w-[40px] border-b border-r border-gray-200 py-1 text-center ${isWE ? 'bg-slate-50' : ''}`}>
+                    className="w-10 min-w-[40px] border-b border-r border-gray-200 py-1 text-center"
+                    style={{ background: isWE ? '#e0e0e0' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
                     {structName
                       ? <div className="text-[7px] text-violet-500 leading-none truncate px-0.5 mb-0.5">{structName.slice(0, 5)}</div>
                       : <div className="text-[10px] leading-none mb-0.5 invisible">·</div>
                     }
-                    <div className={`text-[10px] ${isWE ? 'text-slate-400' : 'text-gray-400'}`}>{DAY_LETTER[d.getDay()]}</div>
-                    <div className={`font-bold text-sm ${isTo ? 'text-blue-600' : isWE ? 'text-slate-500' : 'text-gray-700'}`}>{d.getDate()}</div>
+                    <div className={`text-[10px] ${isWE ? 'text-slate-500' : 'text-gray-400'}`}>{DAY_LETTER[d.getDay()]}</div>
+                    <div className={`font-bold text-sm ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
                   </th>
                 )
               })}
@@ -879,8 +881,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const dateStr = toISO(d)
                 const stats = getDayStats(dateStr)
                 const isWE = d.getDay() === 0 || d.getDay() === 6
+                const isMonday = d.getDay() === 1
                 return (
-                  <td key={dateStr} className={`border-r border-gray-100 text-center py-0.5 ${isWE ? 'bg-slate-50' : ''}`}>
+                  <td key={dateStr} className={`border-r border-gray-100 text-center py-0.5 ${isWE ? 'bg-slate-50' : ''}`}
+                    style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                     {stats.hasStructure ? (
                       <span className={`text-[10px] font-bold leading-none ${stats.ecart >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {stats.ecart > 0 ? `+${stats.ecart}` : stats.ecart}
@@ -1021,15 +1025,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     {days.map(d => {
                       const dateStr = toISO(d)
                       const isWE = d.getDay() === 0 || d.getDay() === 6
+                      const isMonday = d.getDay() === 1
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       return (
-                        <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative">
+                        <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative"
+                          style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                           {isArchived ? (
                             <div
                               className="w-full h-full flex items-center justify-center text-xs font-mono"
                               style={(() => {
-                                if (isWE) return { background: '#f1f5f9', color: '#94a3b8' }
                                 const c = cellValues[key] ? getCodeColors(cellValues[key], shiftCodes, absenceCodes) : null
                                 return c ? { background: c.bg, color: c.text } : { background: '#f8fafc' }
                               })()}
@@ -1118,12 +1123,20 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     {days.map(d => {
                       const dateStr = toISO(d)
                       const isWE = d.getDay() === 0 || d.getDay() === 6
+                      const isMonday = d.getDay() === 1
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       return (
-                        <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-6 relative">
+                        <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-6 relative"
+                          style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                           {isArchived ? (
-                            <div className={`w-full h-full flex items-center justify-center text-xs font-mono ${isWE ? 'bg-slate-100 text-slate-400' : cellValues[key] ? 'bg-amber-50 text-amber-900' : 'bg-amber-50/30'}`}>
+                            <div
+                              className="w-full h-full flex items-center justify-center text-xs font-mono"
+                              style={(() => {
+                                const c = cellValues[key] ? getCodeColors(cellValues[key], shiftCodes, absenceCodes) : null
+                                return c ? { background: c.bg, color: c.text } : {}
+                              })()}
+                            >
                               {cellValues[key] || ''}
                             </div>
                           ) : (
@@ -1204,9 +1217,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const dateStr = toISO(d)
                 const h = dayTotals[dateStr] ?? 0
                 const isWE = d.getDay() === 0 || d.getDay() === 6
+                const isMonday = d.getDay() === 1
                 return (
                   <td key={dateStr}
-                    className={`border-t border-r border-gray-200 text-center font-semibold py-1.5 ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}>
+                    className={`border-t border-r border-gray-200 text-center font-semibold py-1.5 ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}
+                    style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                     {h > 0 ? fmtH(h) : ''}
                   </td>
                 )
