@@ -265,7 +265,7 @@ export default function PlanningPage() {
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
         ) : employees.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            Aucun employé actif pour cette équipe. Vérifiez les affectations dans <strong className="mx-1">Employés</strong>.
+            Aucun salarié actif pour cette équipe. Vérifiez les affectations dans <strong className="mx-1">Salariés</strong>.
           </div>
         ) : (
           <>

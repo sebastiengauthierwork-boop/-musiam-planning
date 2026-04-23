@@ -78,7 +78,7 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                {['Employé', 'Contrat hebdo', 'Contrat mois', 'Planifié', 'Écart', 'Statut', 'Coût écart'].map(h => (
+                {['Salarié', 'Contrat hebdo', 'Contrat mois', 'Planifié', 'Écart', 'Statut', 'Coût écart'].map(h => (
                   <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider first:text-left [&:not(:first-child)]:text-center">
                     {h}
                   </th>
@@ -152,7 +152,7 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
             S = Surplus (heures supplémentaires)
           </span>
           {!hasCost && (
-            <span className="ml-auto text-gray-300">Coût écart : renseignez le taux horaire dans Employés</span>
+            <span className="ml-auto text-gray-300">Coût écart : renseignez le taux horaire dans Salariés</span>
           )}
         </div>
       </div>

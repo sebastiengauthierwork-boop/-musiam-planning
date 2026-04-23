@@ -219,14 +219,14 @@ export default function CyclePage() {
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
         ) : employees.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            Aucun employé actif pour cette équipe.
+            Aucun salarié actif pour cette équipe.
           </div>
         ) : (
           <table className="border-collapse text-xs w-max min-w-full">
             <thead className="sticky top-0 z-20 bg-white">
               <tr>
                 <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-44 min-w-[176px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
-                  Employé
+                  Salarié
                 </th>
                 {WEEKS.map(w =>
                   DAY_LABELS.map((d, di) => {

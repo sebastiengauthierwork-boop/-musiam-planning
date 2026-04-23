@@ -99,7 +99,7 @@ export default function TableauDeBord() {
           }
         />
         <StatCard
-          label="Employés actifs"
+          label="Salariés actifs"
           value={stats.employeeCount}
           color="emerald"
           icon={
@@ -129,7 +129,7 @@ export default function TableauDeBord() {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Équipe</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employés</th>
+                <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Salariés</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

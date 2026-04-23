@@ -755,7 +755,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               </label>
               {cycleResult && (
                 <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-800 space-y-0.5">
-                  <div><strong>{cycleResult.filled}</strong> jour{cycleResult.filled !== 1 ? 's' : ''} rempli{cycleResult.filled !== 1 ? 's' : ''} pour <strong>{cycleResult.emps}</strong> employé{cycleResult.emps !== 1 ? 's' : ''}</div>
+                  <div><strong>{cycleResult.filled}</strong> jour{cycleResult.filled !== 1 ? 's' : ''} rempli{cycleResult.filled !== 1 ? 's' : ''} pour <strong>{cycleResult.emps}</strong> salarié{cycleResult.emps !== 1 ? 's' : ''}</div>
                   {cycleResult.kept > 0 && <div className="text-indigo-600"><strong>{cycleResult.kept}</strong> conservé{cycleResult.kept !== 1 ? 's' : ''} (déjà saisi{cycleResult.kept !== 1 ? 's' : ''})</div>}
                   {cycleResult.noData > 0 && <div className="text-indigo-400"><strong>{cycleResult.noData}</strong> sans données de cycle</div>}
                 </div>
@@ -1011,7 +1011,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         colSpan={days.length + weeks.length + 2}
                         className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest text-center"
                       >
-                        Renforts · {secondaryEmployees.length} employé{secondaryEmployees.length > 1 ? 's' : ''} affecté{secondaryEmployees.length > 1 ? 's' : ''} en secondaire
+                        Renforts · {secondaryEmployees.length} salarié{secondaryEmployees.length > 1 ? 's' : ''} affecté{secondaryEmployees.length > 1 ? 's' : ''} en secondaire
                       </td>
                     </tr>
                   )}

@@ -15,7 +15,7 @@ type Employee = {
   email: string
   phone: string | null
   matricule: string | null
-  contract_type: 'CDI' | 'CDD' | 'extra'
+  contract_type: 'CDI' | 'CDD' | 'extra' | 'INTERIM'
   weekly_contract_hours: number | null
   work_days_per_week: number | null
   daily_hours: number | null
@@ -38,7 +38,7 @@ type FormData = {
   email: string
   phone: string
   matricule: string
-  contract_type: 'CDI' | 'CDD' | 'extra'
+  contract_type: 'CDI' | 'CDD' | 'extra' | 'INTERIM'
   weekly_contract_hours: string
   work_days_per_week: string
   daily_hours: string
@@ -211,12 +211,12 @@ export default function EmployesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Employés</h1>
-          <p className="text-gray-500 text-sm mt-1">{employees.length} employé{employees.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Salariés</h1>
+          <p className="text-gray-500 text-sm mt-1">{employees.length} salarié{employees.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <ImportExcel
-            label="employés"
+            label="salariés"
             templateFilename="modele_employes.xlsx"
             columns={['last_name','first_name','email','phone','contract_type','statut','fonction','weekly_contract_hours','matricule','work_days_per_week','equipe_principale','equipe_secondaire']}
             onParse={rows => {
@@ -233,10 +233,10 @@ export default function EmployesPage() {
                 const warnings: string[] = []
                 if (!r.email) warnings.push('email manquant')
                 const rawContract = String(r.contract_type ?? '').trim()
-                const contractType = ['CDI', 'CDD', 'extra'].includes(rawContract) ? rawContract : 'CDI'
+                const contractType = ['CDI', 'CDD', 'extra', 'INTERIM'].includes(rawContract) ? rawContract : 'CDI'
                 if (!rawContract) warnings.push('contrat → CDI par défaut')
                 else if (contractType === 'CDI' && rawContract !== 'CDI') warnings.push(`contrat "${rawContract}" invalide → CDI`)
-                if (!r.statut) warnings.push('statut → employé par défaut')
+                if (!r.statut) warnings.push('statut → salarié par défaut')
                 if (!r.weekly_contract_hours) warnings.push('heures/semaine → 151.67 par défaut')
 
                 valid.push({
@@ -297,7 +297,7 @@ export default function EmployesPage() {
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Ajouter un employé
+            Ajouter un salarié
           </button>
         </div>
       </div>
@@ -306,67 +306,67 @@ export default function EmployesPage() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Matricule</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fonction</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contrat</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/sem</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">J/sem</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/j</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Équipes</th>
-              <th className="px-5 py-3"></th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Matricule</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fonction</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contrat</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/sem</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">J/sem</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/j</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Équipes</th>
+              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {employees.length === 0 && (
-              <tr><td colSpan={10} className="px-5 py-10 text-center text-gray-400">Aucun employé</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Aucun salarié</td></tr>
             )}
             {employees.map((emp) => (
               <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
-                <td className="px-5 py-3.5">
+                <td className="px-4 py-1.5">
                   <span className="font-medium text-gray-900">{emp.last_name}</span>{' '}
                   <span className="text-gray-600">{emp.first_name}</span>
                 </td>
-                <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">
+                <td className="px-4 py-1.5 text-gray-500 font-mono">
                   {emp.matricule || <span className="text-gray-300">—</span>}
                 </td>
-                <td className="px-5 py-3.5 text-gray-600">
+                <td className="px-4 py-1.5 text-gray-600">
                   {emp.fonction || <span className="text-gray-300">—</span>}
                 </td>
-                <td className="px-5 py-3.5"><StatutBadge statut={emp.statut} /></td>
-                <td className="px-5 py-3.5"><ContractBadge type={emp.contract_type} /></td>
-                <td className="px-5 py-3.5 text-right text-gray-600">
+                <td className="px-4 py-1.5"><StatutBadge statut={emp.statut} /></td>
+                <td className="px-4 py-1.5"><ContractBadge type={emp.contract_type} /></td>
+                <td className="px-4 py-1.5 text-right text-gray-600">
                   {emp.weekly_contract_hours != null ? `${emp.weekly_contract_hours}h` : '—'}
                 </td>
-                <td className="px-5 py-3.5 text-right text-gray-600">
+                <td className="px-4 py-1.5 text-right text-gray-600">
                   {emp.work_days_per_week != null ? emp.work_days_per_week : '—'}
                 </td>
-                <td className="px-5 py-3.5 text-right text-gray-600">
+                <td className="px-4 py-1.5 text-right text-gray-600">
                   {emp.daily_hours != null ? `${emp.daily_hours}h` : '—'}
                 </td>
-                <td className="px-5 py-3.5">
+                <td className="px-4 py-1.5">
                   <div className="flex flex-wrap gap-1">
                     {emp.teams.length === 0 && <span className="text-gray-400">—</span>}
                     {emp.teams.map((t) => (
-                      <span key={t.team_id} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${t.is_primary ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span key={t.team_id} className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${t.is_primary ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-500'}`}>
                         {teamLabel(t)}
                       </span>
                     ))}
                   </div>
                 </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => openEdit(emp)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <td className="px-4 py-1.5">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button onClick={() => openEdit(emp)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button onClick={() => setConfirmDeleteId(emp.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <button onClick={() => setConfirmDeleteId(emp.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
@@ -380,7 +380,7 @@ export default function EmployesPage() {
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <Modal title={editingEmployee ? "Modifier l'employé" : 'Nouvel employé'} onClose={() => setShowModal(false)}>
+        <Modal title={editingEmployee ? 'Modifier le salarié' : 'Nouveau salarié'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             {/* Prénom + Nom */}
             <div className="grid grid-cols-2 gap-4">
@@ -414,7 +414,7 @@ export default function EmployesPage() {
                   <option value="">— Non renseigné —</option>
                   <option value="cadre">Cadre</option>
                   <option value="agent_de_maitrise">Agent de maîtrise</option>
-                  <option value="employe">Employé</option>
+                  <option value="employe">Salarié</option>
                 </select>
               </Field>
               <Field label="Fonction">
@@ -432,6 +432,7 @@ export default function EmployesPage() {
                   <option value="CDI">CDI</option>
                   <option value="CDD">CDD</option>
                   <option value="extra">Extra</option>
+                  <option value="INTERIM">Intérim</option>
                 </select>
               </Field>
               <Field label="Heures / semaine">
@@ -486,8 +487,8 @@ export default function EmployesPage() {
 
       {/* Delete confirmation */}
       {confirmDeleteId && (
-        <Modal title="Supprimer l'employé" onClose={() => setConfirmDeleteId(null)}>
-          <p className="text-sm text-gray-600">Cette action est irréversible. Toutes les affectations et plannings de cet employé seront également supprimés.</p>
+        <Modal title="Supprimer le salarié" onClose={() => setConfirmDeleteId(null)}>
+          <p className="text-sm text-gray-600">Cette action est irréversible. Toutes les affectations et plannings de ce salarié seront également supprimées.</p>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
@@ -512,7 +513,7 @@ function StatutBadge({ statut }: { statut: string | null }) {
   const labels: Record<string, string> = {
     cadre: 'Cadre',
     agent_de_maitrise: 'Agent de maîtrise',
-    employe: 'Employé',
+    employe: 'Salarié',
   }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[statut] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -526,10 +527,12 @@ function ContractBadge({ type }: { type: string }) {
     CDI: 'bg-emerald-50 text-emerald-700',
     CDD: 'bg-amber-50 text-amber-700',
     extra: 'bg-gray-100 text-gray-600',
+    INTERIM: 'bg-orange-50 text-orange-700',
   }
+  const labels: Record<string, string> = { INTERIM: 'Intérim' }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[type] ?? 'bg-gray-100 text-gray-600'}`}>
-      {type}
+      {labels[type] ?? type}
     </span>
   )
 }

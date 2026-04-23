@@ -112,7 +112,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
 
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-200 bg-white">
-        <label className="text-sm font-medium text-gray-700">Employé :</label>
+        <label className="text-sm font-medium text-gray-700">Salarié :</label>
         <select
           value={selectedEmpId}
           onChange={e => setSelectedEmpId(e.target.value)}
@@ -135,7 +135,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
       {/* ── Printable area ── */}
       <div className="print-planning-area overflow-auto p-6 bg-white">
         {!emp ? (
-          <p className="text-gray-400 text-sm">Sélectionnez un employé.</p>
+          <p className="text-gray-400 text-sm">Sélectionnez un salarié.</p>
         ) : (
           <>
             {/* ── 1. HEADER ─────────────────────────────────────────────── */}

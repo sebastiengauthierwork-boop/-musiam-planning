@@ -159,7 +159,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
 
           <thead>
             <tr>
-              <th style={S.thEmp}>Employé</th>
+              <th style={S.thEmp}>Salarié</th>
               {days.map(d => {
                 const isWE = d.getDay() === 0 || d.getDay() === 6
                 const isMonday = d.getDay() === 1

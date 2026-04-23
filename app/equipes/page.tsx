@@ -217,7 +217,7 @@ export default function EquipesPage() {
 
       {confirmDeleteId && (
         <Modal title="Supprimer l'équipe" onClose={() => setConfirmDeleteId(null)}>
-          <p className="text-sm text-gray-600">Cette action est irréversible. Les affectations d'employés seront également supprimées.</p>
+          <p className="text-sm text-gray-600">Cette action est irréversible. Les affectations de salariés seront également supprimées.</p>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
               Annuler
@@ -248,7 +248,7 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">CDPF</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-            <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employés</th>
+            <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Salariés</th>
             <th className="px-5 py-3"></th>
           </tr>
         </thead>
