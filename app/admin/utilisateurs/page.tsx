@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, Fragment } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
@@ -179,16 +180,42 @@ export default function UtilisateursPage() {
     setSaving(true)
 
     if (modalMode === 'add') {
-      // Adding a user requires a Supabase Auth account first.
-      // Client-side auth.admin.createUser is not available — the Auth user
-      // must be created via the Supabase Dashboard or a server-side function.
-      // Here we only insert/upsert the profile row in the public users table.
       if (!form.email.trim()) {
         setModalError("L'adresse e-mail est requise.")
         setSaving(false)
         return
       }
+      if (!form.password || form.password.length < 6) {
+        setModalError('Le mot de passe doit contenir au moins 6 caractères.')
+        setSaving(false)
+        return
+      }
+
+      // Create auth account via a temporary client that does not persist the
+      // new session — so the current admin session is left untouched.
+      const tempClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+      )
+      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+      })
+      if (signUpError) {
+        setModalError(signUpError.message)
+        setSaving(false)
+        return
+      }
+      const authUserId = signUpData.user?.id
+      if (!authUserId) {
+        setModalError("Impossible de créer le compte Auth. Vérifiez l'adresse e-mail.")
+        setSaving(false)
+        return
+      }
+
       const { error: insertError } = await supabase.from('users').insert({
+        id: authUserId,
         email: form.email.trim().toLowerCase(),
         role: form.role,
         allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
@@ -288,11 +315,11 @@ export default function UtilisateursPage() {
       </div>
 
       {/* Notice */}
-      <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-        <p className="text-sm text-amber-800">
-          <span className="font-medium">Note :</span> La création du compte Auth
-          Supabase doit être effectuée via le Dashboard Supabase ou une fonction
-          serveur. Cette interface gère uniquement le profil (rôle et équipes).
+      <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+        <p className="text-sm text-blue-800">
+          <span className="font-medium">Info :</span> L'ajout d'un utilisateur crée
+          automatiquement son compte Supabase Auth et son profil (rôle et équipes).
+          Un e-mail de confirmation peut être envoyé selon la configuration Supabase.
         </p>
       </div>
 
@@ -402,24 +429,34 @@ export default function UtilisateursPage() {
             </h2>
 
             <div className="space-y-4">
-              {/* Email — add only */}
+              {/* Email + Password — add only */}
               {modalMode === 'add' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Adresse e-mail
-                  </label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="prenom.nom@musiam.fr"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                  />
-                  <p className="mt-1.5 text-xs text-slate-400">
-                    Créez d'abord le compte via le Dashboard Supabase, puis
-                    assignez-le ici.
-                  </p>
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Adresse e-mail
+                    </label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="prenom.nom@musiam.fr"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Mot de passe
+                    </label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="Min. 6 caractères"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                    />
+                  </div>
+                </>
               )}
 
               {/* Role */}
