@@ -263,9 +263,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   // ── Cycle modal ──
   const [showCycleModal, setShowCycleModal] = useState(false)
   const [cycleStartWeek, setCycleStartWeek] = useState(1)
+  const [cycleStartDate, setCycleStartDate] = useState(`${year}-${String(month + 1).padStart(2, '0')}-01`)
+  const [cycleEndDate, setCycleEndDate] = useState(() => toISO(new Date(year, month + 1, 0)))
   const [cycleOverwrite, setCycleOverwrite] = useState(false)
   const [cycleApplying, setCycleApplying] = useState(false)
-  const [cycleResult, setCycleResult] = useState<{ filled: number; kept: number; noData: number } | null>(null)
+  const [cycleResult, setCycleResult] = useState<{ filled: number; emps: number; kept: number; noData: number } | null>(null)
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -387,7 +389,6 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         .eq('team_id', teamId)
       if (cycleErr) throw cycleErr
 
-      // lookup: empId (or 'ALL') -> week_number -> day_of_week -> code
       const cycleLookup: Record<string, Record<number, Record<number, string>>> = {}
       for (const row of (cycleData ?? [])) {
         const empKey = row.employee_id ?? 'ALL'
@@ -396,15 +397,22 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         cycleLookup[empKey][row.week_number][row.day_of_week] = row.code
       }
 
-      const firstMonday = getMonday(new Date(year, month, 1))
+      const startDate = new Date(cycleStartDate + 'T00:00:00')
+      const endDate = new Date(cycleEndDate + 'T00:00:00')
+      const rangeDays: Date[] = []
+      const cur = new Date(startDate)
+      while (cur <= endDate) { rangeDays.push(new Date(cur)); cur.setDate(cur.getDate() + 1) }
+
       const toUpsert: any[] = []
       let filled = 0, kept = 0, noData = 0
+      const empsFilled = new Set<string>()
 
-      for (const d of days) {
-        const dayMonday = getMonday(d)
-        const weekOffset = Math.round((dayMonday.getTime() - firstMonday.getTime()) / (7 * 24 * 3600 * 1000))
-        const cycleWeek = ((weekOffset + cycleStartWeek - 1) % 6) + 1
-        const dow = (d.getDay() + 6) % 7 + 1 // 1=Mon..7=Sun
+      let currentCycleWeek = cycleStartWeek
+      let currentDow = (startDate.getDay() + 6) % 7 + 1 // 1=Mon..7=Sun
+
+      for (const d of rangeDays) {
+        const dow = currentDow
+        const cycleWeek = currentCycleWeek
         const dateStr = toISO(d)
 
         for (const emp of employees) {
@@ -425,7 +433,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
             break_minutes: sc?.break_minutes ?? 0, status: 'brouillon', notes: null,
           })
           filled++
+          empsFilled.add(emp.id)
         }
+
+        if (currentDow === 7) { currentDow = 1; currentCycleWeek = (currentCycleWeek % 6) + 1 }
+        else currentDow++
       }
 
       if (toUpsert.length > 0) {
@@ -441,7 +453,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         })
       }
 
-      setCycleResult({ filled, kept, noData })
+      setCycleResult({ filled, emps: empsFilled.size, kept, noData })
     } catch (err: any) {
       setGlobalError(err?.message ?? 'Erreur lors de l\'application du cycle')
       setShowCycleModal(false)
@@ -678,24 +690,36 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
             <p className="text-sm text-gray-500 mb-4">{teamName} — {MONTHS_FR[month]} {year}</p>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">Semaine de début du cycle</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Période d&apos;application</label>
+                <div className="flex items-center gap-2">
+                  <input type="date" value={cycleStartDate} onChange={e => setCycleStartDate(e.target.value)}
+                    disabled={cycleApplying || !!cycleResult}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50" />
+                  <span className="text-gray-400 text-xs shrink-0">au</span>
+                  <input type="date" value={cycleEndDate} onChange={e => setCycleEndDate(e.target.value)}
+                    disabled={cycleApplying || !!cycleResult}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Semaine de cycle pour le 1er jour</label>
                 <select value={cycleStartWeek} onChange={e => setCycleStartWeek(Number(e.target.value))}
                   disabled={cycleApplying || !!cycleResult}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:opacity-50">
-                  {[1,2,3,4,5,6].map(w => <option key={w} value={w}>S{w}</option>)}
+                  {[1,2,3,4,5,6].map(w => <option key={w} value={w}>Semaine {w}</option>)}
                 </select>
               </div>
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" checked={cycleOverwrite} onChange={e => setCycleOverwrite(e.target.checked)}
                   disabled={cycleApplying || !!cycleResult}
                   className="accent-indigo-600 w-4 h-4" />
-                <span className="text-sm text-gray-700">Écraser les cases déjà remplies</span>
+                <span className="text-sm text-gray-700">Écraser les cases déjà saisies</span>
               </label>
               {cycleResult && (
-                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-800">
-                  <strong>{cycleResult.filled}</strong> case{cycleResult.filled !== 1 ? 's' : ''} remplie{cycleResult.filled !== 1 ? 's' : ''}
-                  {cycleResult.kept > 0 && <> · <strong>{cycleResult.kept}</strong> conservée{cycleResult.kept !== 1 ? 's' : ''}</>}
-                  {cycleResult.noData > 0 && <> · <strong>{cycleResult.noData}</strong> sans données de cycle</>}
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-4 py-3 text-sm text-indigo-800 space-y-0.5">
+                  <div><strong>{cycleResult.filled}</strong> jour{cycleResult.filled !== 1 ? 's' : ''} rempli{cycleResult.filled !== 1 ? 's' : ''} pour <strong>{cycleResult.emps}</strong> employé{cycleResult.emps !== 1 ? 's' : ''}</div>
+                  {cycleResult.kept > 0 && <div className="text-indigo-600"><strong>{cycleResult.kept}</strong> conservé{cycleResult.kept !== 1 ? 's' : ''} (déjà saisi{cycleResult.kept !== 1 ? 's' : ''})</div>}
+                  {cycleResult.noData > 0 && <div className="text-indigo-400"><strong>{cycleResult.noData}</strong> sans données de cycle</div>}
                 </div>
               )}
             </div>
@@ -745,7 +769,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       {/* Action bar: cycle + archive */}
       {!isArchived && (
         <div className="shrink-0 flex items-center justify-between px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
-          <button onClick={() => { setCycleResult(null); setCycleStartWeek(1); setCycleOverwrite(false); setShowCycleModal(true) }}
+          <button onClick={() => { setCycleResult(null); setCycleStartWeek(1); setCycleOverwrite(false); setCycleStartDate(`${year}-${String(month + 1).padStart(2, '0')}-01`); setCycleEndDate(toISO(new Date(year, month + 1, 0))); setShowCycleModal(true) }}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
