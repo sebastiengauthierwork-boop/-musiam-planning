@@ -10,7 +10,6 @@ import TabSaisie from './TabSaisie'
 import TabPlanning from './TabPlanning'
 import TabCompteur from './TabCompteur'
 import TabEmargement from './TabEmargement'
-import TabHeuresSup from './TabHeuresSup'
 import TabArchives from './TabArchives'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
@@ -21,7 +20,6 @@ const TABS = [
   { id: 'planning',     label: 'Planning imprimable' },
   { id: 'compteur',     label: 'Compteur d\'heures' },
   { id: 'emargement',   label: 'Feuille d\'émargement' },
-  { id: 'heures-supp',  label: 'Heures supp.' },
   { id: 'archives',     label: 'Archives' },
 ] as const
 type TabId = typeof TABS[number]['id']
@@ -273,7 +271,6 @@ export default function PlanningPage() {
             {tab === 'planning'    && <TabPlanning   {...tabProps} />}
             {tab === 'compteur'    && <TabCompteur   {...tabProps} />}
             {tab === 'emargement'  && <TabEmargement {...tabProps} />}
-            {tab === 'heures-supp' && <TabHeuresSup  {...tabProps} />}
             {tab === 'archives'    && <TabArchives   {...tabProps} />}
           </>
         )}
