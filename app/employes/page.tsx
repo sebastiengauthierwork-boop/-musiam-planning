@@ -137,13 +137,13 @@ export default function EmployesPage() {
   }
 
   async function handleSave() {
-    if (!formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()) return
+    if (!formData.first_name.trim() || !formData.last_name.trim()) return
     setSaving(true); setSaveError(null)
     try {
       const payload = {
         first_name: formData.first_name.trim(),
         last_name: formData.last_name.trim(),
-        email: formData.email.trim(),
+        email: formData.email.trim() || null,
         phone: formData.phone.trim() || null,
         matricule: formData.matricule.trim() || null,
         contract_type: formData.contract_type,
@@ -393,7 +393,7 @@ export default function EmployesPage() {
             </div>
 
             {/* Email */}
-            <Field label="Email *">
+            <Field label="Email">
               <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
             </Field>
 
@@ -414,7 +414,7 @@ export default function EmployesPage() {
                   <option value="">— Non renseigné —</option>
                   <option value="cadre">Cadre</option>
                   <option value="agent_de_maitrise">Agent de maîtrise</option>
-                  <option value="employe">Salarié</option>
+                  <option value="employe">Employé</option>
                 </select>
               </Field>
               <Field label="Fonction">
@@ -478,7 +478,7 @@ export default function EmployesPage() {
             <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button onClick={handleSave} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || !formData.email.trim()} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+            <button onClick={handleSave} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim()} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
@@ -513,7 +513,7 @@ function StatutBadge({ statut }: { statut: string | null }) {
   const labels: Record<string, string> = {
     cadre: 'Cadre',
     agent_de_maitrise: 'Agent de maîtrise',
-    employe: 'Salarié',
+    employe: 'Employé',
   }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${styles[statut] ?? 'bg-gray-100 text-gray-600'}`}>
