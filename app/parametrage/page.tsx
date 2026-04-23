@@ -8,6 +8,7 @@ import { decimalToHMin, hMinToDecimal } from '@/lib/timeUtils'
 import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
+import { useAuth } from '@/lib/auth'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1580,7 +1581,29 @@ function Calendrier() {
 type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier'
 
 export default function ParametragePage() {
+  const { role: currentRole, loading: authLoading } = useAuth()
   const [section, setSection] = useState<Section>('horaires')
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-500 text-sm">Chargement…</p>
+      </div>
+    )
+  }
+
+  if (currentRole !== 'admin') {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-slate-800">Accès refusé</p>
+          <p className="text-sm text-slate-500 mt-1">
+            Cette page est réservée aux administrateurs.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
