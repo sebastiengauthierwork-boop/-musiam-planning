@@ -22,7 +22,8 @@
       "Bash(git remote:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(grep -E \"\\(>|\\\\\"|\\\\`|'\\)[^<]*[Ee]mploy[eé][^'\\\\\"<]*\\(<|\\\\\"|\\\\`|'\\)\")"
     ]
   }
 }

@@ -19,6 +19,8 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Musiam Planning",
   description: "Planification des équipes - Louvre",
+  manifest: "/manifest.json",
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Musiam' },
 }
 
 export default function RootLayout({

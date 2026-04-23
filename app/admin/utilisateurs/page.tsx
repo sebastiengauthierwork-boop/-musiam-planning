@@ -21,9 +21,16 @@ interface Team {
 interface AppUser {
   id: string
   email: string
-  role: 'admin' | 'manager'
+  role: 'admin' | 'manager' | 'salarie'
   team_id: string | null
   allowed_teams: string[] | null
+  employee_id: string | null
+}
+
+interface SimpleEmployee {
+  id: string
+  first_name: string
+  last_name: string
 }
 
 type ModalMode = 'add' | 'edit'
@@ -31,19 +38,27 @@ type ModalMode = 'add' | 'edit'
 const EMPTY_FORM = {
   email: '',
   password: '',
-  role: 'manager' as 'admin' | 'manager',
+  role: 'manager' as 'admin' | 'manager' | 'salarie',
   allowedTeams: [] as string[],
+  employeeId: '',
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function RoleBadge({ role }: { role: 'admin' | 'manager' }) {
+function RoleBadge({ role }: { role: 'admin' | 'manager' | 'salarie' }) {
   if (role === 'admin') {
     return (
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
         Admin
+      </span>
+    )
+  }
+  if (role === 'salarie') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+        Salarié
       </span>
     )
   }
@@ -63,6 +78,7 @@ export default function UtilisateursPage() {
 
   const [users, setUsers] = useState<AppUser[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [employees, setEmployees] = useState<SimpleEmployee[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -135,12 +151,22 @@ export default function UtilisateursPage() {
   // Modal helpers
   // -------------------------------------------------------------------------
 
+  async function loadEmployees() {
+    const { data } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name')
+      .eq('is_active', true)
+      .order('last_name')
+    setEmployees(data ?? [])
+  }
+
   function openAddModal() {
     setModalMode('add')
     setEditingUser(null)
     setForm({ ...EMPTY_FORM })
     setModalError(null)
     setModalOpen(true)
+    loadEmployees()
   }
 
   function openEditModal(user: AppUser) {
@@ -151,6 +177,7 @@ export default function UtilisateursPage() {
       password: '',
       role: user.role,
       allowedTeams: user.allowed_teams ?? [],
+      employeeId: user.employee_id ?? '',
     })
     setModalError(null)
     setModalOpen(true)
@@ -190,6 +217,11 @@ export default function UtilisateursPage() {
         setSaving(false)
         return
       }
+      if (form.role === 'salarie' && !form.employeeId) {
+        setModalError('Veuillez sélectionner le salarié associé.')
+        setSaving(false)
+        return
+      }
 
       // Create auth account via a temporary client that does not persist the
       // new session — so the current admin session is left untouched.
@@ -219,6 +251,7 @@ export default function UtilisateursPage() {
         email: form.email.trim().toLowerCase(),
         role: form.role,
         allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+        employee_id: form.role === 'salarie' ? form.employeeId || null : null,
       })
       if (insertError) {
         setModalError(insertError.message)
@@ -372,6 +405,10 @@ export default function UtilisateursPage() {
                       <span className="text-slate-400 text-xs italic">
                         Toutes les équipes
                       </span>
+                    ) : user.role === 'salarie' ? (
+                      <span className="text-slate-400 text-xs italic">
+                        {user.employee_id ? 'Salarié lié' : 'Non lié'}
+                      </span>
                     ) : user.allowed_teams && user.allowed_teams.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
                         {user.allowed_teams.map((tid) => (
@@ -469,15 +506,45 @@ export default function UtilisateursPage() {
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      role: e.target.value as 'admin' | 'manager',
+                      role: e.target.value as 'admin' | 'manager' | 'salarie',
+                      employeeId: '',
                     })
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
+                  <option value="salarie">Salarié</option>
                 </select>
               </div>
+
+              {/* Salarié associé — salarie only */}
+              {form.role === 'salarie' && modalMode === 'add' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Salarié associé
+                  </label>
+                  <select
+                    value={form.employeeId}
+                    onChange={(e) => {
+                      const emp = employees.find(x => x.id === e.target.value)
+                      setForm(prev => ({
+                        ...prev,
+                        employeeId: e.target.value,
+                        email: emp ? prev.email || '' : prev.email,
+                      }))
+                    }}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                  >
+                    <option value="">— Sélectionner un salarié —</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.last_name} {emp.first_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Équipes autorisées — managers only */}
               {form.role === 'manager' && (

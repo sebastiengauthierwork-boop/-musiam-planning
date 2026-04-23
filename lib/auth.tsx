@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
-type Role = 'admin' | 'manager' | null
+type Role = 'admin' | 'manager' | 'salarie' | null
 
 interface AuthContextValue {
   user: User | null
@@ -108,17 +108,25 @@ function redirectIfNeeded(user: User | null, role: Role) {
     return
   }
 
-  // Connecté sur /login → /planning
-  if (user && pathname.startsWith('/login')) {
-    window.location.href = '/planning'
-    return
-  }
+  if (user) {
+    // Connecté sur /login → redirect selon rôle
+    if (pathname.startsWith('/login')) {
+      window.location.href = role === 'salarie' ? '/mon-planning' : '/tableau-de-bord'
+      return
+    }
 
-  // Manager sur route restreinte → /planning
-  if (user && role === 'manager') {
-    const isRestricted = RESTRICTED_ROUTES.some(r => pathname.startsWith(r))
-    if (isRestricted) {
-      window.location.href = '/planning'
+    // Salarié → uniquement /mon-planning
+    if (role === 'salarie' && !pathname.startsWith('/mon-planning')) {
+      window.location.href = '/mon-planning'
+      return
+    }
+
+    // Manager sur route restreinte → /planning
+    if (role === 'manager') {
+      const isRestricted = RESTRICTED_ROUTES.some(r => pathname.startsWith(r))
+      if (isRestricted) {
+        window.location.href = '/planning'
+      }
     }
   }
 }

@@ -1,0 +1,17 @@
+{
+  "name": "Musiam Planning",
+  "short_name": "Musiam",
+  "description": "Consultez votre planning depuis votre téléphone",
+  "start_url": "/mon-planning",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

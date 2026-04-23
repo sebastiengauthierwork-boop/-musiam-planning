@@ -1,0 +1,53 @@
+Vue salarie mobile : les salaries peuvent consulter leur planning depuis leur telephone.
+
+1. COLONNE employee_id SUR USERS :
+Ajouter employee_id sur la table users pour lier un compte utilisateur a un employe.
+Genere le SQL suivant et copie avec clip :
+ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_id UUID REFERENCES employees(id) ON DELETE SET NULL;
+
+2. NOUVEAU ROLE "salarie" :
+Le role 'salarie' s'ajoute aux roles existants (admin, manager). Un salarie est lie a un employee_id.
+
+3. PAGE /mon-planning (responsive mobile-first) :
+- Accessible uniquement aux utilisateurs avec role 'salarie'
+- Pas de sidebar, pas de selecteur de site/equipe. Interface epuree.
+- En haut : logo Musiam, nom du salarie, son equipe, bouton deconnexion
+- ONGLET 1 "Mon planning" :
+  a) Affiche le planning du salarie connecte pour le mois en cours
+  b) Format liste verticale (pas de grille), une ligne par jour :
+     - Date complete (Lundi 5 mai 2026)
+     - Code horaire en gras avec sa couleur de fond
+     - Horaires de prise de poste et fin de poste si le code a des horaires
+     - Repos en noir, absences en gris fonce (meme logique que le planning imprimable)
+  c) Deux boutons : "Mois precedent" et "Mois suivant" mais limiter a : mois en cours et mois suivant uniquement (pas d'historique)
+  d) Consultation uniquement, aucune modification possible
+- ONGLET 2 "Mon equipe" :
+  a) Affiche le planning de toute l'equipe du mois en cours
+  b) Format grille compacte horizontale : une ligne par salarie, colonnes = jours du mois
+  c) Cellules avec juste le code en couleur, petite police
+  d) Scroll horizontal pour voir tous les jours
+  e) Le salarie connecte est mis en surbrillance dans la grille
+  f) Consultation uniquement
+
+4. CREATION COMPTE SALARIE dans /admin/utilisateurs :
+- Ajouter l'option 'salarie' dans le dropdown Role
+- Quand on choisit 'salarie', un dropdown supplementaire apparait : "Employe associe" qui liste tous les employes du site selectionne
+- L'email est pre-rempli avec l'email de l'employe selectionne
+- Un champ mot de passe pour definir le mot de passe initial
+- A la creation : creer le compte auth + inserer dans users avec employee_id
+
+5. REDIRECTION APRES LOGIN :
+- Si role admin ou manager : rediriger vers /tableau-de-bord
+- Si role salarie : rediriger vers /mon-planning
+- Un salarie qui tente d'acceder a /planning, /employes, /parametrage, etc. est redirige vers /mon-planning
+- La sidebar ne s'affiche PAS pour les salaries
+
+6. DESIGN MOBILE :
+- Taille de police minimum 16px pour le texte principal
+- Boutons larges avec padding suffisant pour le tactile (min 44px de hauteur)
+- Pas de hover effects, tout en tap
+- Le planning perso en liste verticale est le format le plus lisible sur mobile
+- Couleurs identiques au planning imprimable
+- PWA ready : ajouter un manifest.json et un service worker basique pour que le salarie puisse "Ajouter a l'ecran d'accueil" sur son telephone
+
+git add . && git commit -m "feat: vue salarie mobile" && git push origin main
