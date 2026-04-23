@@ -394,7 +394,7 @@ export default function EmployesPage() {
 
             {/* Email */}
             <Field label="Email">
-              <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
+              <input type="text" inputMode="email" autoComplete="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
             </Field>
 
             {/* Matricule + Téléphone */}
