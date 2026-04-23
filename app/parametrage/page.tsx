@@ -34,7 +34,7 @@ type ShiftForm = {
   end_time: string; arrival_time: string; departure_time: string
 }
 type AbsenceForm = { code: string; label: string; is_paid: boolean }
-type Structure = { id: string; name: string }
+type Structure = { id: string; name: string; site_id?: string | null }
 type StructurePosition = { id: string; structure_id: string; position_name: string; required_count: number }
 type CalendarEntry = { date: string; team_id: string | null; structure_id: string | null }
 
@@ -875,6 +875,7 @@ type PosLine = { code: string; required_count: string }
 type ShiftCodeMin = { id: string; code: string; label: string; paid_hours: number | null; net_hours: number | null; start_time: string | null; end_time: string | null; break_minutes: number }
 
 function Structures() {
+  const { selectedSiteId } = useSite()
   const [structures, setStructures] = useState<Structure[]>([])
   const [positions, setPositions] = useState<StructurePosition[]>([])
   const [shiftCodes, setShiftCodes] = useState<ShiftCodeMin[]>([])
@@ -889,17 +890,21 @@ function Structures() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function load() {
+    let sQ = supabase.from('staffing_structures').select('*').order('name')
+    if (selectedSiteId) sQ = sQ.eq('site_id', selectedSiteId)
+    let scQ = supabase.from('shift_codes').select('id, code, label, paid_hours, net_hours, start_time, end_time, break_minutes').order('code')
+    if (selectedSiteId) scQ = scQ.eq('site_id', selectedSiteId)
     const [sRes, pRes, scRes] = await Promise.all([
-      supabase.from('staffing_structures').select('*').order('name'),
+      sQ,
       supabase.from('staffing_structure_positions').select('*').order('position_name'),
-      supabase.from('shift_codes').select('id, code, label, paid_hours, net_hours, start_time, end_time, break_minutes').order('code'),
+      scQ,
     ])
     setStructures(sRes.data ?? [])
     setPositions(pRes.data ?? [])
     setShiftCodes(scRes.data ?? [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [selectedSiteId])
 
   function lineHours(line: PosLine): number {
     const sc = shiftCodes.find(c => c.code === line.code)
@@ -939,7 +944,7 @@ function Structures() {
         const { error: delErr } = await supabase.from('staffing_structure_positions').delete().eq('structure_id', editing.id)
         if (delErr) throw delErr
       } else {
-        const { data, error } = await supabase.from('staffing_structures').insert({ name: name.trim() }).select('id').single()
+        const { data, error } = await supabase.from('staffing_structures').insert({ name: name.trim(), site_id: selectedSiteId || null }).select('id').single()
         if (error) throw error
         if (!data) throw new Error('Aucune donnée retournée — vérifiez que la table staffing_structures existe et que les RLS autorisent INSERT.')
         sid = data.id

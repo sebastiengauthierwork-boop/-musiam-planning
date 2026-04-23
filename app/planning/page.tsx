@@ -54,19 +54,18 @@ export default function PlanningPage() {
     return t
   }, [allTeams, selectedSiteId, role, allowedTeams, authLoading])
 
-  // Shift codes filtrés par site (codes globaux team_id=null toujours inclus)
+  // Shift codes filtrés par site
   const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
   const filteredShiftCodes = useMemo(() => {
     if (!selectedSiteId) return shiftCodes
-    const teamIds = new Set(teams.map(t => t.id))
-    return shiftCodes.filter(sc => !sc.team_id || teamIds.has(sc.team_id))
-  }, [shiftCodes, teams, selectedSiteId])
+    return shiftCodes.filter(sc => !sc.site_id || sc.site_id === selectedSiteId)
+  }, [shiftCodes, selectedSiteId])
 
   // Charger équipes + codes immédiatement, sans attendre l'auth
   useEffect(() => {
     Promise.all([
       supabase.from('teams').select('id, name, cdpf, type, site_id').order('name'),
-      supabase.from('shift_codes').select('id, code, label, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
+      supabase.from('shift_codes').select('id, code, label, site_id, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
       setAllTeams(tRes.data ?? [])
