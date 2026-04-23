@@ -47,8 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timeout = setTimeout(() => {
       timedOut = true
       setUser(null); setRole(null); setAllowedTeams([])
-      setLoading(false)
-      redirectIfNeeded(null, null)
+      const redirected = redirectIfNeeded(null, null)
+      if (!redirected) setLoading(false)
     }, 3000)
 
     supabase.auth.getSession().then(async ({ data: { session } }: { data: { session: any } }) => {
@@ -57,29 +57,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (session?.user) {
         setUser(session.user)
-        // Déverrouiller le rendu immédiatement — le profil charge en arrière-plan
-        setLoading(false)
+        // Attendre le rôle avant de libérer le rendu — évite le flash dashboard/sidebar
         fetchUserProfile(session.user).then(userRole => {
-          redirectIfNeeded(session.user, userRole)
+          const redirected = redirectIfNeeded(session.user, userRole)
+          if (!redirected) setLoading(false)
         })
       } else {
         setUser(null); setRole(null); setAllowedTeams([])
-        setLoading(false)
-        redirectIfNeeded(null, null)
+        const redirected = redirectIfNeeded(null, null)
+        if (!redirected) setLoading(false)
       }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
       if (session?.user) {
         setUser(session.user)
-        setLoading(false)
         fetchUserProfile(session.user).then(userRole => {
-          redirectIfNeeded(session.user, userRole)
+          const redirected = redirectIfNeeded(session.user, userRole)
+          if (!redirected) setLoading(false)
         })
       } else {
         setUser(null); setRole(null); setAllowedTeams([])
-        setLoading(false)
-        redirectIfNeeded(null, null)
+        const redirected = redirectIfNeeded(null, null)
+        if (!redirected) setLoading(false)
       }
     })
 
@@ -98,27 +98,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 }
 
-function redirectIfNeeded(user: User | null, role: Role) {
-  if (typeof window === 'undefined') return
+function redirectIfNeeded(user: User | null, role: Role): boolean {
+  if (typeof window === 'undefined') return false
   const pathname = window.location.pathname
 
   // Non connecté hors /login → /login
   if (!user && !pathname.startsWith('/login')) {
     window.location.href = '/login'
-    return
+    return true
   }
 
   if (user) {
     // Connecté sur /login → redirect selon rôle
     if (pathname.startsWith('/login')) {
       window.location.href = role === 'salarie' ? '/mon-planning' : '/tableau-de-bord'
-      return
+      return true
     }
 
     // Salarié → uniquement /mon-planning
     if (role === 'salarie' && !pathname.startsWith('/mon-planning')) {
       window.location.href = '/mon-planning'
-      return
+      return true
     }
 
     // Manager sur route restreinte → /planning
@@ -126,9 +126,11 @@ function redirectIfNeeded(user: User | null, role: Role) {
       const isRestricted = RESTRICTED_ROUTES.some(r => pathname.startsWith(r))
       if (isRestricted) {
         window.location.href = '/planning'
+        return true
       }
     }
   }
+  return false
 }
 
 export function useAuth(): AuthContextValue {
