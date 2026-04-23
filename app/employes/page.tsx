@@ -23,6 +23,8 @@ type Employee = {
   fonction: string | null
   is_active: boolean
   created_at: string
+  start_date: string | null
+  end_date: string | null
 }
 
 type Team = { id: string; name: string; cdpf: string | null }
@@ -45,6 +47,8 @@ type FormData = {
   statut: 'cadre' | 'agent_de_maitrise' | 'employe' | ''
   fonction: string
   selectedTeamIds: string[]
+  start_date: string
+  end_date: string
 }
 
 const emptyForm: FormData = {
@@ -60,6 +64,8 @@ const emptyForm: FormData = {
   statut: '',
   fonction: '',
   selectedTeamIds: [],
+  start_date: '',
+  end_date: '',
 }
 
 export default function EmployesPage() {
@@ -78,7 +84,7 @@ export default function EmployesPage() {
 
   async function loadData() {
     let empQ = supabase.from('employees')
-      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at')
+      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date')
       .order('last_name').limit(500)
     if (selectedSiteId) empQ = empQ.eq('site_id', selectedSiteId)
 
@@ -132,6 +138,8 @@ export default function EmployesPage() {
       statut: emp.statut ?? '',
       fonction: emp.fonction ?? '',
       selectedTeamIds: emp.teams.map((t) => t.team_id),
+      start_date: emp.start_date ?? '',
+      end_date: emp.end_date ?? '',
     })
     setShowModal(true)
   }
@@ -153,6 +161,8 @@ export default function EmployesPage() {
         daily_hours: formData.daily_hours ? parseFloat(formData.daily_hours) : null,
         statut: formData.statut || null,
         fonction: formData.fonction.trim() || null,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
       }
 
       let employeeId: string
@@ -422,6 +432,16 @@ export default function EmployesPage() {
                   <option value="">— Non renseigné —</option>
                   {jobFunctions.map(f => <option key={f.id} value={f.name}>{f.name}</option>)}
                 </select>
+              </Field>
+            </div>
+
+            {/* Date d'entrée + Date de sortie */}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Date d'entrée">
+                <input type="date" value={formData.start_date} onChange={(e) => setFormData({ ...formData, start_date: e.target.value })} className="input" />
+              </Field>
+              <Field label="Date de sortie">
+                <input type="date" value={formData.end_date} onChange={(e) => setFormData({ ...formData, end_date: e.target.value })} className="input" />
               </Field>
             </div>
 

@@ -8,6 +8,8 @@ export type Employee = {
   statut?: string | null
   fonction?: string | null
   is_primary?: boolean   // true = équipe principale, false = renfort
+  start_date?: string | null  // YYYY-MM-DD, optionnel
+  end_date?: string | null    // YYYY-MM-DD, optionnel
 }
 
 export type CalendarDay = {

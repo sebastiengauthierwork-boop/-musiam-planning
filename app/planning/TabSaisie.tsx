@@ -19,6 +19,12 @@ function getDays(year: number, month: number): Date[] {
   const n = new Date(year, month + 1, 0).getDate()
   return Array.from({ length: n }, (_, i) => new Date(year, month, i + 1))
 }
+function isDateBlocked(emp: Employee, dateStr: string): boolean {
+  if (emp.start_date && dateStr < emp.start_date) return true
+  if (emp.end_date && dateStr > emp.end_date) return true
+  return false
+}
+
 function getPaidHours(code: string | null | undefined, shiftCodes: ShiftCode[], teamId: string): number {
   if (!code) return 0
   const sc = shiftCodes.find(c => c.code === code && (c.team_id === teamId || c.team_id === null))
@@ -625,7 +631,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const empMonthlyTotals = useMemo(() => {
     const map: Record<string, number> = {}
     for (const emp of employees) {
-      map[emp.id] = days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
+      map[emp.id] = days.reduce((s, d) => {
+        const dateStr = toISO(d)
+        if (isDateBlocked(emp, dateStr)) return s
+        return s + getPaidHours(cellValues[`${emp.id}|${dateStr}`], shiftCodes, teamId)
+      }, 0)
     }
     return map
   }, [cellValues, employees, days, shiftCodes, teamId])
@@ -635,7 +645,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     const map: Record<string, number> = {}
     for (const d of days) {
       const dateStr = toISO(d)
-      map[dateStr] = employees.reduce((s, e) => s + getPaidHours(cellValues[`${e.id}|${dateStr}`], shiftCodes, teamId), 0)
+      map[dateStr] = employees.reduce((s, e) => {
+        if (isDateBlocked(e, dateStr)) return s
+        return s + getPaidHours(cellValues[`${e.id}|${dateStr}`], shiftCodes, teamId)
+      }, 0)
     }
     return map
   }, [cellValues, employees, days, shiftCodes, teamId])
@@ -1028,10 +1041,14 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const isMonday = d.getDay() === 1
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
+                      const blocked = isDateBlocked(emp, dateStr)
                       return (
                         <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative"
                           style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
-                          {isArchived ? (
+                          {blocked ? (
+                            <div className="w-full h-full" style={{ background: '#e5e7eb' }}
+                              title={emp.start_date && dateStr < emp.start_date ? `Entrée le ${emp.start_date}` : `Sortie le ${emp.end_date}`} />
+                          ) : isArchived ? (
                             <div
                               className="w-full h-full flex items-center justify-center text-xs font-mono"
                               style={(() => {
@@ -1065,7 +1082,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {weeks.map(w => {
-                      const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
+                      const wh = w.days.reduce((s, d) => {
+                        const dateStr = toISO(d)
+                        if (isDateBlocked(emp, dateStr)) return s
+                        return s + getPaidHours(cellValues[`${emp.id}|${dateStr}`], shiftCodes, teamId)
+                      }, 0)
                       const over35 = wh > 35.5
                       return (
                         <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-6 text-center text-xs font-semibold ${
@@ -1163,7 +1184,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {weeks.map(w => {
-                      const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
+                      const wh = w.days.reduce((s, d) => {
+                        const dateStr = toISO(d)
+                        if (isDateBlocked(emp, dateStr)) return s
+                        return s + getPaidHours(cellValues[`${emp.id}|${dateStr}`], shiftCodes, teamId)
+                      }, 0)
                       return (
                         <td key={w.label} className={`border-b border-r border-amber-100 px-1 h-6 text-center text-xs font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
                           {wh > 0 ? fmtH(wh) : ''}

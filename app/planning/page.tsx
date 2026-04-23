@@ -94,7 +94,7 @@ export default function PlanningPage() {
       const [etRes, schedRes, archRes] = await Promise.all([
         supabase
           .from('employee_teams')
-          .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active)')
+          .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date)')
           .eq('team_id', teamId),
         supabase
           .from('schedules')
@@ -142,7 +142,7 @@ export default function PlanningPage() {
         const e = et.employees
         if (!e || !e.is_active || seen.has(e.id)) continue
         seen.add(e.id)
-        empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type, weekly_contract_hours: e.weekly_contract_hours, hourly_rate: e.hourly_rate ?? null, statut: e.statut ?? null, fonction: e.fonction ?? null, is_primary: et.is_primary ?? true })
+        empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type, weekly_contract_hours: e.weekly_contract_hours, hourly_rate: e.hourly_rate ?? null, statut: e.statut ?? null, fonction: e.fonction ?? null, is_primary: et.is_primary ?? true, start_date: e.start_date ?? null, end_date: e.end_date ?? null })
       }
       // Primary employees first, then sort by statut (cadre > agent_de_maitrise > employé), then alphabetical
       const STATUT_ORDER: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
@@ -154,7 +154,13 @@ export default function PlanningPage() {
         return a.last_name.localeCompare(b.last_name)
       })
 
-      setEmployees(empList)
+      // Exclure les employés dont la période d'emploi n'intersecte pas le mois
+      const visibleEmps = empList.filter(e => {
+        if (e.start_date && e.start_date > endDate) return false  // n'a pas encore commencé
+        if (e.end_date && e.end_date < startDate) return false    // est déjà parti
+        return true
+      })
+      setEmployees(visibleEmps)
       setSchedules(schedRes.data ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

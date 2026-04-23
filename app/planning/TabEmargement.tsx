@@ -64,7 +64,10 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
   function isWeekend(d: Date): boolean { return d.getDay() === 0 || d.getDay() === 6 }
 
   const workingDays = days.filter(d => {
-    const code = schedMap[`${selectedEmpId}|${toISO(d)}`]
+    const dateStr = toISO(d)
+    if (emp?.start_date && dateStr < emp.start_date) return false
+    if (emp?.end_date && dateStr > emp.end_date) return false
+    const code = schedMap[`${selectedEmpId}|${dateStr}`]
     return code || !isWeekend(d)
   })
 

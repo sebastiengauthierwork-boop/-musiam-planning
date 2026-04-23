@@ -43,11 +43,12 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
     const cells = days.map(d => {
       const dateStr = toISO(d)
       const isMonday = d.getDay() === 1
-      const code = schedMap[`${emp.id}|${dateStr}`]
+      const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
+      const code = blocked ? undefined : schedMap[`${emp.id}|${dateStr}`]
       const sc = code ? shiftCodes.find(c => c.code === code) : undefined
       const isAbsence = code && !sc && absCodeSet.has(code)
       const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-      const bg = c ? c.bg : '#ffffff'
+      const bg = blocked ? '#e5e7eb' : c ? c.bg : '#ffffff'
       const textColor = c ? c.text : '#374151'
       const times = sc?.start_time && sc?.end_time ? `${sc.start_time.slice(0, 5)} ${sc.end_time.slice(0, 5)}` : ''
       const inner = sc

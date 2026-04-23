@@ -192,10 +192,11 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                   const dateStr = toISO(d)
                   const isWE = d.getDay() === 0 || d.getDay() === 6
                   const isMonday = d.getDay() === 1
-                  const cell = cellData(emp.id, dateStr)
+                  const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
+                  const cell = blocked ? null : cellData(emp.id, dateStr)
                   const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
                   const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                  const bg = c ? c.bg : S.bgEmpty
+                  const bg = blocked ? '#e5e7eb' : c ? c.bg : S.bgEmpty
 
                   return (
                     <td key={dateStr} style={{
@@ -203,13 +204,13 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                       background: bg,
                       ...(isMonday ? { borderLeft: '2px solid #374151' } : {}),
                     }}>
-                      {cell?.kind === 'shift' && (
+                      {!blocked && cell?.kind === 'shift' && (
                         <>
                           <span style={{ ...S.shiftCode, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>
                           {cell.line2 && <span style={{ ...S.shiftTime, color: c?.text ?? '#475569', opacity: 0.8 }}>{cell.line2}</span>}
                         </>
                       )}
-                      {cell?.kind === 'absence' && (
+                      {!blocked && cell?.kind === 'absence' && (
                         <span style={{ ...S.absCode, color: c?.text ?? '#ffffff' }}>{cell.code}</span>
                       )}
                     </td>
