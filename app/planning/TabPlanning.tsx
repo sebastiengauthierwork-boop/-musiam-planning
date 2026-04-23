@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { TabProps } from './types'
 import { generatePlanningPdf, downloadPdf } from '@/lib/generatePlanningPdf'
+import { getCodeColors, SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S'] // index 0=dim, 1=lun …
@@ -28,15 +29,13 @@ const S = {
   thDayWD:{ background: '#f1f5f9', color: '#374151' },
   // cells
   tdEmp:  { border: '1px solid #cbd5e1', padding: '3px 5px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden' as const, whiteSpace: 'nowrap' as const },
-  tdBase: { border: '1px solid #cbd5e1', textAlign: 'center' as const, verticalAlign: 'middle' as const, padding: '2px 1px' },
+  tdBase: { border: '1px solid #cbd5e1', textAlign: 'center' as const, verticalAlign: 'middle' as const, padding: '3px 1px' },
   bgWE:   '#f1f5f9',
-  bgShift:'#dbeafe',  // blue-100
-  bgAbs:  '#dcfce7',  // green-100
   bgEmpty:'#ffffff',
   // text inside cell
-  line1:  { fontWeight: 600, color: '#1e293b', lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
-  line2:  { color: '#64748b', lineHeight: 1.1, fontSize: '5.5px', display: 'block' as const },
-  absCode:{ fontWeight: 700, color: '#374151', lineHeight: 1,    fontSize: '7px',   display: 'block' as const },
+  shiftCode: { fontWeight: 700, lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
+  shiftTime: { lineHeight: 1.1, fontSize: '5px',   display: 'block' as const },
+  absCode:   { fontWeight: 700, lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
 }
 
 export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName }: TabProps) {
@@ -188,22 +187,20 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                   const dateStr = toISO(d)
                   const isWE = d.getDay() === 0 || d.getDay() === 6
                   const cell = cellData(emp.id, dateStr)
-                  const bg = isWE
-                    ? S.bgWE
-                    : cell?.kind === 'shift'   ? S.bgShift
-                    : cell?.kind === 'absence' ? S.bgAbs
-                    : S.bgEmpty
+                  const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
+                  const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                  const bg = isWE ? S.bgWE : c ? c.bg : S.bgEmpty
 
                   return (
                     <td key={dateStr} style={{ ...S.tdBase, background: bg }}>
                       {cell?.kind === 'shift' && (
                         <>
-                          <span style={{ ...S.absCode, color: '#1d4ed8', fontSize: '6px' }}>{cell.line1}</span>
-                          {cell.line2 && <span style={{ ...S.line2, fontSize: '5px', color: '#475569' }}>{cell.line2}</span>}
+                          <span style={{ ...S.shiftCode, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>
+                          {cell.line2 && <span style={{ ...S.shiftTime, color: c?.text ?? '#475569', opacity: 0.8 }}>{cell.line2}</span>}
                         </>
                       )}
                       {cell?.kind === 'absence' && (
-                        <span style={S.absCode}>{cell.code}</span>
+                        <span style={{ ...S.absCode, color: c?.text ?? '#ffffff' }}>{cell.code}</span>
                       )}
                     </td>
                   )
@@ -216,12 +213,14 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
         {/* Pied de page imprimable */}
         <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: '7px', color: '#64748b' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ display: 'inline-block', width: 9, height: 9, background: S.bgShift, border: '1px solid #93c5fd' }} />
-            Shift travaillé
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            {SHIFT_PALETTE.slice(0, 4).map(c => (
+              <span key={c.bg} style={{ display: 'inline-block', width: 9, height: 9, background: c.bg, border: '1px solid #cbd5e1' }} />
+            ))}
+            <span style={{ marginLeft: 3 }}>Codes horaires</span>
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ display: 'inline-block', width: 9, height: 9, background: S.bgAbs, border: '1px solid #86efac' }} />
+            <span style={{ display: 'inline-block', width: 9, height: 9, background: ABSENCE_COLOR.bg, border: '1px solid #666' }} />
             Absence / congé
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

@@ -24,22 +24,6 @@ function fmtNet(net: number | null | undefined): string {
   return decimalToHMin(h)
 }
 
-// Group month days by calendar week (Mon–Sun), return ordered list
-function buildWeeksGrid(days: Date[]): { label: string; dates: (Date | null)[] }[] {
-  const weekMap = new Map<string, (Date | null)[]>()
-  const weekOrder: string[] = []
-  for (const d of days) {
-    const dow = (d.getDay() + 6) % 7 // 0=Mon, 6=Sun
-    const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow)
-    const key = `${mon.getFullYear()}-${mon.getMonth()}-${mon.getDate()}`
-    if (!weekMap.has(key)) {
-      weekMap.set(key, [null, null, null, null, null, null, null])
-      weekOrder.push(key)
-    }
-    weekMap.get(key)![dow] = d
-  }
-  return weekOrder.map((key, i) => ({ label: `S${i + 1}`, dates: weekMap.get(key)! }))
-}
 
 export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName }: TabProps) {
   const [selectedEmpId, setSelectedEmpId] = useState<string>(employees[0]?.id ?? '')
@@ -90,8 +74,6 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
     return sum + (sc?.net_hours ? Number(sc.net_hours) : 0)
   }, 0) : 0
   const totalLabel = fmtNet(totalH) || '0h00'
-
-  const weeksGrid = emp ? buildWeeksGrid(days) : []
 
   // ─── Inline style helpers (print fidelity) ────────────────────────────────
 
@@ -198,58 +180,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               </div>
             </div>
 
-            {/* ── 2. RÉCAP SEMAINES ─────────────────────────────────────── */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: '6.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#64748b', marginBottom: 3 }}>
-                Récapitulatif — Planning du mois
-              </div>
-              <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '7px' }}>
-                <colgroup>
-                  <col style={{ width: '6%' }} />
-                  {[0,1,2,3,4,5,6].map(i => <col key={i} style={{ width: `${94/7}%` }} />)}
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th style={th({ textAlign: 'left', fontSize: '6.5px', background: '#f8fafc' })}>Sem.</th>
-                    {['L','M','Me','J','V','S','D'].map((label, i) => (
-                      <th key={label} style={th({ background: i >= 5 ? '#e2e8f0' : '#f1f5f9', color: i >= 5 ? '#64748b' : '#374151' })}>
-                        {label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeksGrid.map(week => (
-                    <tr key={week.label}>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', fontWeight: 700, color: '#374151', background: '#f8fafc', fontSize: '6.5px' }}>
-                        {week.label}
-                      </td>
-                      {week.dates.map((d, i) => {
-                        if (!d) return (
-                          <td key={i} style={{ border: '1px solid #cbd5e1', background: i >= 5 ? '#f1f5f9' : '#f8fafc' }} />
-                        )
-                        const dateStr = toISO(d)
-                        const info = getShiftInfo(emp.id, dateStr)
-                        const isWE = i >= 5
-                        const sc = info?.isShift ? shiftCodes.find(c => c.code === info.code) : null
-                        const bg = isWE ? '#f1f5f9' : sc ? '#dbeafe' : info?.code ? '#dcfce7' : '#ffffff'
-                        const codeColor = sc ? '#1d4ed8' : info?.code ? '#15803d' : '#9ca3af'
-                        return (
-                          <td key={i} style={{ border: '1px solid #cbd5e1', background: bg, textAlign: 'center', padding: '1px 2px', verticalAlign: 'top' }}>
-                            <div style={{ fontSize: '5.5px', color: '#9ca3af', lineHeight: 1.2 }}>{d.getDate()}</div>
-                            <div style={{ fontSize: '6.5px', fontWeight: info?.code ? 700 : 400, color: codeColor, lineHeight: 1.3 }}>
-                              {info?.code ?? (isWE ? '—' : '')}
-                            </div>
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ── 3. TABLEAU PRINCIPAL ──────────────────────────────────── */}
+            {/* ── 2. TABLEAU PRINCIPAL ──────────────────────────────────── */}
             <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '8px' }}>
               <colgroup>
                 <col style={{ width: '7%' }} />   {/* Date */}

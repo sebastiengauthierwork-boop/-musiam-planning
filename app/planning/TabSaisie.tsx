@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
 import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
+import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,17 +58,6 @@ function getScheduleType(
   return 'absence'
 }
 
-function cellBg(code: string, shiftCodes: ShiftCode[], absenceCodes: AbsenceCode[]): string {
-  if (!code) return ''
-  if (shiftCodes.some(c => c.code === code)) return 'bg-blue-100 text-blue-900'
-  const a = absenceCodes.find(c => c.code === code)
-  if (!a) return 'bg-yellow-50 text-yellow-800'
-  if (code === 'R' || code === 'REP') return 'bg-gray-100 text-gray-600'
-  if (code === 'ABS') return 'bg-red-100 text-red-700'
-  if (code === 'MAL' || code === 'AT') return 'bg-orange-100 text-orange-700'
-  if (a.is_paid) return 'bg-emerald-100 text-emerald-700'
-  return 'bg-gray-100 text-gray-600'
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,7 +126,10 @@ function CellInput({
     setOpen(false)
   }
 
-  const bg = val ? cellBg(val, shiftCodes, absenceCodes) : (isWeekend ? 'bg-slate-50' : '')
+  const codeColor = val ? getCodeColors(val, shiftCodes, absenceCodes) : null
+  const bgStyle: React.CSSProperties = codeColor
+    ? { background: codeColor.bg, color: codeColor.text }
+    : isWeekend ? { background: '#f1f5f9' } : {}
 
   // Priority: error > flash/saved > selected
   const ring = flash
@@ -151,8 +144,8 @@ function CellInput({
 
   return (
     <div
-      className={`relative w-full h-full ${bg} ${ring} transition-all`}
-      style={selectionStyle}
+      className={`relative w-full h-full ${ring} transition-all`}
+      style={{ ...bgStyle, ...selectionStyle }}
       title={status === 'error' ? errorMsg : allCodes.find(c => c.code === val)?.label}
       onMouseDown={e => {
         if (e.button !== 0) return
@@ -188,7 +181,7 @@ function CellInput({
           }
           if (e.key === 'Tab') commit(val)
         }}
-        className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase rounded"
+        className="w-full h-6 text-center text-xs font-mono bg-transparent focus:outline-none uppercase rounded"
         maxLength={5}
       />
 
@@ -1019,7 +1012,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     </tr>
                   )}
                   <tr key={emp.id} className={`group ${isRenfort ? 'bg-gray-50/50 hover:bg-blue-50/10' : 'hover:bg-blue-50/20'}`}>
-                    <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-7 whitespace-nowrap ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'}`}>
+                    <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'}`}>
                       {isRenfort && <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-300 mr-1.5 mb-0.5" />}
                       <span className={`font-semibold ${isRenfort ? 'text-gray-600' : 'text-gray-800'}`}>{emp.last_name}</span>{' '}
                       <span className="text-gray-500">{emp.first_name}</span>
@@ -1031,9 +1024,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       return (
-                        <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-7 relative">
+                        <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative">
                           {isArchived ? (
-                            <div className={`w-full h-full flex items-center justify-center text-xs font-mono ${isWE ? 'bg-slate-100 text-slate-400' : cellValues[key] ? 'bg-gray-50 text-gray-500' : 'bg-gray-50'}`}>
+                            <div
+                              className="w-full h-full flex items-center justify-center text-xs font-mono"
+                              style={(() => {
+                                if (isWE) return { background: '#f1f5f9', color: '#94a3b8' }
+                                const c = cellValues[key] ? getCodeColors(cellValues[key], shiftCodes, absenceCodes) : null
+                                return c ? { background: c.bg, color: c.text } : { background: '#f8fafc' }
+                              })()}
+                            >
                               {cellValues[key] || ''}
                             </div>
                           ) : (
@@ -1063,14 +1063,14 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
                       const over35 = wh > 35.5
                       return (
-                        <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-7 text-center text-xs font-semibold ${
+                        <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-6 text-center text-xs font-semibold ${
                           over35 ? 'text-red-600 bg-red-50' : wh > 0 ? 'text-indigo-700 bg-indigo-50/50' : 'text-gray-200 bg-indigo-50/20'
                         }`}>
                           {wh > 0 ? fmtH(wh) : ''}
                         </td>
                       )
                     })}
-                    <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-7 text-center font-semibold ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'} ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                    <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'} ${over ? 'text-red-600' : 'text-gray-700'}`}>
                       {fmtH(monthH)}
                       {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
                     </td>
@@ -1102,7 +1102,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const monthH = empMonthlyTotals[emp.id] ?? 0
                 return (
                   <tr key={emp.id} className="group bg-amber-50/20 hover:bg-amber-50/50">
-                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-7 whitespace-nowrap bg-amber-50/30 group-hover:bg-amber-50/70">
+                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50/30 group-hover:bg-amber-50/70">
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-semibold text-amber-800 text-xs">{emp.first_name || emp.last_name}</span>
                         {!isArchived && (
@@ -1121,7 +1121,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       return (
-                        <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-7 relative">
+                        <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-6 relative">
                           {isArchived ? (
                             <div className={`w-full h-full flex items-center justify-center text-xs font-mono ${isWE ? 'bg-slate-100 text-slate-400' : cellValues[key] ? 'bg-amber-50 text-amber-900' : 'bg-amber-50/30'}`}>
                               {cellValues[key] || ''}
@@ -1152,12 +1152,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     {weeks.map(w => {
                       const wh = w.days.reduce((s, d) => s + getPaidHours(cellValues[`${emp.id}|${toISO(d)}`], shiftCodes, teamId), 0)
                       return (
-                        <td key={w.label} className={`border-b border-r border-amber-100 px-1 h-7 text-center text-xs font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
+                        <td key={w.label} className={`border-b border-r border-amber-100 px-1 h-6 text-center text-xs font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
                           {wh > 0 ? fmtH(wh) : ''}
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-7 text-center font-semibold bg-amber-50/30 group-hover:bg-amber-50/70 text-amber-800">
+                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-6 text-center font-semibold bg-amber-50/30 group-hover:bg-amber-50/70 text-amber-800">
                       {fmtH(monthH)}
                     </td>
                   </tr>
@@ -1230,10 +1230,20 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
       {/* Legend */}
       <div className="shrink-0 flex items-center gap-5 px-4 py-2 border-t border-gray-100 bg-white text-xs text-gray-400">
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-200" />Shift</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" />Congé payant</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />Repos</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-100 border border-red-200" />Absence</span>
+        <span className="inline-flex items-center gap-1">
+          {SHIFT_PALETTE.slice(0, 4).map(c => (
+            <span key={c.bg} className="w-3 h-3 rounded" style={{ background: c.bg, border: '1px solid #cbd5e1' }} />
+          ))}
+          <span className="ml-1">Codes horaires</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: REPOS_COLOR.bg }} />
+          Repos
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: ABSENCE_COLOR.bg }} />
+          Absences
+        </span>
         <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded outline outline-2 outline-emerald-400" />Sauvegardé</span>
         <span className="inline-flex items-center gap-1.5 text-blue-400"><span className="inline-block w-3 h-3 rounded" style={{ boxShadow: 'inset 0 0 0 2px #3b82f6' }} />Sélectionné</span>
         <span className="ml-auto">Clic = sélect · Shift+clic = plage · Ctrl+C/V = copier/coller</span>

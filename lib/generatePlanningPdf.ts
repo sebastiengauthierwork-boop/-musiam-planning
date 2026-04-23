@@ -1,4 +1,5 @@
 import type { Employee, Schedule, ShiftCode, AbsenceCode } from '@/app/planning/types'
+import { getCodeColors, SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -45,14 +46,16 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
       const code = schedMap[`${emp.id}|${dateStr}`]
       const sc = code ? shiftCodes.find(c => c.code === code) : undefined
       const isAbsence = code && !sc && absCodeSet.has(code)
-      const bg = isWE ? '#f1f5f9' : sc ? '#dbeafe' : isAbsence ? '#dcfce7' : '#ffffff'
+      const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+      const bg = isWE ? '#f1f5f9' : c ? c.bg : '#ffffff'
+      const textColor = c ? c.text : '#374151'
       const times = sc?.start_time && sc?.end_time ? `${sc.start_time.slice(0, 5)} ${sc.end_time.slice(0, 5)}` : ''
       const inner = sc
-        ? `<span style="font-weight:600;color:#1d4ed8;font-size:7px;display:block;line-height:1.3;">${code}</span>${times ? `<span style="color:#475569;font-size:5.5px;display:block;line-height:1.1;">${times}</span>` : ''}`
+        ? `<span style="font-weight:700;color:${textColor};font-size:7px;display:block;line-height:1.3;">${code}</span>${times ? `<span style="color:${textColor};opacity:0.8;font-size:5px;display:block;line-height:1.2;">${times}</span>` : ''}`
         : isAbsence
-        ? `<span style="font-weight:700;color:#374151;font-size:7px;display:block;line-height:1.3;">${code}</span>`
+        ? `<span style="font-weight:700;color:${textColor};font-size:7px;display:block;line-height:1.3;">${code}</span>`
         : ''
-      return `<td style="border:1px solid #cbd5e1;text-align:center;vertical-align:middle;padding:2px 1px;background:${bg};">${inner}</td>`
+      return `<td style="border:1px solid #cbd5e1;text-align:center;vertical-align:middle;padding:3px 1px;background:${bg};">${inner}</td>`
     }).join('')
     return `<tr>
       <td style="border:1px solid #cbd5e1;padding:3px 5px;font-weight:600;color:#1e293b;background:#f8fafc;overflow:hidden;white-space:nowrap;">
@@ -98,8 +101,11 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
     </table>
     <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:flex-end;font-size:7px;color:#64748b;">
       <div style="display:flex;align-items:center;gap:16px;">
-        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#dbeafe;border:1px solid #93c5fd;"></span>Shift travaillé</span>
-        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#dcfce7;border:1px solid #86efac;"></span>Absence / congé</span>
+        <span style="display:flex;align-items:center;gap:3px;">
+          ${SHIFT_PALETTE.slice(0, 4).map(c => `<span style="display:inline-block;width:10px;height:10px;background:${c.bg};border:1px solid #cbd5e1;"></span>`).join('')}
+          <span style="margin-left:3px;">Codes horaires</span>
+        </span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:${ABSENCE_COLOR.bg};border:1px solid #666;"></span>Absence / congé</span>
         <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:10px;height:10px;background:#f1f5f9;border:1px solid #cbd5e1;"></span>Week-end</span>
       </div>
       <div style="font-size:6.5px;color:#94a3b8;">Imprimé le ${new Date().toLocaleDateString('fr-FR')}</div>

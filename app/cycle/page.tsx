@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
+import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 
 type Team = { id: string; name: string; cdpf: string | null }
 type Employee = { id: string; first_name: string; last_name: string; fonction: string | null }
@@ -15,15 +16,6 @@ const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Aoû
 const DAY_LABELS = ['L', 'Ma', 'Me', 'J', 'V', 'S', 'D']
 const WEEKS = [1, 2, 3, 4, 5, 6] as const
 
-function cellBg(code: string, shiftCodes: ShiftCode[], absenceCodes: AbsenceCode[]): string {
-  if (!code) return ''
-  if (shiftCodes.some(c => c.code === code)) return 'bg-blue-100 text-blue-900'
-  const ac = absenceCodes.find(c => c.code === code)
-  if (!ac) return 'bg-yellow-50 text-yellow-800'
-  if (code === 'R' || code === 'REP') return 'bg-gray-100 text-gray-500'
-  if (ac.is_paid) return 'bg-emerald-100 text-emerald-700'
-  return 'bg-gray-100 text-gray-600'
-}
 
 export default function CyclePage() {
   const now = new Date()
@@ -267,9 +259,10 @@ export default function CyclePage() {
                       const key = `${emp.id}|${w}|${dayOfWeek}`
                       const code = entries[key] ?? ''
                       const isWE = di >= 5
-                      const bg = code ? cellBg(code, shiftCodes, absenceCodes) : (isWE ? 'bg-slate-50' : '')
+                      const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                      const bgStyle = c ? { background: c.bg, color: c.text } : isWE ? { background: '#f1f5f9' } : {}
                       return (
-                        <td key={`${w}-${di}`} className={`border-b border-r border-gray-100 p-0 h-7 relative ${bg}`}>
+                        <td key={`${w}-${di}`} className="border-b border-r border-gray-100 p-0 h-7 relative" style={bgStyle}>
                           <input
                             value={code}
                             onChange={e => {
@@ -293,9 +286,20 @@ export default function CyclePage() {
 
       {/* Legend */}
       <div className="shrink-0 flex items-center gap-5 px-4 py-2 border-t border-gray-100 bg-white text-xs text-gray-400">
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-200" />Shift</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200" />Congé payant</span>
-        <span className="inline-flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-200" />Repos</span>
+        <span className="inline-flex items-center gap-1">
+          {SHIFT_PALETTE.slice(0, 4).map(c => (
+            <span key={c.bg} className="w-3 h-3 rounded" style={{ background: c.bg, border: '1px solid #cbd5e1' }} />
+          ))}
+          <span className="ml-1">Codes horaires</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: REPOS_COLOR.bg }} />
+          Repos
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded" style={{ background: ABSENCE_COLOR.bg }} />
+          Absences
+        </span>
       </div>
 
       {/* Apply modal */}
