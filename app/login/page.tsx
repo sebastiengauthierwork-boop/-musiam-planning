@@ -40,7 +40,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-md w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Musiam Planning</h1>
@@ -93,6 +93,10 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
+      <p className="mt-6 text-center text-gray-400" style={{ fontSize: '11px' }}>
+        Musiam Planning — Logiciel de planification RH<br />
+        Conçu et développé par Sebastien Gauthier, Musiam-Paris ©
+      </p>
     </div>
   )
 }

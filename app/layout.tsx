@@ -18,9 +18,10 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Musiam Planning",
-  description: "Planification des équipes - Louvre",
+  description: "Musiam Planning - Logiciel de planification RH concu et developpe par Sebastien Gauthier, Musiam-Paris",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Musiam' },
+  authors: [{ name: "Sebastien Gauthier" }],
 }
 
 export default function RootLayout({
