@@ -304,7 +304,8 @@ export default function MonPlanningPage() {
       <div className="bg-slate-900 text-white px-5 pt-safe pb-5" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1">Musiam</div>
+            <div className="text-lg font-bold text-white leading-tight">Musiam Planning</div>
+            <div className="text-xs text-slate-400 italic mb-2">by Planekipe</div>
             <div className="text-2xl font-bold">{employee.first_name} {employee.last_name}</div>
             {team && (
               <div className="text-sm text-slate-300 mt-0.5">

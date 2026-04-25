@@ -349,8 +349,8 @@ export default function Sidebar() {
           </>
         )}
         {!collapsed && (
-          <p className="text-slate-600 mt-2 px-3" style={{ fontSize: '10px', lineHeight: '1.4' }}>
-            Musiam Planning v1.0 - Conçu et développé par Sebastien Gauthier, Musiam-Paris ©
+          <p className="text-slate-500 mt-2 px-3" style={{ fontSize: '10px', lineHeight: '1.4' }}>
+            Planekipe v1.0 © Sebastien Gauthier
           </p>
         )}
       </div>

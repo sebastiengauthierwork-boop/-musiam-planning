@@ -43,8 +43,9 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-md w-full max-w-sm p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Musiam Planning</h1>
-          <p className="text-sm text-gray-500 mt-1">Planification des équipes — Louvre</p>
+          <h1 style={{ fontSize: 28 }} className="font-bold text-gray-900 leading-tight">Musiam Planning</h1>
+          <p style={{ fontSize: 14 }} className="text-gray-400 italic mt-1">by Planekipe</p>
+          <p style={{ fontSize: 12 }} className="text-gray-400 mt-0.5">Logiciel de planification RH</p>
         </div>
 
         {inactivityMsg && (
