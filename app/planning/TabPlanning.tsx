@@ -101,7 +101,9 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   }
 
   function monthlyHours(emp: Employee): string {
-    return `${Math.round((emp.weekly_contract_hours ?? 35) * 52 / 12)}h`
+    if (emp.statut === 'cadre') return 'Forfait'
+    const h = (emp.weekly_contract_hours ?? 35) * 52 / 12
+    return `${h.toFixed(2)}h`
   }
 
   // ── Rendu d'une demi-table A4 ────────────────────────────────────────────
@@ -251,8 +253,10 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   )
 
   // ── Largeurs colonnes A3 ─────────────────────────────────────────────────
-  const empColPct = 11
-  const dayColPct = (100 - empColPct) / days.length
+  const empColPct = 9
+  const contractColPct = 3
+  const hoursColPct = 4
+  const dayColPct = (100 - empColPct - contractColPct - hoursColPct) / days.length
 
   return (
     <>
@@ -321,12 +325,16 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
             <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '8px' }}>
               <colgroup>
                 <col style={{ width: `${empColPct}%` }} />
+                <col style={{ width: `${contractColPct}%` }} />
+                <col style={{ width: `${hoursColPct}%` }} />
                 {days.map(d => <col key={toISO(d)} style={{ width: `${dayColPct.toFixed(2)}%` }} />)}
               </colgroup>
 
               <thead>
                 <tr>
                   <th style={S.thEmp}>Salarié</th>
+                  <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '2px 1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '7px' }}>Contrat</th>
+                  <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '2px 1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '7px' }}>H/mois</th>
                   {days.map(d => {
                     const isWE = d.getDay() === 0 || d.getDay() === 6
                     const isMonday = d.getDay() === 1
@@ -354,6 +362,12 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                           {emp.fonction}
                         </span>
                       )}
+                    </td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '2px 1px', textAlign: 'center', background: '#fafafa', fontSize: '6.5px', color: '#475569', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {emp.contract_type}
+                    </td>
+                    <td style={{ border: '1px solid #cbd5e1', padding: '2px 1px', textAlign: 'center', background: '#fafafa', fontSize: '7px', color: '#475569', fontWeight: 700 }}>
+                      {monthlyHours(emp)}
                     </td>
                     {days.map(d => {
                       const dateStr = toISO(d)
