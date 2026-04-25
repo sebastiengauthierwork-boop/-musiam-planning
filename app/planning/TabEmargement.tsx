@@ -78,9 +78,8 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
   }, 0) : 0
   const totalLabel = fmtNet(totalH) || '0h00'
 
-  // Hauteur de ligne dynamique : hauteur disponible / (lignes + en-tête)
-  // pour remplir toute la page A4 sans espace blanc en bas
-  const rowH = Math.min(120, Math.max(20, Math.round(800 / Math.max(1, workingDays.length + 1))))
+  // Hauteur de ligne fixe : 267mm utilisables (297 - marges - entête) ÷ nombre de jours du mois
+  const rowH = Math.round((267 / days.length) * 3.779)
 
   // ─── Inline style helpers (print fidelity) ────────────────────────────────
 
@@ -130,7 +129,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
             <option key={e.id} value={e.id}>{e.last_name} {e.first_name}</option>
           ))}
         </select>
-        <span className="text-xs text-gray-400">Format A4 portrait · {workingDays.length} lignes</span>
+        <span className="text-xs text-gray-400">Format A4 portrait · {days.length} jours</span>
         <button onClick={handlePrint}
           className="ml-auto inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -221,7 +220,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                 </tr>
               </thead>
               <tbody>
-                {workingDays.map(d => {
+                {days.map(d => {
                   const dateStr = toISO(d)
                   const info = getShiftInfo(emp.id, dateStr)
                   const isWE = isWeekend(d)
