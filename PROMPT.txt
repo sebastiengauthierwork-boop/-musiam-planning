@@ -1,12 +1,14 @@
-Amelioration de la feuille d'emargement :
+Deux corrections separees :
 
-1. FORMAT : A4 portrait, utiliser toute la hauteur de la page
-2. LIGNES PLUS HAUTES : agrandir la hauteur des lignes pour que les salaries aient de la place pour signer. Les lignes doivent faire au minimum 35-40px de hauteur (au lieu de 20-25px actuellement). Les colonnes signature doivent etre assez larges pour une vraie signature manuscrite.
-3. REPARTITION : repartir les lignes pour occuper toute la hauteur de la page A4. Si il y a 5 jours dans la semaine, les lignes doivent etre encore plus hautes pour remplir la page.
-4. IMPRESSION : le bouton "Imprimer" doit generer un print en A4 portrait avec les marges minimales pour maximiser l'espace utilisable.
-5. La date et heure d'impression en bas de page doit rester presente.
+1. PLANNING IMPRIMABLE -  :
+EN PLUS DU FORMAT GLOBAL A3 PAYSAGE SI L'EQUIPE A MOINS DE 15 PERSONNES DONNE LA POSSIBILITE D'UNE OPTION D'IMPRESSION Format A4 Paysage :
+- Ooption 1 page (15 premiers jours en haut, 15 derniers en bas) ou POSSIBILITE D4IMPRREESION EN 2 pages 15 PREMIERS JORS PAGE 1 15 DERNIERS JOURS PAGE 2
+- Si l'equipe a 15 personnes ou plus : option non disponible
+- Agrandir au maximum la taille de police et des cellules pour remplir la page A4 paysage
+- Marges fines (10mm)
+- Ajouter colonnes Contrat et H/mois apres le nom (etroites, max 50px)
 
-git add . && git commit -m "fix: feuille emargement lignes plus hautes A4" && git push origin main
+2. FEUILLE D'EMARGEMENT - hauteur des lignes dynamique :
+augmenter dynamiquement la hauteur des lignes pour remplir toute la page A4 portrait. Calculer : hauteur disponible de la page / nombre total de lignes (jours de la semaine + en-tetes). Plus il y a d'espace disponible, plus les lignes doivent etre hautes pour que les salaries aient de la place pour signer. La page doit etre remplie au maximum, pas de grand espace blanc en bas.
 
-
-
+git add . && git commit -m "feat: planning A4 + emargement lignes dynamiques" && git push origin main

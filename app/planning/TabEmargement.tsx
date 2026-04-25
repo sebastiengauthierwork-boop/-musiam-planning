@@ -78,9 +78,9 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
   }, 0) : 0
   const totalLabel = fmtNet(totalH) || '0h00'
 
-  // Hauteur de ligne dynamique : répartir pour occuper toute la hauteur A4
-  // ~800px disponibles après header, thead et footer (A4 portrait, marges 8mm)
-  const rowH = Math.min(110, Math.max(38, Math.round(800 / Math.max(1, workingDays.length))))
+  // Hauteur de ligne dynamique : hauteur disponible / (lignes + en-tête)
+  // pour remplir toute la page A4 sans espace blanc en bas
+  const rowH = Math.min(120, Math.max(20, Math.round(800 / Math.max(1, workingDays.length + 1))))
 
   // ─── Inline style helpers (print fidelity) ────────────────────────────────
 
