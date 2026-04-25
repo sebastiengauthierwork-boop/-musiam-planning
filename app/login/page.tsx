@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -10,6 +10,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [inactivityMsg, setInactivityMsg] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('reason') === 'inactivity') setInactivityMsg(true)
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -40,6 +46,12 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">Musiam Planning</h1>
           <p className="text-sm text-gray-500 mt-1">Planification des équipes — Louvre</p>
         </div>
+
+        {inactivityMsg && (
+          <div className="mb-4 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
+            Vous avez été déconnecté pour inactivité.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
