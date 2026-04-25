@@ -1,17 +1,12 @@
-Ajouter un champ "Date d'entree" sur les employes :
+Amelioration de la feuille d'emargement :
 
-1. Ajouter la colonne dans Supabase : genere le SQL et copie avec clip :
-ALTER TABLE employees ADD COLUMN IF NOT EXISTS start_date DATE;
+1. FORMAT : A4 portrait, utiliser toute la hauteur de la page
+2. LIGNES PLUS HAUTES : agrandir la hauteur des lignes pour que les salaries aient de la place pour signer. Les lignes doivent faire au minimum 35-40px de hauteur (au lieu de 20-25px actuellement). Les colonnes signature doivent etre assez larges pour une vraie signature manuscrite.
+3. REPARTITION : repartir les lignes pour occuper toute la hauteur de la page A4. Si il y a 5 jours dans la semaine, les lignes doivent etre encore plus hautes pour remplir la page.
+4. IMPRESSION : le bouton "Imprimer" doit generer un print en A4 portrait avec les marges minimales pour maximiser l'espace utilisable.
+5. La date et heure d'impression en bas de page doit rester presente.
 
-2. Dans le formulaire de creation/modification d'employe sur /employes, ajouter un champ date "Date d'entree" (date picker). Ce champ est optionnel.
+git add . && git commit -m "fix: feuille emargement lignes plus hautes A4" && git push origin main
 
-3. IMPACT SUR LE PLANNING : quand on affiche la grille de saisie d'un mois, si un employe a une date d'entree APRES le 1er du mois :
-   - Les jours AVANT sa date d'entree sont grisees et non editables
-   - Il n'apparait PAS dans le planning des mois precedant sa date d'entree
-   - Il apparait dans le planning du mois de son entree mais avec les jours avant sa date d'entree bloques
 
-4. Meme logique pour le planning imprimable, le compteur d'heures et la feuille d'emargement : ne pas compter les jours avant la date d'entree
 
-5. Ajouter aussi un champ "Date de sortie" (optionnel) avec la meme logique inverse : apres la date de sortie, les jours sont grisees et non editables
-
-git add . && git commit -m "feat: date entree et sortie employes" && git push origin main

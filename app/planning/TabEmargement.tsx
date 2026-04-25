@@ -78,6 +78,10 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
   }, 0) : 0
   const totalLabel = fmtNet(totalH) || '0h00'
 
+  // Hauteur de ligne dynamique : répartir pour occuper toute la hauteur A4
+  // ~800px disponibles après header, thead et footer (A4 portrait, marges 8mm)
+  const rowH = Math.min(110, Math.max(38, Math.round(800 / Math.max(1, workingDays.length))))
+
   // ─── Inline style helpers (print fidelity) ────────────────────────────────
 
   const th = (extra?: React.CSSProperties): React.CSSProperties => ({
@@ -104,14 +108,15 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
 
   const tdSaisie = (bg?: string): React.CSSProperties => ({
     border: '1px solid #cbd5e1',
-    padding: '18px 4px 4px',
+    padding: '4px 3px',
     background: bg ?? '#ffffff',
+    verticalAlign: 'top',
   })
 
   return (
     <>
-      {/* A4 portrait override — active only when this tab is mounted */}
-      <style>{`@media print { @page { size: A4 portrait; margin: 12mm; } }`}</style>
+      {/* A4 portrait override — marges minimales pour maximiser l'espace imprimable */}
+      <style>{`@media print { @page { size: A4 portrait; margin: 8mm; } }`}</style>
 
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-200 bg-white">
@@ -186,8 +191,8 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
             {/* ── 2. TABLEAU PRINCIPAL ──────────────────────────────────── */}
             <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '8px' }}>
               <colgroup>
-                <col style={{ width: '7%' }} />   {/* Date */}
-                <col style={{ width: '9%' }} />   {/* Jour */}
+                <col style={{ width: '6%' }} />   {/* Date */}
+                <col style={{ width: '8%' }} />   {/* Jour */}
                 <col style={{ width: '5%' }} />   {/* Poste */}
                 <col style={{ width: '7%' }} />   {/* Prise théo */}
                 <col style={{ width: '7%' }} />   {/* Départ théo */}
@@ -195,9 +200,9 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                 <col style={{ width: '7%' }} />   {/* H Arrivée */}
                 <col style={{ width: '7%' }} />   {/* H Départ */}
                 <col style={{ width: '6%' }} />   {/* H Trav */}
-                <col style={{ width: '15%' }} />  {/* Observations */}
-                <col style={{ width: '12%' }} />  {/* Sig salarié */}
-                <col style={{ width: '12%' }} />  {/* Sig hiérarchie */}
+                <col style={{ width: '11%' }} />  {/* Observations */}
+                <col style={{ width: '15%' }} />  {/* Sig salarié */}
+                <col style={{ width: '15%' }} />  {/* Sig hiérarchie */}
               </colgroup>
               <thead>
                 <tr>
@@ -222,7 +227,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                   const isWE = isWeekend(d)
                   const rowBg = isWE ? '#f8fafc' : '#ffffff'
                   return (
-                    <tr key={dateStr}>
+                    <tr key={dateStr} style={{ height: rowH }}>
                       <td style={td({ background: rowBg, fontWeight: 500 })}>
                         {d.getDate().toString().padStart(2, '0')}/{String(month + 1).padStart(2, '0')}
                       </td>
