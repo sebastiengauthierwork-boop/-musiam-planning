@@ -6,6 +6,7 @@ import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
 import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
+import { isTemporaire } from '@/lib/employeeUtils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -686,10 +687,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     }).length
   }
 
-  // Séparation principaux / renforts / intérimaires
-  const primaryEmployees = employees.filter(e => e.is_primary !== false && e.contract_type !== 'INTERIM')
-  const secondaryEmployees = employees.filter(e => e.is_primary === false && e.contract_type !== 'INTERIM')
-  const interimEmployees = employees.filter(e => e.contract_type === 'INTERIM')
+  const permanentEmployees = employees.filter(e => !isTemporaire(e.contract_type))
+  const temporaireEmployees = employees.filter(e => isTemporaire(e.contract_type))
+  const interimEmployees = employees.filter(e => (e.contract_type ?? '').toUpperCase() === 'INTERIM')
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -1009,29 +1009,15 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           </thead>
 
           <tbody>
-            {[...primaryEmployees, ...secondaryEmployees].map((emp, globalIdx) => {
-              // Insert "Renforts" separator before first secondary employee
-              const isFirstRenfort = emp.is_primary === false && (globalIdx === 0 || employees[globalIdx - 1]?.is_primary !== false)
+            {permanentEmployees.map((emp) => {
               const monthH = empMonthlyTotals[emp.id] ?? 0
               const limit = monthlyLimit(emp)
               const over = monthH > limit + 0.5
-              const isRenfort = emp.is_primary === false
               return (
                 <Fragment key={emp.id}>
-                  {isFirstRenfort && secondaryEmployees.length > 0 && (
-                    <tr key="renforts-separator">
-                      <td
-                        colSpan={days.length + weeks.length + 2}
-                        className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest text-center"
-                      >
-                        Renforts · {secondaryEmployees.length} salarié{secondaryEmployees.length > 1 ? 's' : ''} affecté{secondaryEmployees.length > 1 ? 's' : ''} en secondaire
-                      </td>
-                    </tr>
-                  )}
-                  <tr key={emp.id} className={`group ${isRenfort ? 'bg-gray-50/50 hover:bg-blue-50/10' : 'hover:bg-blue-50/20'}`}>
-                    <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'}`}>
-                      {isRenfort && <span className="inline-block w-1.5 h-1.5 rounded-full bg-gray-300 mr-1.5 mb-0.5" />}
-                      <span className={`font-semibold ${isRenfort ? 'text-gray-600' : 'text-gray-800'}`}>{emp.last_name}</span>{' '}
+                  <tr className="group hover:bg-blue-50/20">
+                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap bg-white group-hover:bg-blue-50/20">
+                      <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
                       <span className="text-gray-500">{emp.first_name}</span>
                       {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
                     </td>
@@ -1096,7 +1082,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         </td>
                       )
                     })}
-                    <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold ${isRenfort ? 'bg-gray-50/80 group-hover:bg-blue-50/10' : 'bg-white group-hover:bg-blue-50/20'} ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                    <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 ${over ? 'text-red-600' : 'text-gray-700'}`}>
                       {fmtH(monthH)}
                       {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
                     </td>
@@ -1104,34 +1090,37 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 </Fragment>
               )
             })}
-          {/* ── Intérimaires ── */}
-          {(!isArchived || interimEmployees.length > 0) && (
+          {/* ── Temporaires (Extras + Intérimaires) ── */}
+          {(!isArchived || temporaireEmployees.length > 0) && (
             <>
               <tr>
                 <td
                   colSpan={days.length + weeks.length + 2}
-                  className="bg-amber-50 border-t border-b border-amber-200 px-4 py-1 text-[10px] font-semibold text-amber-700 uppercase tracking-widest"
+                  className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"
                 >
                   <div className="flex items-center justify-between">
-                    <span>Intérimaires{interimEmployees.length > 0 ? ` · ${interimEmployees.length}` : ''}</span>
+                    <span>Temporaires{temporaireEmployees.length > 0 ? ` · ${temporaireEmployees.length}` : ''}</span>
                     {!isArchived && !showAddInterim && (
                       <button onClick={() => setShowAddInterim(true)}
-                        className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1">
-                        + Ajouter
+                        className="text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1">
+                        + Ajouter un intérimaire
                       </button>
                     )}
                   </div>
                 </td>
               </tr>
 
-              {interimEmployees.map(emp => {
+              {temporaireEmployees.map(emp => {
+                const isInterim = (emp.contract_type ?? '').toUpperCase() === 'INTERIM'
                 const monthH = empMonthlyTotals[emp.id] ?? 0
                 return (
                   <tr key={emp.id} className="group bg-amber-50/20 hover:bg-amber-50/50">
                     <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50/30 group-hover:bg-amber-50/70">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-semibold text-amber-800 text-xs">{emp.first_name || emp.last_name}</span>
-                        {!isArchived && (
+                        <span className="font-semibold text-amber-800 text-xs">
+                          {isInterim ? (emp.first_name || emp.last_name) : `${emp.last_name} ${emp.first_name}`}
+                        </span>
+                        {isInterim && !isArchived && (
                           <button onClick={() => handleDeleteInterim(emp.id)}
                             className="p-0.5 text-amber-300 hover:text-red-500 rounded transition-colors shrink-0" title="Supprimer l'intérimaire">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

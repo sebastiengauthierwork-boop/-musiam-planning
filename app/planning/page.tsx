@@ -13,6 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
+import { sortEmployees } from '@/lib/employeeUtils'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TABS = [
@@ -144,23 +145,14 @@ export default function PlanningPage() {
         seen.add(e.id)
         empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type, weekly_contract_hours: e.weekly_contract_hours, hourly_rate: e.hourly_rate ?? null, statut: e.statut ?? null, fonction: e.fonction ?? null, is_primary: et.is_primary ?? true, start_date: e.start_date ?? null, end_date: e.end_date ?? null })
       }
-      // Primary employees first, then sort by statut (cadre > agent_de_maitrise > employé), then alphabetical
-      const STATUT_ORDER: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
-      empList.sort((a, b) => {
-        if ((a.is_primary ?? true) !== (b.is_primary ?? true)) return (b.is_primary ?? true) ? 1 : -1
-        const sa = STATUT_ORDER[a.statut ?? ''] ?? 4
-        const sb = STATUT_ORDER[b.statut ?? ''] ?? 4
-        if (sa !== sb) return sa - sb
-        return a.last_name.localeCompare(b.last_name)
-      })
-
       // Exclure les employés dont la période d'emploi n'intersecte pas le mois
-      const visibleEmps = empList.filter(e => {
-        if (e.start_date && e.start_date > endDate) return false  // n'a pas encore commencé
-        if (e.end_date && e.end_date < startDate) return false    // est déjà parti
+      const filtered = empList.filter(e => {
+        if (e.start_date && e.start_date > endDate) return false
+        if (e.end_date && e.end_date < startDate) return false
         return true
       })
-      setEmployees(visibleEmps)
+      const { permanents, temporaires } = sortEmployees(filtered)
+      setEmployees([...permanents, ...temporaires])
       setSchedules(schedRes.data ?? [])
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

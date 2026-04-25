@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import type { Employee, TabProps } from './types'
+import { isTemporaire } from '@/lib/employeeUtils'
 import { generatePlanningPdf, downloadPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
 
@@ -149,8 +150,14 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
           </tr>
         </thead>
         <tbody>
-          {employees.map(emp => (
-            <tr key={emp.id} style={{ height: rowH }}>
+          {employees.map((emp, idx) => (
+            <Fragment key={emp.id}>
+              {idx > 0 && isTemporaire(emp.contract_type) && !isTemporaire(employees[idx - 1].contract_type) && (
+                <tr>
+                  <td colSpan={3 + halfDays.length} style={{ background: '#e2e8f0', height: 5, padding: 0, border: '1px solid #cbd5e1' }} />
+                </tr>
+              )}
+            <tr style={{ height: rowH }}>
               <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {emp.last_name} {emp.first_name.charAt(0)}.
                 {emp.fonction && (
@@ -194,6 +201,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 )
               })}
             </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -353,8 +361,14 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
               </thead>
 
               <tbody>
-                {employees.map(emp => (
-                  <tr key={emp.id}>
+                {employees.map((emp, idx) => (
+                  <Fragment key={emp.id}>
+                    {idx > 0 && isTemporaire(emp.contract_type) && !isTemporaire(employees[idx - 1].contract_type) && (
+                      <tr>
+                        <td colSpan={3 + days.length} style={{ background: '#e2e8f0', height: 5, padding: 0, border: '1px solid #cbd5e1' }} />
+                      </tr>
+                    )}
+                  <tr>
                     <td style={S.tdEmp}>
                       {emp.last_name} {emp.first_name.charAt(0)}.
                       {emp.fonction && (
@@ -397,6 +411,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                       )
                     })}
                   </tr>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

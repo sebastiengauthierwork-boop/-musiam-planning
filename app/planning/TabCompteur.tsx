@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Employee, Schedule, TabProps, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
+import { sortEmployees } from '@/lib/employeeUtils'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -86,15 +87,8 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
           statut: e.statut ?? null,
           fonction: e.fonction ?? null,
         }))
-        const STATUT_ORDER: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
-        empList.sort((a, b) => {
-          const sa = STATUT_ORDER[a.statut ?? ''] ?? 4
-          const sb = STATUT_ORDER[b.statut ?? ''] ?? 4
-          if (sa !== sb) return sa - sb
-          return a.last_name.localeCompare(b.last_name)
-        })
-
-        newMap[tid] = { employees: empList, schedules: teamSchedules }
+        const { permanents, temporaires } = sortEmployees(empList)
+        newMap[tid] = { employees: [...permanents, ...temporaires], schedules: teamSchedules }
       }
       setTeamDataMap(newMap)
     } finally {

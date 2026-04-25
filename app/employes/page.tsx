@@ -2,11 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
+import { sortEmployees } from '@/lib/employeeUtils'
 
 type Employee = {
   id: string
@@ -335,8 +336,22 @@ export default function EmployesPage() {
             {employees.length === 0 && (
               <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Aucun salarié</td></tr>
             )}
-            {employees.map((emp) => (
-              <tr key={emp.id} className="hover:bg-gray-50 transition-colors">
+            {(() => {
+              const { permanents, temporaires } = sortEmployees(employees)
+              const sorted = [...permanents, ...temporaires]
+              return sorted.map((emp, idx) => {
+                const isTmp = temporaires.includes(emp)
+                const needsSep = idx > 0 && isTmp && !temporaires.includes(sorted[idx - 1])
+                return (
+                  <Fragment key={emp.id}>
+                    {needsSep && (
+                      <tr>
+                        <td colSpan={10} className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                          Temporaires · Extras &amp; Intérimaires
+                        </td>
+                      </tr>
+                    )}
+                    <tr className={isTmp ? 'hover:bg-amber-50/40 transition-colors' : 'hover:bg-gray-50 transition-colors'}>
                 <td className="px-4 py-1.5">
                   <span className="font-medium text-gray-900">{emp.last_name}</span>{' '}
                   <span className="text-gray-600">{emp.first_name}</span>
@@ -382,8 +397,11 @@ export default function EmployesPage() {
                     </button>
                   </div>
                 </td>
-              </tr>
-            ))}
+                  </tr>
+                  </Fragment>
+                )
+              })
+            })()}
           </tbody>
         </table>
       </div>
