@@ -13,7 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
-import { sortEmployees } from '@/lib/employeeUtils'
+import { loadTeamData } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TABS = [
@@ -86,8 +86,6 @@ export default function PlanningPage() {
     if (!teamId) return
     setLoading(true)
     setError(null)
-    // Réinitialiser explicitement avant chaque chargement pour ne pas garder
-    // un état périmé entre navigations
     setIsArchived(false)
     setArchiveDate(null)
     try {
@@ -95,18 +93,8 @@ export default function PlanningPage() {
       const lastDay = new Date(year, month + 1, 0).getDate()
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`
 
-      const [etRes, schedRes, archRes] = await Promise.all([
-        supabase
-          .from('employee_teams')
-          .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date)')
-          .eq('team_id', teamId),
-        supabase
-          .from('schedules')
-          .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
-          .eq('team_id', teamId)
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .limit(5000),
+      const [planningData, archRes] = await Promise.all([
+        loadTeamData(teamId, month, year),
         supabase
           .from('planning_archives')
           .select('archived_at')
@@ -116,7 +104,6 @@ export default function PlanningPage() {
           .maybeSingle(),
       ])
 
-      // Statut d'archivage — appliqué immédiatement, indépendamment des autres erreurs
       setIsArchived(!!archRes.data)
       setArchiveDate(archRes.data?.archived_at ?? null)
 
@@ -137,26 +124,8 @@ export default function PlanningPage() {
         setCalendarDays([])
       }
 
-      if (etRes.error) throw new Error(etRes.error.message)
-      if (schedRes.error) throw new Error(schedRes.error.message)
-
-      const empList: Employee[] = []
-      const seen = new Set<string>()
-      for (const et of (etRes.data ?? []) as any[]) {
-        const e = et.employees
-        if (!e || !e.is_active || seen.has(e.id)) continue
-        seen.add(e.id)
-        empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type, weekly_contract_hours: e.weekly_contract_hours, hourly_rate: e.hourly_rate ?? null, statut: e.statut ?? null, fonction: e.fonction ?? null, is_primary: et.is_primary ?? true, start_date: e.start_date ?? null, end_date: e.end_date ?? null })
-      }
-      // Exclure les employés dont la période d'emploi n'intersecte pas le mois
-      const filtered = empList.filter(e => {
-        if (e.start_date && e.start_date > endDate) return false
-        if (e.end_date && e.end_date < startDate) return false
-        return true
-      })
-      const { permanents, temporaires } = sortEmployees(filtered)
-      setEmployees([...permanents, ...temporaires])
-      setSchedules(schedRes.data ?? [])
+      setEmployees(planningData.employees)
+      setSchedules(planningData.schedules)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {

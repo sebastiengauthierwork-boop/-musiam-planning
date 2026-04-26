@@ -1,10 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import type { Employee, Schedule, TabProps, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
-import { sortEmployees } from '@/lib/employeeUtils'
+import { loadTeamData } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -45,56 +44,14 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     if (!selectedTeamIds.length) { setTeamDataMap({}); return }
     setLoading(true)
     try {
-      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
-      const lastDay = new Date(year, month + 1, 0).getDate()
-      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-
-      // Load ALL schedules for the month regardless of team
-      const schedRes = await supabase
-        .from('schedules')
-        .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
-        .gte('date', startDate)
-        .lte('date', endDate)
-      const allSchedules: Schedule[] = schedRes.data ?? []
-
+      const results = await Promise.all(selectedTeamIds.map(tid => loadTeamData(tid, month, year)))
       const newMap: Record<string, TeamData> = {}
-
-      for (const tid of selectedTeamIds) {
-        // Les codes horaires sont désormais par site, pas par équipe.
-        // Les heures sont comptées par l'équipe du schedule.
-        const teamSchedules = allSchedules.filter(s => s.team_id === tid && !!s.code)
-
-        // Collect all employee IDs that appear in those schedules
-        const empIdSet = new Set(teamSchedules.map(s => s.employee_id))
-        if (empIdSet.size === 0) {
-          newMap[tid] = { employees: [], schedules: [] }
-          continue
-        }
-
-        // Load employee info for those IDs
-        const empRes = await supabase
-          .from('employees')
-          .select('id, first_name, last_name, contract_type, weekly_contract_hours, statut, fonction, is_active')
-          .in('id', [...empIdSet])
-          .eq('is_active', true)
-
-        const empList: Employee[] = (empRes.data ?? []).map((e: any) => ({
-          id: e.id,
-          first_name: e.first_name,
-          last_name: e.last_name,
-          contract_type: e.contract_type,
-          weekly_contract_hours: e.weekly_contract_hours,
-          statut: e.statut ?? null,
-          fonction: e.fonction ?? null,
-        }))
-        const { permanents, temporaires } = sortEmployees(empList)
-        newMap[tid] = { employees: [...permanents, ...temporaires], schedules: teamSchedules }
-      }
+      selectedTeamIds.forEach((tid, i) => { newMap[tid] = results[i] })
       setTeamDataMap(newMap)
     } finally {
       setLoading(false)
     }
-  }, [selectedTeamIds, month, year, shiftCodes])
+  }, [selectedTeamIds, month, year])
 
   useEffect(() => { fetchData() }, [fetchData])
 
