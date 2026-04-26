@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { decimalToHMin, hMinToDecimal } from '@/lib/timeUtils'
 import ImportExcel from '@/components/ImportExcel'
@@ -22,7 +22,7 @@ type ShiftCode = {
 }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
 type TeamOption = { id: string; name: string; cdpf: string | null }
-type JobFunction = { id: string; name: string; is_active: boolean }
+type JobFunction = { id: string; name: string; code: string | null; is_active: boolean }
 
 type ShiftForm = {
   code: string; label: string
@@ -1191,6 +1191,7 @@ function Fonctions() {
   const [modal, setModal] = useState<'add' | 'edit' | null>(null)
   const [editing, setEditing] = useState<JobFunction | null>(null)
   const [name, setName] = useState('')
+  const [code, setCode] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -1201,18 +1202,19 @@ function Fonctions() {
   }
   useEffect(() => { load() }, [])
 
-  function openAdd() { setEditing(null); setName(''); setSaveError(null); setModal('add') }
-  function openEdit(f: JobFunction) { setEditing(f); setName(f.name); setSaveError(null); setModal('edit') }
+  function openAdd() { setEditing(null); setName(''); setCode(''); setSaveError(null); setModal('add') }
+  function openEdit(f: JobFunction) { setEditing(f); setName(f.name); setCode(f.code ?? ''); setSaveError(null); setModal('edit') }
 
   async function handleSave() {
     if (!name.trim()) return
     setSaving(true); setSaveError(null)
+    const payload = { name: name.trim(), code: code.trim().toUpperCase().slice(0, 5) || null }
     try {
       if (editing) {
-        const { error } = await supabase.from('job_functions').update({ name: name.trim() }).eq('id', editing.id)
+        const { error } = await supabase.from('job_functions').update(payload).eq('id', editing.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('job_functions').insert({ name: name.trim() })
+        const { error } = await supabase.from('job_functions').insert(payload)
         if (error) throw error
       }
       setModal(null); await load()
@@ -1270,15 +1272,22 @@ function Fonctions() {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">Code</th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {functions.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-gray-400">Aucune fonction</td></tr>}
+            {functions.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Aucune fonction</td></tr>}
             {functions.map(f => (
               <tr key={f.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5 font-medium text-gray-800">{f.name}</td>
+                <td className="px-4 py-2.5">
+                  {f.code
+                    ? <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-bold font-mono">{f.code}</span>
+                    : <span className="text-gray-300 text-xs">{f.name.slice(0,3).toUpperCase()}</span>
+                  }
+                </td>
                 <td className="px-4 py-2.5">
                   <button onClick={() => toggleActive(f)}
                     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium cursor-pointer ${f.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
@@ -1303,9 +1312,17 @@ function Fonctions() {
 
       {modal && (
         <Modal title={editing ? 'Modifier la fonction' : 'Nouvelle fonction'} onClose={() => setModal(null)}>
-          <Field label="Nom de la fonction *">
-            <input value={name} onChange={e => setName(e.target.value)} className="input" placeholder="Chef de rang" autoFocus />
-          </Field>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <Field label="Nom de la fonction *">
+                <input value={name} onChange={e => setName(e.target.value)} className="input" placeholder="Chef de rang" autoFocus />
+              </Field>
+            </div>
+            <Field label="Code (3-5 lettres)" hint="Ex : CDR, RU, MGR">
+              <input value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5))}
+                className="input font-mono uppercase" placeholder="CDR" maxLength={5} />
+            </Field>
+          </div>
           {saveError && <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{saveError}</div>}
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
@@ -1578,7 +1595,201 @@ function Calendrier() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier'
+type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier' | 'roles'
+
+// ─── Rôles et accès ───────────────────────────────────────────────────────────
+
+const PERM_CATS = [
+  { label: 'Sites et équipes', perms: [
+    { key: 'create_site', label: 'Créer un site' },
+    { key: 'edit_teams', label: 'Modifier les équipes' },
+  ]},
+  { label: 'Salariés', perms: [
+    { key: 'create_employee', label: 'Créer un salarié' },
+    { key: 'delete_employee', label: 'Supprimer un salarié' },
+    { key: 'import_employees', label: 'Importer des salariés' },
+  ]},
+  { label: 'Codes', perms: [
+    { key: 'edit_shift_codes', label: 'Codes horaires' },
+    { key: 'edit_absence_codes', label: 'Codes absence' },
+  ]},
+  { label: 'Planning', perms: [
+    { key: 'edit_planning', label: 'Saisir / modifier le planning' },
+    { key: 'apply_cycle', label: 'Appliquer un cycle' },
+    { key: 'print_planning', label: 'Imprimer le planning' },
+    { key: 'print_emargement', label: "Imprimer la feuille d'émargement" },
+    { key: 'view_hours_counter', label: "Voir le compteur d'heures" },
+    { key: 'archive_planning', label: 'Archiver le planning' },
+    { key: 'unarchive_planning', label: 'Désarchiver le planning' },
+  ]},
+  { label: 'Cycles', perms: [
+    { key: 'view_cycles', label: 'Voir les cycles' },
+    { key: 'edit_cycles', label: 'Modifier les cycles' },
+  ]},
+  { label: 'Paramétrage', perms: [
+    { key: 'edit_staffing', label: 'Structures de staffing' },
+    { key: 'edit_calendar', label: 'Calendrier' },
+    { key: 'edit_functions', label: 'Fonctions' },
+  ]},
+  { label: 'Utilisateurs', perms: [
+    { key: 'create_responsable', label: 'Créer un responsable' },
+    { key: 'create_manager', label: 'Créer un manager' },
+    { key: 'create_salarie', label: 'Créer un salarié (compte)' },
+  ]},
+  { label: 'Consultation mobile', perms: [
+    { key: 'view_own_planning', label: 'Voir son planning' },
+    { key: 'view_team_planning', label: "Voir le planning de l'équipe" },
+  ]},
+]
+
+const PERM_ROLES_LIST = [
+  { key: 'responsable', label: 'Responsable' },
+  { key: 'manager', label: 'Manager' },
+  { key: 'salarie', label: 'Salarié' },
+]
+
+const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
+  responsable: {
+    create_site: false, edit_teams: true,
+    create_employee: true, delete_employee: true, import_employees: true,
+    edit_shift_codes: true, edit_absence_codes: false,
+    edit_planning: true, apply_cycle: true, print_planning: true, print_emargement: true,
+    view_hours_counter: true, archive_planning: true, unarchive_planning: false,
+    edit_cycles: true, view_cycles: true,
+    edit_staffing: true, edit_calendar: true, edit_functions: false,
+    create_responsable: false, create_manager: true, create_salarie: true,
+    view_own_planning: false, view_team_planning: false,
+  },
+  manager: {
+    create_site: false, edit_teams: false,
+    create_employee: false, delete_employee: false, import_employees: false,
+    edit_shift_codes: false, edit_absence_codes: false,
+    edit_planning: true, apply_cycle: true, print_planning: true, print_emargement: true,
+    view_hours_counter: true, archive_planning: false, unarchive_planning: false,
+    edit_cycles: false, view_cycles: true,
+    edit_staffing: false, edit_calendar: false, edit_functions: false,
+    create_responsable: false, create_manager: false, create_salarie: false,
+    view_own_planning: false, view_team_planning: false,
+  },
+  salarie: {
+    create_site: false, edit_teams: false,
+    create_employee: false, delete_employee: false, import_employees: false,
+    edit_shift_codes: false, edit_absence_codes: false,
+    edit_planning: false, apply_cycle: false, print_planning: false, print_emargement: false,
+    view_hours_counter: false, archive_planning: false, unarchive_planning: false,
+    edit_cycles: false, view_cycles: false,
+    edit_staffing: false, edit_calendar: false, edit_functions: false,
+    create_responsable: false, create_manager: false, create_salarie: false,
+    view_own_planning: true, view_team_planning: true,
+  },
+}
+
+function RolesAcces() {
+  const [matrix, setMatrix] = useState<Record<string, Record<string, boolean>>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.from('role_permissions').select('role, permission, allowed').then(({ data }) => {
+      const m: Record<string, Record<string, boolean>> = {}
+      for (const r of PERM_ROLES_LIST) m[r.key] = { ...PERM_DEFAULTS[r.key] }
+      for (const row of (data ?? [])) {
+        if (!m[row.role]) m[row.role] = {}
+        m[row.role][row.permission] = row.allowed
+      }
+      setMatrix(m)
+      setLoading(false)
+    })
+  }, [])
+
+  function toggle(role: string, perm: string) {
+    setMatrix(prev => ({
+      ...prev,
+      [role]: { ...prev[role], [perm]: !prev[role]?.[perm] },
+    }))
+  }
+
+  async function handleSave() {
+    setSaving(true); setSaveError(null)
+    const rows: any[] = []
+    for (const r of PERM_ROLES_LIST) {
+      for (const cat of PERM_CATS) {
+        for (const perm of cat.perms) {
+          rows.push({ role: r.key, permission: perm.key, allowed: matrix[r.key]?.[perm.key] ?? false })
+        }
+      }
+    }
+    const { error } = await supabase.from('role_permissions').upsert(rows, { onConflict: 'role,permission' })
+    setSaving(false)
+    if (error) { setSaveError(error.message) } else { setSaved(true); setTimeout(() => setSaved(false), 3000) }
+  }
+
+  if (loading) return <div className="text-sm text-gray-400">Chargement…</div>
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Rôles et accès</h2>
+          <p className="text-xs text-gray-500 mt-0.5">L'administrateur a toujours toutes les permissions (non modifiable).</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saved && <span className="text-sm text-emerald-600 font-medium">Permissions mises à jour ✓</span>}
+          {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+          <button onClick={handleSave} disabled={saving}
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+            {saving ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="text-left px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-500 text-xs uppercase tracking-wider w-72">
+                Permission
+              </th>
+              {PERM_ROLES_LIST.map(r => (
+                <th key={r.key} className="px-6 py-3 bg-gray-50 border-b border-l border-gray-200 font-semibold text-gray-700 text-center w-36">
+                  {r.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {PERM_CATS.map(cat => (
+              <Fragment key={cat.label}>
+                <tr>
+                  <td colSpan={4} className="px-4 py-2 bg-slate-50 border-b border-gray-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    {cat.label}
+                  </td>
+                </tr>
+                {cat.perms.map(perm => (
+                  <tr key={perm.key} className="hover:bg-gray-50 border-b border-gray-100">
+                    <td className="px-4 py-2.5 text-gray-700 pl-8">{perm.label}</td>
+                    {PERM_ROLES_LIST.map(r => (
+                      <td key={r.key} className="px-6 py-2.5 border-l border-gray-100 text-center">
+                        <input
+                          type="checkbox"
+                          checked={matrix[r.key]?.[perm.key] ?? false}
+                          onChange={() => toggle(r.key, perm.key)}
+                          className="w-4 h-4 rounded accent-slate-900 cursor-pointer"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 export default function ParametragePage() {
   const { role: currentRole, loading: authLoading } = useAuth()
@@ -1592,7 +1803,7 @@ export default function ParametragePage() {
     )
   }
 
-  if (currentRole !== 'admin') {
+  if (currentRole !== 'admin' && currentRole !== 'responsable') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1619,6 +1830,7 @@ export default function ParametragePage() {
           { id: 'fonctions',  label: 'Fonctions'      },
           { id: 'structures', label: 'Structures'     },
           { id: 'calendrier', label: 'Calendrier'     },
+          ...(currentRole === 'admin' ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
         ] as { id: Section; label: string }[]).map(s => (
           <button key={s.id} onClick={() => setSection(s.id)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
@@ -1636,6 +1848,7 @@ export default function ParametragePage() {
       {section === 'fonctions'  && <Fonctions />}
       {section === 'structures' && <Structures />}
       {section === 'calendrier' && <Calendrier />}
+      {section === 'roles'      && <RolesAcces />}
     </div>
   )
 }

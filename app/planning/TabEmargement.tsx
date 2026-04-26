@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { Employee, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
+import { getFnCode } from '@/lib/employeeUtils'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -24,7 +25,7 @@ function fmtNet(net: number | null | undefined): string {
   return decimalToHMin(h)
 }
 
-export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName }: TabProps) {
+export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName }: TabProps) {
   const nonCadreEmployees = employees.filter(e => e.statut !== 'cadre')
 
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(
@@ -120,7 +121,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                 {emp.last_name} {emp.first_name}
               </div>
               {emp.fonction && (
-                <div style={{ fontSize: '9px', color: '#64748b', marginTop: 1 }}>{emp.fonction}</div>
+                <div style={{ fontSize: '9px', color: '#64748b', marginTop: 1 }} title={emp.fonction}>{getFnCode(emp.fonction, jobFunctions)}</div>
               )}
               <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: 2 }}>
                 {emp.contract_type} · {emp.weekly_contract_hours ?? 35}h/sem · {teamName}

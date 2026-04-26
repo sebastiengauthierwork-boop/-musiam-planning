@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react'
 import type { Employee, TabProps } from './types'
-import { isTemporaire } from '@/lib/employeeUtils'
+import { isTemporaire, getFnCode } from '@/lib/employeeUtils'
 import { generatePlanningPdf, downloadPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
 
@@ -35,7 +35,7 @@ const S = {
   absCode:   { fontWeight: 700, lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
 }
 
-export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, year, month, teamName }: TabProps) {
+export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName }: TabProps) {
   const days = getDays(year, month)
   const [printTime, setPrintTime] = useState<Date | null>(null)
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -161,7 +161,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
               <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {emp.last_name} {emp.first_name.charAt(0)}.
                 {emp.fonction && (
-                  <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '6px', marginLeft: 3 }}>{emp.fonction}</span>
+                  <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '6px', marginLeft: 3 }}>{getFnCode(emp.fonction, jobFunctions)}</span>
                 )}
               </td>
               <td style={{ border: '1px solid #cbd5e1', padding: '2px 1px', textAlign: 'center', background: '#fafafa', fontSize: '7px', color: '#475569', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 50 }}>
@@ -373,7 +373,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                       {emp.last_name} {emp.first_name.charAt(0)}.
                       {emp.fonction && (
                         <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '5.5px', marginLeft: 3 }}>
-                          {emp.fonction}
+                          {getFnCode(emp.fonction, jobFunctions)}
                         </span>
                       )}
                     </td>

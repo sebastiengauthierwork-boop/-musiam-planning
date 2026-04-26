@@ -6,7 +6,7 @@ import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
 import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
-import { isTemporaire } from '@/lib/employeeUtils'
+import { isTemporaire, getFnCode } from '@/lib/employeeUtils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -230,7 +230,7 @@ type ContextMenu = { x: number; y: number; keys: string[] }
 
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
-export default function TabSaisie({ employees, schedules, shiftCodes, absenceCodes, year, month, teamId, teamName, calendarDays, isArchived, archiveDate, onArchived, onRefresh }: TabProps) {
+export default function TabSaisie({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamId, teamName, calendarDays, isArchived, archiveDate, onArchived, onRefresh }: TabProps) {
   const days = getDays(year, month)
   const today = toISO(new Date())
   const weeks = getWeeksOfMonth(days)
@@ -270,9 +270,14 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [cycleResult, setCycleResult] = useState<{ filled: number; emps: number; kept: number; noData: number } | null>(null)
 
   // ── Intérimaires ──
-  const [showAddInterim, setShowAddInterim] = useState(false)
+  const [showInterimModal, setShowInterimModal] = useState(false)
+  const [interimMode, setInterimMode] = useState<'select' | 'create'>('select')
   const [newInterimLabel, setNewInterimLabel] = useState('')
+  const [selectedExistingId, setSelectedExistingId] = useState('')
+  const [availableInterims, setAvailableInterims] = useState<{ id: string; first_name: string; last_name: string }[]>([])
+  const [loadingAvailable, setLoadingAvailable] = useState(false)
   const [interimAdding, setInterimAdding] = useState(false)
+  const [newlyAddedInterimIds, setNewlyAddedInterimIds] = useState<Set<string>>(new Set())
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -468,6 +473,21 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   }
 
   // ── Intérimaires ─────────────────────────────────────────────────────────
+  async function openInterimModal() {
+    setShowInterimModal(true)
+    setInterimMode('select')
+    setSelectedExistingId('')
+    setNewInterimLabel('')
+    setLoadingAvailable(true)
+    const alreadyIds = new Set(employees.map(e => e.id))
+    const { data } = await supabase.from('employees')
+      .select('id, first_name, last_name')
+      .eq('contract_type', 'INTERIM')
+      .eq('is_active', true)
+    setAvailableInterims((data ?? []).filter((e: any) => !alreadyIds.has(e.id)))
+    setLoadingAvailable(false)
+  }
+
   async function handleAddInterim() {
     const label = newInterimLabel.trim()
     if (!label) return
@@ -476,18 +496,36 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       const { data: empData, error: empErr } = await supabase
         .from('employees')
         .insert({ first_name: label, last_name: '', email: null, contract_type: 'INTERIM', is_active: true, weekly_contract_hours: 35 })
-        .select('id')
-        .single()
+        .select('id').single()
       if (empErr) throw empErr
       const { error: etErr } = await supabase
         .from('employee_teams')
         .insert({ employee_id: empData.id, team_id: teamId, is_primary: false })
       if (etErr) throw etErr
+      setNewlyAddedInterimIds(prev => new Set([...prev, empData.id]))
       setNewInterimLabel('')
-      setShowAddInterim(false)
+      setShowInterimModal(false)
       onRefresh?.()
     } catch (err: any) {
       setGlobalError(err?.message ?? 'Erreur lors de l\'ajout de l\'intérimaire')
+    } finally {
+      setInterimAdding(false)
+    }
+  }
+
+  async function handleAddExistingInterim() {
+    if (!selectedExistingId) return
+    setInterimAdding(true)
+    try {
+      const { error } = await supabase
+        .from('employee_teams')
+        .insert({ employee_id: selectedExistingId, team_id: teamId, is_primary: false })
+      if (error) throw error
+      setNewlyAddedInterimIds(prev => new Set([...prev, selectedExistingId]))
+      setShowInterimModal(false)
+      onRefresh?.()
+    } catch (err: any) {
+      setGlobalError(err?.message ?? 'Erreur lors de l\'ajout')
     } finally {
       setInterimAdding(false)
     }
@@ -688,7 +726,15 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   }
 
   const permanentEmployees = employees.filter(e => !isTemporaire(e.contract_type))
-  const temporaireEmployees = employees.filter(e => isTemporaire(e.contract_type))
+  const temporaireEmployees = employees.filter(e => {
+    if (!isTemporaire(e.contract_type)) return false
+    const isInterim = (e.contract_type ?? '').toUpperCase() === 'INTERIM'
+    if (isInterim) {
+      const hasCells = Object.keys(cellValues).some(k => k.startsWith(`${e.id}|`))
+      return hasCells || newlyAddedInterimIds.has(e.id)
+    }
+    return true // EXTRAs toujours affichés
+  })
   const interimEmployees = employees.filter(e => (e.contract_type ?? '').toUpperCase() === 'INTERIM')
 
   return (
@@ -1019,7 +1065,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap bg-white group-hover:bg-blue-50/20">
                       <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
                       <span className="text-gray-500">{emp.first_name}</span>
-                      {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
+                      {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
                     </td>
                     {days.map(d => {
                       const dateStr = toISO(d)
@@ -1100,8 +1146,8 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 >
                   <div className="flex items-center justify-between">
                     <span>Temporaires{temporaireEmployees.length > 0 ? ` · ${temporaireEmployees.length}` : ''}</span>
-                    {!isArchived && !showAddInterim && (
-                      <button onClick={() => setShowAddInterim(true)}
+                    {!isArchived && (
+                      <button onClick={openInterimModal}
                         className="text-gray-500 hover:text-gray-700 font-medium flex items-center gap-1">
                         + Ajouter un intérimaire
                       </button>
@@ -1191,33 +1237,6 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 )
               })}
 
-              {showAddInterim && !isArchived && (
-                <tr>
-                  <td colSpan={days.length + weeks.length + 2} className="border-b border-amber-200 px-3 py-2 bg-amber-50/60">
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        value={newInterimLabel}
-                        onChange={e => setNewInterimLabel(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') handleAddInterim()
-                          if (e.key === 'Escape') { setShowAddInterim(false); setNewInterimLabel('') }
-                        }}
-                        placeholder="Nom de l'intérimaire ou agence…"
-                        className="flex-1 border border-amber-300 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
-                      />
-                      <button onClick={handleAddInterim} disabled={interimAdding || !newInterimLabel.trim()}
-                        className="px-3 py-1 text-xs font-medium bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50">
-                        {interimAdding ? 'Ajout…' : 'Ajouter'}
-                      </button>
-                      <button onClick={() => { setShowAddInterim(false); setNewInterimLabel('') }}
-                        className="px-3 py-1 text-xs font-medium border border-gray-300 text-gray-600 rounded hover:bg-gray-50">
-                        Annuler
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
             </>
           )}
           </tbody>
@@ -1277,6 +1296,63 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         <span className="inline-flex items-center gap-1.5 text-blue-400"><span className="inline-block w-3 h-3 rounded" style={{ boxShadow: 'inset 0 0 0 2px #3b82f6' }} />Sélectionné</span>
         <span className="ml-auto">Clic = sélect · Shift+clic = plage · Ctrl+C/V = copier/coller</span>
       </div>
+
+      {/* Modal intérimaire */}
+      {showInterimModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowInterimModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Ajouter un intérimaire</h2>
+            <div className="flex gap-0 border-b border-gray-200 mb-4">
+              {(['select', 'create'] as const).map(m => (
+                <button key={m} onClick={() => setInterimMode(m)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${interimMode === m ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+                  {m === 'select' ? 'Choisir existant' : 'Créer nouveau'}
+                </button>
+              ))}
+            </div>
+            {interimMode === 'select' && (
+              <div className="space-y-4">
+                {loadingAvailable ? (
+                  <p className="text-sm text-gray-400">Chargement…</p>
+                ) : availableInterims.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Aucun intérimaire disponible dans la base.</p>
+                ) : (
+                  <select value={selectedExistingId} onChange={e => setSelectedExistingId(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    <option value="">— Sélectionner —</option>
+                    {availableInterims.map(e => (
+                      <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>
+                    ))}
+                  </select>
+                )}
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowInterimModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+                  <button onClick={handleAddExistingInterim} disabled={!selectedExistingId || interimAdding}
+                    className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+                    {interimAdding ? 'Ajout…' : 'Ajouter'}
+                  </button>
+                </div>
+              </div>
+            )}
+            {interimMode === 'create' && (
+              <div className="space-y-4">
+                <input autoFocus value={newInterimLabel} onChange={e => setNewInterimLabel(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAddInterim(); if (e.key === 'Escape') setShowInterimModal(false) }}
+                  placeholder="Nom de l'intérimaire ou agence…"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setShowInterimModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Annuler</button>
+                  <button onClick={handleAddInterim} disabled={interimAdding || !newInterimLabel.trim()}
+                    className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50">
+                    {interimAdding ? 'Création…' : 'Créer et ajouter'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Context menu */}
       {contextMenu && (

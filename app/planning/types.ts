@@ -61,6 +61,7 @@ export type TabProps = {
   schedules: Schedule[]
   shiftCodes: ShiftCode[]
   absenceCodes: AbsenceCode[]
+  jobFunctions?: { name: string; code: string | null }[]
   year: number
   month: number   // 0-indexed
   teamId: string

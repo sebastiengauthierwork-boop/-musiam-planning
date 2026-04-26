@@ -34,3 +34,12 @@ export function sortEmployees<T extends {
 
   return { permanents, temporaires }
 }
+
+export type JobFunction = { id: string; name: string; code: string | null }
+
+export function getFnCode(name: string | null | undefined, jfs: { name: string; code: string | null }[]): string {
+  if (!name) return ''
+  const jf = jfs.find(f => f.name === name)
+  if (jf?.code) return jf.code
+  return name.slice(0, 3).toUpperCase()
+}

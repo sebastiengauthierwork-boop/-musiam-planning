@@ -55,6 +55,7 @@ export default function PlanningPage() {
 
   // Shift codes filtrés par site
   const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
+  const [jobFunctions, setJobFunctions] = useState<{ name: string; code: string | null }[]>([])
   const filteredShiftCodes = useMemo(() => {
     if (!selectedSiteId) return shiftCodes
     return shiftCodes.filter(sc => !sc.site_id || sc.site_id === selectedSiteId)
@@ -66,10 +67,12 @@ export default function PlanningPage() {
       supabase.from('teams').select('id, name, cdpf, type, site_id').order('name'),
       supabase.from('shift_codes').select('id, code, label, site_id, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
-    ]).then(([tRes, scRes, acRes]) => {
+      supabase.from('job_functions').select('id, name, code').order('name'),
+    ]).then(([tRes, scRes, acRes, jfRes]) => {
       setAllTeams(tRes.data ?? [])
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
+      setJobFunctions((jfRes.data ?? []).map((f: any) => ({ name: f.name, code: f.code ?? null })))
     })
   }, [])
 
@@ -181,6 +184,7 @@ export default function PlanningPage() {
     schedules,
     shiftCodes: filteredShiftCodes,
     absenceCodes,
+    jobFunctions,
     year,
     month,
     teamId,

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
-import { sortEmployees } from '@/lib/employeeUtils'
+import { sortEmployees, getFnCode } from '@/lib/employeeUtils'
 
 type Employee = {
   id: string
@@ -29,7 +29,7 @@ type Employee = {
 }
 
 type Team = { id: string; name: string; cdpf: string | null }
-type JobFunction = { id: string; name: string; is_active: boolean }
+type JobFunction = { id: string; name: string; code: string | null; is_active: boolean }
 
 type EmployeeWithTeams = Employee & {
   teams: { team_id: string; name: string; cdpf: string | null; is_primary: boolean }[]
@@ -96,7 +96,7 @@ export default function EmployesPage() {
       empQ,
       supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
       teamsQ,
-      supabase.from('job_functions').select('id, name, is_active').eq('is_active', true).order('name').limit(100),
+      supabase.from('job_functions').select('id, name, code, is_active').eq('is_active', true).order('name').limit(100),
     ])
 
     if (empRes.error) { setError(empRes.error.message); return }
@@ -322,7 +322,7 @@ export default function EmployesPage() {
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Matricule</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fonction</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: 50 }}>Fnct</th>
               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
               <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contrat</th>
               <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/sem</th>
@@ -359,8 +359,10 @@ export default function EmployesPage() {
                 <td className="px-4 py-1.5 text-gray-500 font-mono">
                   {emp.matricule || <span className="text-gray-300">—</span>}
                 </td>
-                <td className="px-4 py-1.5 text-gray-600">
-                  {emp.fonction || <span className="text-gray-300">—</span>}
+                <td className="px-4 py-1.5 text-gray-600 font-mono" style={{ maxWidth: 50, overflow: 'hidden' }}>
+                  {emp.fonction
+                    ? <span title={emp.fonction}>{getFnCode(emp.fonction, jobFunctions)}</span>
+                    : <span className="text-gray-300">—</span>}
                 </td>
                 <td className="px-4 py-1.5"><StatutBadge statut={emp.statut} /></td>
                 <td className="px-4 py-1.5"><ContractBadge type={emp.contract_type} /></td>
