@@ -35,7 +35,7 @@ type ShiftForm = {
   // nomenclature auto-générée
   nomenStatut: '' | 'E' | 'M' | 'C'
   nomenEquipeId: string
-  nomenHoraire: '' | 'O' | 'F' | 'M' | 'J' | 'P'
+  nomenHoraire: string
   nomenSuffixe: string
 }
 
@@ -204,13 +204,14 @@ function CodesHoraires() {
       const next = { ...prev, ...f }
       const isNomenChange = 'nomenStatut' in f || 'nomenEquipeId' in f || 'nomenHoraire' in f || 'nomenSuffixe' in f
       if (isNomenChange) {
-        const team = nomenTeams.find(t => t.id === next.nomenEquipeId)
-        const letter = team ? teamLetter(team) : ''
+        // nomenEquipeId holds the letter directly (option value = letter)
+        const letter = next.nomenEquipeId
+        const team = nomenTeams.find(t => t.letter === letter)
         next.code = (next.nomenStatut + letter + next.nomenHoraire + next.nomenSuffixe).toUpperCase()
         const labelParts = [
           next.nomenStatut ? STATUT_LABELS[next.nomenStatut] : '',
           team?.name ?? '',
-          next.nomenHoraire ? HORAIRE_LABELS[next.nomenHoraire] : '',
+          next.nomenHoraire ? (HORAIRE_LABELS[next.nomenHoraire] ?? next.nomenHoraire) : '',
         ].filter(Boolean)
         if (labelParts.length > 0) next.label = labelParts.join(' ')
       }
@@ -399,20 +400,19 @@ function CodesHoraires() {
                   <Field label="Équipe">
                     <select value={form.nomenEquipeId} onChange={e => updateForm({ nomenEquipeId: e.target.value })} className="input text-xs">
                       <option value="">—</option>
-                      {nomenTeams.map(t => (
-                        <option key={t.id} value={t.id}>{t.name} ({teamLetter(t)})</option>
+                      {nomenTeams.filter(t => t.letter).map(t => (
+                        <option key={t.id} value={t.letter!}>{t.letter} – {t.name}</option>
                       ))}
                     </select>
                   </Field>
-                  <Field label="Horaire">
-                    <select value={form.nomenHoraire} onChange={e => updateForm({ nomenHoraire: e.target.value as ShiftForm['nomenHoraire'] })} className="input text-xs">
-                      <option value="">—</option>
-                      <option value="O">O – Ouverture</option>
-                      <option value="F">F – Fermeture</option>
-                      <option value="M">M – Milieu</option>
-                      <option value="J">J – Journée</option>
-                      <option value="P">P – Polyvalent</option>
-                    </select>
+                  <Field label="Horaire" hint="Ex : O, F, M, N, J, P…">
+                    <input
+                      value={form.nomenHoraire}
+                      onChange={e => updateForm({ nomenHoraire: e.target.value.toUpperCase().slice(0, 2) })}
+                      className="input font-mono text-xs"
+                      placeholder="O"
+                      maxLength={2}
+                    />
                   </Field>
                   <Field label="Suffixe">
                     <input value={form.nomenSuffixe} onChange={e => updateForm({ nomenSuffixe: e.target.value.toUpperCase().slice(0, 1) })}
