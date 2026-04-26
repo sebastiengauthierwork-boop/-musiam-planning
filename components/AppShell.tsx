@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/auth'
 import Sidebar from './Sidebar'
 import { useInactivityTimeout } from '@/hooks/useInactivityTimeout'
 
-type Role = 'admin' | 'manager' | 'salarie'
+type Role = 'admin' | 'responsable' | 'manager' | 'salarie'
 
 function InactivityGuard({ role }: { role: Role }) {
   const timeoutSeconds = role === 'salarie' ? 900 : 1800

@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
-type Role = 'admin' | 'manager' | 'salarie' | null
+type Role = 'admin' | 'responsable' | 'manager' | 'salarie' | null
 
 interface AuthContextValue {
   user: User | null
@@ -118,6 +118,12 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
     // Salarié → uniquement /mon-planning
     if (role === 'salarie' && !pathname.startsWith('/mon-planning')) {
       window.location.href = '/mon-planning'
+      return true
+    }
+
+    // Responsable → bloqué uniquement sur /admin
+    if (role === 'responsable' && pathname.startsWith('/admin')) {
+      window.location.href = '/planning'
       return true
     }
 
