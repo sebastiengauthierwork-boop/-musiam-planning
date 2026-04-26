@@ -26,14 +26,20 @@ type JobFunction = { id: string; name: string; code: string | null; is_active: b
 
 type ShiftForm = {
   code: string; label: string
-  paid_hours: string   // heures nettes/payées — champ principal
-  start_time: string   // prise de poste — champ principal
-  break_minutes: string   // temps de repas (min)
-  dressing_minutes: string // habillage total (min)
+  paid_hours: string
+  start_time: string
+  break_minutes: string
+  dressing_minutes: string
   meal_included: boolean
-  // calculés automatiquement
   end_time: string; arrival_time: string; departure_time: string
+  // nomenclature auto-générée
+  nomenStatut: '' | 'E' | 'M' | 'C'
+  nomenEquipeId: string
+  nomenHoraire: '' | 'O' | 'F' | 'M' | 'J' | 'P' | 'X'
+  nomenSuffixe: string
 }
+
+type NomenTeam = { id: string; name: string; letter: string | null; site_id: string | null }
 type AbsenceForm = { code: string; label: string; is_paid: boolean }
 type Structure = { id: string; name: string; site_id?: string | null }
 type StructurePosition = { id: string; structure_id: string; position_name: string; required_count: number }
@@ -45,6 +51,7 @@ const emptyShiftForm: ShiftForm = {
   break_minutes: '0', dressing_minutes: '0',
   meal_included: false,
   end_time: '', arrival_time: '', departure_time: '',
+  nomenStatut: '', nomenEquipeId: '', nomenHoraire: '', nomenSuffixe: '',
 }
 const emptyAbsenceForm: AbsenceForm = { code: '', label: '', is_paid: true }
 
@@ -133,6 +140,7 @@ function ConfirmDelete({ onConfirm, onCancel }: { onConfirm: () => void; onCance
 function CodesHoraires() {
   const { selectedSiteId } = useSite()
   const [codes, setCodes] = useState<ShiftCode[]>([])
+  const [nomenTeams, setNomenTeams] = useState<NomenTeam[]>([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<'add' | 'edit' | null>(null)
   const [editing, setEditing] = useState<ShiftCode | null>(null)
@@ -144,8 +152,13 @@ function CodesHoraires() {
   async function load() {
     let q = supabase.from('shift_codes').select('*').order('code')
     if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
-    const { data } = await q
-    setCodes(data ?? [])
+    const [codesRes, teamsRes] = await Promise.all([
+      q,
+      supabase.from('teams').select('id, name, letter, site_id').order('name').limit(200),
+    ])
+    setCodes(codesRes.data ?? [])
+    const allTeams: NomenTeam[] = teamsRes.data ?? []
+    setNomenTeams(selectedSiteId ? allTeams.filter(t => t.site_id === selectedSiteId) : allTeams)
     setLoading(false)
   }
   useEffect(() => { load() }, [selectedSiteId])
@@ -166,6 +179,7 @@ function CodesHoraires() {
       end_time: c.end_time?.slice(0, 5) ?? '',
       arrival_time: c.arrival_time?.slice(0, 5) ?? '',
       departure_time: c.departure_time?.slice(0, 5) ?? '',
+      nomenStatut: '', nomenEquipeId: '', nomenHoraire: '', nomenSuffixe: '',
     }
     return { ...base, ...recalcShiftTimes(base) }
   }
@@ -181,9 +195,22 @@ function CodesHoraires() {
   function updateForm(f: Partial<ShiftForm>) {
     setForm(prev => {
       const next = { ...prev, ...f }
+      // Auto-générer le code depuis les champs nomenclature (mode ajout uniquement)
+      const isNomenChange = 'nomenStatut' in f || 'nomenEquipeId' in f || 'nomenHoraire' in f || 'nomenSuffixe' in f
+      if (isNomenChange) {
+        const team = nomenTeams.find(t => t.id === next.nomenEquipeId)
+        const letter = team?.letter ?? ''
+        const generated = (next.nomenStatut + letter + next.nomenHoraire + next.nomenSuffixe).toUpperCase()
+        next.code = generated
+      }
       return { ...next, ...recalcShiftTimes(next) }
     })
   }
+
+  // Vérification doublon code en temps réel
+  const codeConflict = form.code.trim()
+    ? codes.some(c => c.code === form.code.trim().toUpperCase() && (!editing || c.id !== editing.id))
+    : false
 
   async function handleSave() {
     if (!form.code || !form.label) return
@@ -339,11 +366,53 @@ function CodesHoraires() {
           onClose={() => setModal(null)}
         >
           <div className="space-y-4">
-            {/* a) Code + b) Label */}
+            {/* Nomenclature automatique — mode ajout uniquement */}
+            {!editing && (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Génération automatique du code</p>
+                <div className="grid grid-cols-4 gap-2">
+                  <Field label="Statut">
+                    <select value={form.nomenStatut} onChange={e => updateForm({ nomenStatut: e.target.value as ShiftForm['nomenStatut'] })} className="input text-xs">
+                      <option value="">—</option>
+                      <option value="E">E – Employé</option>
+                      <option value="M">M – Manager</option>
+                      <option value="C">C – Cadre</option>
+                    </select>
+                  </Field>
+                  <Field label="Équipe">
+                    <select value={form.nomenEquipeId} onChange={e => updateForm({ nomenEquipeId: e.target.value })} className="input text-xs">
+                      <option value="">—</option>
+                      {nomenTeams.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}{t.letter ? ` (${t.letter})` : ''}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Horaire">
+                    <select value={form.nomenHoraire} onChange={e => updateForm({ nomenHoraire: e.target.value as ShiftForm['nomenHoraire'] })} className="input text-xs">
+                      <option value="">—</option>
+                      <option value="O">O – Ouverture</option>
+                      <option value="F">F – Fermeture</option>
+                      <option value="M">M – Milieu</option>
+                      <option value="J">J – Journée</option>
+                      <option value="P">P – Polyvalent</option>
+                      <option value="X">X – Autre</option>
+                    </select>
+                  </Field>
+                  <Field label="Suffixe">
+                    <input value={form.nomenSuffixe} onChange={e => updateForm({ nomenSuffixe: e.target.value.toUpperCase().slice(0, 1) })}
+                      className="input font-mono text-xs" placeholder="2" maxLength={1} />
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* Code + Label */}
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Code *" hint="Ex: BTO, RCA, M…">
+              <Field label="Code *" hint={codeConflict ? undefined : 'Pré-rempli ou saisissez manuellement'}>
                 <input value={form.code} onChange={e => updateForm({ code: e.target.value.toUpperCase() })}
-                  className="input font-mono" maxLength={10} placeholder="BTO" autoFocus disabled={!!editing} />
+                  className={`input font-mono ${codeConflict ? 'border-red-400 focus:ring-red-300' : ''}`}
+                  maxLength={10} placeholder="ETO" autoFocus disabled={!!editing} />
+                {codeConflict && <p className="text-xs text-red-600 mt-1">Ce code existe déjà</p>}
               </Field>
               <Field label="Label *">
                 <input value={form.label} onChange={e => updateForm({ label: e.target.value })}
@@ -431,7 +500,7 @@ function CodesHoraires() {
           )}
           <div className="flex justify-end gap-3 mt-4">
             <button onClick={() => setModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-            <button onClick={handleSave} disabled={saving || !form.code || !form.label}
+            <button onClick={handleSave} disabled={saving || !form.code || !form.label || codeConflict}
               className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>

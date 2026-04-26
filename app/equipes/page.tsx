@@ -10,6 +10,7 @@ type Team = {
   id: string
   name: string
   cdpf: string | null
+  letter: string | null
   type: 'point_de_vente' | 'metier'
   description: string | null
   created_at: string
@@ -22,12 +23,13 @@ type TeamWithCount = Team & { employeeCount: number }
 type FormData = {
   name: string
   cdpf: string
+  letter: string
   type: 'point_de_vente' | 'metier'
   description: string
   site_id: string
 }
 
-const emptyForm: FormData = { name: '', cdpf: '', type: 'point_de_vente', description: '', site_id: '' }
+const emptyForm: FormData = { name: '', cdpf: '', letter: '', type: 'point_de_vente', description: '', site_id: '' }
 
 export default function EquipesPage() {
   const { sites, selectedSiteId } = useSite()
@@ -43,7 +45,7 @@ export default function EquipesPage() {
   async function loadTeams() {
     let q = supabase
       .from('teams')
-      .select('id, name, cdpf, type, description, created_at, site_id, sites(name)')
+      .select('id, name, cdpf, letter, type, description, created_at, site_id, sites(name)')
       .order('name').limit(200)
     if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
 
@@ -95,17 +97,27 @@ export default function EquipesPage() {
 
   function openEdit(team: Team) {
     setEditingTeam(team)
-    setFormData({ name: team.name, cdpf: team.cdpf ?? '', type: team.type, description: team.description ?? '', site_id: team.site_id ?? '' })
+    setFormData({ name: team.name, cdpf: team.cdpf ?? '', letter: team.letter ?? '', type: team.type, description: team.description ?? '', site_id: team.site_id ?? '' })
     setShowModal(true)
   }
 
+  // Vérification unicité de la lettre dans le même site
+  const letterConflict = formData.letter.trim()
+    ? teams.find(t =>
+        t.id !== editingTeam?.id &&
+        t.site_id === (formData.site_id || null) &&
+        t.letter?.toUpperCase() === formData.letter.trim().toUpperCase()
+      )
+    : null
+
   async function handleSave() {
-    if (!formData.name.trim()) return
+    if (!formData.name.trim() || letterConflict) return
     setSaving(true)
     try {
       const payload = {
         name: formData.name.trim(),
         cdpf: formData.cdpf.trim() || null,
+        letter: formData.letter.trim().toUpperCase() || null,
         type: formData.type,
         description: formData.description.trim() || null,
         site_id: formData.site_id || null,
@@ -188,6 +200,19 @@ export default function EquipesPage() {
               <input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
                 className="input" placeholder="Café Richelieu" autoFocus />
             </Field>
+            <Field label="Lettre (1-2 car., unique par site)">
+              <input
+                type="text"
+                value={formData.letter}
+                onChange={e => setFormData({ ...formData, letter: e.target.value.toUpperCase().slice(0, 2) })}
+                className={`input font-mono uppercase w-20 ${letterConflict ? 'border-red-400 focus:ring-red-300' : ''}`}
+                placeholder="T"
+                maxLength={2}
+              />
+              {letterConflict && (
+                <p className="text-xs text-red-600 mt-1">Cette lettre est déjà utilisée par <strong>{letterConflict.name}</strong></p>
+              )}
+            </Field>
             <Field label="CDPF">
               <input type="text" value={formData.cdpf} onChange={e => setFormData({ ...formData, cdpf: e.target.value })}
                 className="input font-mono" placeholder="9603-10" />
@@ -207,7 +232,7 @@ export default function EquipesPage() {
             <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
               Annuler
             </button>
-            <button onClick={handleSave} disabled={saving || !formData.name.trim()}
+            <button onClick={handleSave} disabled={saving || !formData.name.trim() || !!letterConflict}
               className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
@@ -245,6 +270,7 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
           <tr className="border-b border-gray-100 bg-gray-50">
             {showSite && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Site</th>}
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Lettre</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">CDPF</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
             <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
@@ -254,12 +280,17 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
         </thead>
         <tbody className="divide-y divide-gray-100">
           {teams.length === 0 && (
-            <tr><td colSpan={showSite ? 7 : 6} className="px-5 py-10 text-center text-gray-400">Aucune équipe</td></tr>
+            <tr><td colSpan={showSite ? 8 : 7} className="px-5 py-10 text-center text-gray-400">Aucune équipe</td></tr>
           )}
           {teams.map(team => (
             <tr key={team.id} className="hover:bg-gray-50 transition-colors">
               {showSite && <td className="px-5 py-3.5 text-gray-500 text-xs">{team.site_name ?? '—'}</td>}
               <td className="px-5 py-3.5 font-medium text-gray-900">{team.name}</td>
+              <td className="px-5 py-3.5">
+                {team.letter
+                  ? <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-xs">{team.letter}</span>
+                  : <span className="text-gray-300 text-xs">—</span>}
+              </td>
               <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{team.cdpf ?? <span className="text-gray-300">—</span>}</td>
               <td className="px-5 py-3.5"><TypeBadge type={team.type} /></td>
               <td className="px-5 py-3.5 text-gray-500 max-w-xs truncate">{team.description ?? '—'}</td>
