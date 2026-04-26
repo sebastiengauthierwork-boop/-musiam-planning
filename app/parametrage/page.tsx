@@ -35,7 +35,7 @@ type ShiftForm = {
   // nomenclature auto-générée
   nomenStatut: '' | 'E' | 'M' | 'C'
   nomenEquipeId: string
-  nomenHoraire: '' | 'O' | 'F' | 'M' | 'J' | 'P' | 'X'
+  nomenHoraire: '' | 'O' | 'F' | 'M' | 'J' | 'P'
   nomenSuffixe: string
 }
 
@@ -192,16 +192,27 @@ function CodesHoraires() {
     setEditing(null); setForm({ ...shiftToForm(c), code: '' }); setSaveError(null); setModal('add')
   }
 
+  const STATUT_LABELS: Record<string, string> = { E: 'Employé', M: 'Manager', C: 'Cadre' }
+  const HORAIRE_LABELS: Record<string, string> = { O: 'Ouverture', F: 'Fermeture', M: 'Milieu', J: 'Journée', P: 'Polyvalent' }
+
+  function teamLetter(t: NomenTeam): string {
+    return t.letter || t.name.slice(0, 2).toUpperCase()
+  }
+
   function updateForm(f: Partial<ShiftForm>) {
     setForm(prev => {
       const next = { ...prev, ...f }
-      // Auto-générer le code depuis les champs nomenclature (mode ajout uniquement)
       const isNomenChange = 'nomenStatut' in f || 'nomenEquipeId' in f || 'nomenHoraire' in f || 'nomenSuffixe' in f
       if (isNomenChange) {
         const team = nomenTeams.find(t => t.id === next.nomenEquipeId)
-        const letter = team?.letter ?? ''
-        const generated = (next.nomenStatut + letter + next.nomenHoraire + next.nomenSuffixe).toUpperCase()
-        next.code = generated
+        const letter = team ? teamLetter(team) : ''
+        next.code = (next.nomenStatut + letter + next.nomenHoraire + next.nomenSuffixe).toUpperCase()
+        const labelParts = [
+          next.nomenStatut ? STATUT_LABELS[next.nomenStatut] : '',
+          team?.name ?? '',
+          next.nomenHoraire ? HORAIRE_LABELS[next.nomenHoraire] : '',
+        ].filter(Boolean)
+        if (labelParts.length > 0) next.label = labelParts.join(' ')
       }
       return { ...next, ...recalcShiftTimes(next) }
     })
@@ -212,8 +223,14 @@ function CodesHoraires() {
     ? codes.some(c => c.code === form.code.trim().toUpperCase() && (!editing || c.id !== editing.id))
     : false
 
+  const isCadre = form.nomenStatut === 'C'
+
   async function handleSave() {
     if (!form.code || !form.label) return
+    if (!isCadre && !editing && (!form.paid_hours || !form.start_time)) {
+      setSaveError('Heures payées et prise de poste sont requises (sauf pour les cadres).')
+      return
+    }
     setSaving(true); setSaveError(null)
     const ph = form.paid_hours ? hMinToDecimal(form.paid_hours) : null
     const dressMin = parseInt(form.dressing_minutes) || 0
@@ -383,7 +400,7 @@ function CodesHoraires() {
                     <select value={form.nomenEquipeId} onChange={e => updateForm({ nomenEquipeId: e.target.value })} className="input text-xs">
                       <option value="">—</option>
                       {nomenTeams.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}{t.letter ? ` (${t.letter})` : ''}</option>
+                        <option key={t.id} value={t.id}>{t.name} ({teamLetter(t)})</option>
                       ))}
                     </select>
                   </Field>
@@ -395,7 +412,6 @@ function CodesHoraires() {
                       <option value="M">M – Milieu</option>
                       <option value="J">J – Journée</option>
                       <option value="P">P – Polyvalent</option>
-                      <option value="X">X – Autre</option>
                     </select>
                   </Field>
                   <Field label="Suffixe">
@@ -412,7 +428,7 @@ function CodesHoraires() {
                 <input value={form.code} onChange={e => updateForm({ code: e.target.value.toUpperCase() })}
                   className={`input font-mono ${codeConflict ? 'border-red-400 focus:ring-red-300' : ''}`}
                   maxLength={10} placeholder="ETO" autoFocus disabled={!!editing} />
-                {codeConflict && <p className="text-xs text-red-600 mt-1">Ce code existe déjà</p>}
+                {codeConflict && <p className="text-xs text-red-600 mt-1">Ce code existe déjà sur ce site</p>}
               </Field>
               <Field label="Label *">
                 <input value={form.label} onChange={e => updateForm({ label: e.target.value })}
@@ -422,12 +438,18 @@ function CodesHoraires() {
 
             {/* d) Heures nettes + e) Prise de poste — champs principaux */}
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Heures payées *" hint="Saisir en h:min — ex : 7h48 ou 7:48">
+              <Field
+                label={form.nomenStatut === 'C' ? 'Heures payées' : 'Heures payées *'}
+                hint={form.nomenStatut === 'C' ? 'Optionnel pour les cadres' : 'Saisir en h:min — ex : 7h48 ou 7:48'}
+              >
                 <input type="text" value={form.paid_hours}
                   onChange={e => updateForm({ paid_hours: e.target.value })}
                   className="input font-mono text-lg font-semibold" placeholder="7h48" />
               </Field>
-              <Field label="Prise de poste *" hint="Heure de début de travail effectif">
+              <Field
+                label={form.nomenStatut === 'C' ? 'Prise de poste' : 'Prise de poste *'}
+                hint={form.nomenStatut === 'C' ? 'Optionnel pour les cadres' : 'Heure de début de travail effectif'}
+              >
                 <input type="time" value={form.start_time}
                   onChange={e => updateForm({ start_time: e.target.value })}
                   className="input font-mono text-lg font-semibold" />
