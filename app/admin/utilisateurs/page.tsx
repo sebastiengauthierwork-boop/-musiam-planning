@@ -565,14 +565,15 @@ export default function UtilisateursPage() {
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      role: e.target.value as 'admin' | 'manager' | 'salarie',
+                      role: e.target.value as 'admin' | 'responsable' | 'manager' | 'salarie',
                       employeeId: '',
                     })
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
-                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
+                  <option value="responsable">Responsable de site</option>
+                  <option value="manager">Manager</option>
                   <option value="salarie">Salarié</option>
                 </select>
               </div>
