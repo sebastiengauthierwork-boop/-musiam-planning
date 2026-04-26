@@ -2,13 +2,14 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
+import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
 type Team = { id: string; name: string; cdpf: string | null }
-type Employee = { id: string; first_name: string; last_name: string; fonction: string | null }
+type Employee = { id: string; first_name: string; last_name: string; fonction: string | null; contract_type: string | null; statut: string | null }
 type ShiftCode = { id: string; code: string; label: string; start_time: string | null; end_time: string | null; net_hours: number | null }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
 
@@ -55,7 +56,7 @@ export default function CyclePage() {
       // Load employees
       const { data: etData } = await supabase
         .from('employee_teams')
-        .select('employee_id, employees(id, first_name, last_name, fonction, is_active)')
+        .select('employee_id, employees(id, first_name, last_name, fonction, is_active, contract_type, statut)')
         .eq('team_id', teamId)
         .eq('is_primary', true)
 
@@ -65,10 +66,10 @@ export default function CyclePage() {
         const e = et.employees
         if (!e || !e.is_active || seen.has(e.id)) continue
         seen.add(e.id)
-        empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, fonction: e.fonction ?? null })
+        empList.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, fonction: e.fonction ?? null, contract_type: e.contract_type ?? null, statut: e.statut ?? null })
       }
-      empList.sort((a, b) => a.last_name.localeCompare(b.last_name))
-      setEmployees(empList)
+      const { permanents, temporaires } = sortEmployees(empList)
+      setEmployees([...permanents, ...temporaires])
 
       // Load cycle entries from cycle_schedules
       if (empList.length > 0) {
@@ -246,39 +247,50 @@ export default function CyclePage() {
               </tr>
             </thead>
             <tbody>
-              {employees.map(emp => (
-                <tr key={emp.id} className="group hover:bg-blue-50/20">
-                  <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50/20 border-b border-r border-gray-100 px-3 py-0 h-7 whitespace-nowrap">
-                    <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
-                    <span className="text-gray-500">{emp.first_name}</span>
-                    {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
-                  </td>
-                  {WEEKS.map(w =>
-                    DAY_LABELS.map((_, di) => {
-                      const dayOfWeek = di + 1
-                      const key = `${emp.id}|${w}|${dayOfWeek}`
-                      const code = entries[key] ?? ''
-                      const isWE = di >= 5
-                      const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                      const bgStyle = c ? { background: c.bg, color: c.text } : isWE ? { background: '#f1f5f9' } : {}
-                      return (
-                        <td key={`${w}-${di}`} className="border-b border-r border-gray-100 p-0 h-7 relative" style={bgStyle}>
-                          <input
-                            value={code}
-                            onChange={e => {
-                              const v = e.target.value.trim().toUpperCase()
-                              setEntries(prev => { const n = { ...prev }; if (v) n[key] = v; else delete n[key]; return n })
-                            }}
-                            onBlur={e => saveEntry(emp.id, w, dayOfWeek, e.target.value.trim().toUpperCase())}
-                            className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase"
-                            maxLength={5}
-                          />
-                        </td>
-                      )
-                    })
-                  )}
-                </tr>
-              ))}
+              {employees.map((emp, idx) => {
+                const isTmp = isTemporaire(emp.contract_type)
+                const needsSep = idx > 0 && isTmp && !isTemporaire(employees[idx - 1].contract_type)
+                return (
+                  <Fragment key={emp.id}>
+                    {needsSep && (
+                      <tr>
+                        <td colSpan={1 + WEEKS.length * DAY_LABELS.length} style={{ height: 5, background: '#e2e8f0', padding: 0 }} />
+                      </tr>
+                    )}
+                    <tr className="group hover:bg-blue-50/20">
+                      <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50/20 border-b border-r border-gray-100 px-3 py-0 h-7 whitespace-nowrap">
+                        <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
+                        <span className="text-gray-500">{emp.first_name}</span>
+                        {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
+                      </td>
+                      {WEEKS.map(w =>
+                        DAY_LABELS.map((_, di) => {
+                          const dayOfWeek = di + 1
+                          const key = `${emp.id}|${w}|${dayOfWeek}`
+                          const code = entries[key] ?? ''
+                          const isWE = di >= 5
+                          const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                          const bgStyle = c ? { background: c.bg, color: c.text } : isWE ? { background: '#f1f5f9' } : {}
+                          return (
+                            <td key={`${w}-${di}`} className="border-b border-r border-gray-100 p-0 h-7 relative" style={bgStyle}>
+                              <input
+                                value={code}
+                                onChange={e => {
+                                  const v = e.target.value.trim().toUpperCase()
+                                  setEntries(prev => { const n = { ...prev }; if (v) n[key] = v; else delete n[key]; return n })
+                                }}
+                                onBlur={e => saveEntry(emp.id, w, dayOfWeek, e.target.value.trim().toUpperCase())}
+                                className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase"
+                                maxLength={5}
+                              />
+                            </td>
+                          )
+                        })
+                      )}
+                    </tr>
+                  </Fragment>
+                )
+              })}
             </tbody>
           </table>
         )}

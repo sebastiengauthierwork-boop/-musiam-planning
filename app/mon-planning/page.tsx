@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { getCodeColors } from '@/lib/codeColors'
+import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
-interface Employee { id: string; first_name: string; last_name: string }
+interface Employee { id: string; first_name: string; last_name: string; contract_type: string | null; statut: string | null }
 interface Team { id: string; name: string; cdpf: string | null }
 interface Schedule { employee_id: string; date: string; code: string; start_time: string | null; end_time: string | null }
 interface ShiftCode { id: string; code: string; label: string; start_time: string | null; end_time: string | null }
@@ -191,7 +192,7 @@ export default function MonPlanningPage() {
         .eq('team_id', teamId)
         .gte('date', start).lte('date', end),
       supabase.from('employee_teams')
-        .select('employee_id, employees(id, first_name, last_name)')
+        .select('employee_id, employees(id, first_name, last_name, contract_type, statut)')
         .eq('team_id', teamId),
       supabase.from('schedules')
         .select('employee_id, date, code')
@@ -206,10 +207,13 @@ export default function MonPlanningPage() {
     const seen = new Set<string>()
     for (const et of (etRes.data ?? []) as any[]) {
       const e = et.employees
-      if (e && !seen.has(e.id)) { seen.add(e.id); emps.push(e) }
+      if (e && !seen.has(e.id)) {
+        seen.add(e.id)
+        emps.push({ id: e.id, first_name: e.first_name, last_name: e.last_name, contract_type: e.contract_type ?? null, statut: e.statut ?? null })
+      }
     }
-    emps.sort((a, b) => a.last_name.localeCompare(b.last_name))
-    setTeamEmployees(emps)
+    const { permanents, temporaires } = sortEmployees(emps)
+    setTeamEmployees([...permanents, ...temporaires])
     setTeamSchedules(tschedRes.data ?? [])
     setLoadingSched(false)
   }, [employeeId, teamId, year, month])
@@ -451,36 +455,45 @@ export default function MonPlanningPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {teamEmployees.map(emp => {
+                {teamEmployees.map((emp, idx) => {
                   const isMe = emp.id === employeeId
+                  const isTmp = isTemporaire(emp.contract_type)
+                  const needsSep = idx > 0 && isTmp && !isTemporaire(teamEmployees[idx - 1].contract_type)
                   return (
-                    <tr key={emp.id}>
-                      <td
-                        className={`sticky left-0 z-10 px-4 py-2 whitespace-nowrap border-r border-gray-100 text-xs font-semibold ${
-                          isMe ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-700'
-                        }`}
-                      >
-                        {isMe ? '▶ ' : ''}{emp.last_name} {emp.first_name.charAt(0)}.
-                      </td>
-                      {dates.map(({ ds }) => {
-                        const code = schedMap[emp.id]?.[ds] ?? ''
-                        const colors = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                        return (
-                          <td key={ds} className={`px-0.5 py-1 ${isMe ? 'bg-blue-50/40' : ''}`}>
-                            {code ? (
-                              <span
-                                className="flex items-center justify-center w-7 h-7 rounded-md font-bold"
-                                style={{ fontSize: 10, background: colors?.bg, color: colors?.text }}
-                              >
-                                {code.slice(0, 3)}
-                              </span>
-                            ) : (
-                              <span className="block w-7 h-7" />
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
+                    <Fragment key={emp.id}>
+                      {needsSep && (
+                        <tr>
+                          <td colSpan={dates.length + 1} style={{ height: 4, background: '#e2e8f0', padding: 0 }} />
+                        </tr>
+                      )}
+                      <tr>
+                        <td
+                          className={`sticky left-0 z-10 px-4 py-2 whitespace-nowrap border-r border-gray-100 text-xs font-semibold ${
+                            isMe ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-700'
+                          }`}
+                        >
+                          {isMe ? '▶ ' : ''}{emp.last_name} {emp.first_name.charAt(0)}.
+                        </td>
+                        {dates.map(({ ds }) => {
+                          const code = schedMap[emp.id]?.[ds] ?? ''
+                          const colors = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                          return (
+                            <td key={ds} className={`px-0.5 py-1 ${isMe ? 'bg-blue-50/40' : ''}`}>
+                              {code ? (
+                                <span
+                                  className="flex items-center justify-center w-7 h-7 rounded-md font-bold"
+                                  style={{ fontSize: 10, background: colors?.bg, color: colors?.text }}
+                                >
+                                  {code.slice(0, 3)}
+                                </span>
+                              ) : (
+                                <span className="block w-7 h-7" />
+                              )}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </Fragment>
                   )
                 })}
                 {teamEmployees.length === 0 && (
