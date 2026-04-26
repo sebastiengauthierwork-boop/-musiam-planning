@@ -277,7 +277,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [availableInterims, setAvailableInterims] = useState<{ id: string; first_name: string; last_name: string }[]>([])
   const [loadingAvailable, setLoadingAvailable] = useState(false)
   const [interimAdding, setInterimAdding] = useState(false)
-  const [newlyAddedInterimIds, setNewlyAddedInterimIds] = useState<Set<string>>(new Set())
+
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -502,7 +502,6 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         .from('employee_teams')
         .insert({ employee_id: empData.id, team_id: teamId, is_primary: false })
       if (etErr) throw etErr
-      setNewlyAddedInterimIds(prev => new Set([...prev, empData.id]))
       setNewInterimLabel('')
       setShowInterimModal(false)
       onRefresh?.()
@@ -521,7 +520,6 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         .from('employee_teams')
         .insert({ employee_id: selectedExistingId, team_id: teamId, is_primary: false })
       if (error) throw error
-      setNewlyAddedInterimIds(prev => new Set([...prev, selectedExistingId]))
       setShowInterimModal(false)
       onRefresh?.()
     } catch (err: any) {
@@ -726,15 +724,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   }
 
   const permanentEmployees = employees.filter(e => !isTemporaire(e.contract_type))
-  const temporaireEmployees = employees.filter(e => {
-    if (!isTemporaire(e.contract_type)) return false
-    const isInterim = (e.contract_type ?? '').toUpperCase() === 'INTERIM'
-    if (isInterim) {
-      const hasCells = Object.keys(cellValues).some(k => k.startsWith(`${e.id}|`))
-      return hasCells || newlyAddedInterimIds.has(e.id)
-    }
-    return true // EXTRAs toujours affichés
-  })
+  const temporaireEmployees = employees.filter(e => isTemporaire(e.contract_type))
   const interimEmployees = employees.filter(e => (e.contract_type ?? '').toUpperCase() === 'INTERIM')
 
   return (
