@@ -18,12 +18,18 @@ interface Team {
   cdpf: string | null
 }
 
+interface Site {
+  id: string
+  name: string
+}
+
 interface AppUser {
   id: string
   email: string
   role: 'admin' | 'responsable' | 'manager' | 'salarie'
   team_id: string | null
   allowed_teams: string[] | null
+  allowed_site_id: string | null
   employee_id: string | null
 }
 
@@ -40,6 +46,7 @@ const EMPTY_FORM = {
   password: '',
   role: 'manager' as 'admin' | 'responsable' | 'manager' | 'salarie',
   allowedTeams: [] as string[],
+  allowedSiteId: '',
   employeeId: '',
 }
 
@@ -85,6 +92,7 @@ export default function UtilisateursPage() {
 
   const [users, setUsers] = useState<AppUser[]>([])
   const [teams, setTeams] = useState<Team[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [employees, setEmployees] = useState<SimpleEmployee[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -109,18 +117,18 @@ export default function UtilisateursPage() {
   async function loadData() {
     setDataLoading(true)
     setError(null)
-    const [usersRes, teamsRes] = await Promise.all([
+    const [usersRes, teamsRes, sitesRes] = await Promise.all([
       supabase.from('users').select('*').order('email'),
       supabase.from('teams').select('id, name, cdpf').order('name'),
+      supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
     ])
     if (usersRes.error) {
       setError(usersRes.error.message)
     } else {
       setUsers(usersRes.data ?? [])
     }
-    if (!teamsRes.error) {
-      setTeams(teamsRes.data ?? [])
-    }
+    if (!teamsRes.error) setTeams(teamsRes.data ?? [])
+    if (!sitesRes.error) setSites(sitesRes.data ?? [])
     setDataLoading(false)
   }
 
@@ -185,6 +193,7 @@ export default function UtilisateursPage() {
       password: '',
       role: user.role,
       allowedTeams: user.allowed_teams ?? [],
+      allowedSiteId: user.allowed_site_id ?? '',
       employeeId: user.employee_id ?? '',
     })
     setModalError(null)
@@ -247,6 +256,7 @@ export default function UtilisateursPage() {
           .update({
             role: form.role,
             allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+            allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
             employee_id: form.role === 'salarie' ? form.employeeId || null : null,
           })
           .eq('id', existingProfile.id)
@@ -306,6 +316,7 @@ export default function UtilisateursPage() {
         email: emailNorm,
         role: form.role,
         allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+        allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
         employee_id: form.role === 'salarie' ? form.employeeId || null : null,
       })
       if (insertError) {
@@ -325,6 +336,7 @@ export default function UtilisateursPage() {
         .update({
           role: form.role,
           allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+          allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
         })
         .eq('id', editingUser.id)
       if (updateError) {
@@ -471,6 +483,10 @@ export default function UtilisateursPage() {
                       <span className="text-slate-400 text-xs italic">
                         Toutes les équipes
                       </span>
+                    ) : user.role === 'responsable' ? (
+                      <span className="text-orange-700 text-xs font-medium">
+                        {sites.find(s => s.id === user.allowed_site_id)?.name ?? 'Aucun site'} – Toutes les équipes
+                      </span>
                     ) : user.role === 'salarie' ? (
                       <span className="text-slate-400 text-xs italic">
                         {user.employee_id ? 'Salarié lié' : 'Non lié'}
@@ -610,6 +626,26 @@ export default function UtilisateursPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Site autorisé — responsable only */}
+              {form.role === 'responsable' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Site
+                  </label>
+                  <select
+                    value={form.allowedSiteId}
+                    onChange={(e) => setForm({ ...form, allowedSiteId: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                  >
+                    <option value="">— Sélectionner un site —</option>
+                    {sites.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-400 mt-1">Le responsable accède à toutes les équipes de ce site.</p>
                 </div>
               )}
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from './supabase'
+import { useAuth } from './auth'
 
 export type Site = {
   id: string
@@ -26,7 +27,8 @@ const SiteContext = createContext<SiteContextValue>({
 const STORAGE_KEY = 'musiam-selected-site'
 
 export function SiteProvider({ children }: { children: ReactNode }) {
-  const [sites, setSites] = useState<Site[]>([])
+  const { role, allowedSiteId: userSiteId } = useAuth()
+  const [allSites, setAllSites] = useState<Site[]>([])
   const [selectedSiteId, _set] = useState<string | null>(null)
 
   useEffect(() => {
@@ -36,8 +38,8 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       .eq('is_active', true)
       .order('name')
       .then(({ data, error }: { data: any; error: any }) => {
-        if (error || !data) return   // table inexistante → pas de filtre site
-        setSites(data)
+        if (error || !data) return
+        setAllSites(data)
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored && stored !== 'null' && data.some((s: any) => s.id === stored)) {
           _set(stored)
@@ -49,10 +51,27 @@ export function SiteProvider({ children }: { children: ReactNode }) {
       })
   }, [])
 
+  // Quand un responsable se connecte, forcer son site
+  useEffect(() => {
+    if (role === 'responsable' && userSiteId) {
+      _set(userSiteId)
+      localStorage.setItem(STORAGE_KEY, userSiteId)
+    }
+  }, [role, userSiteId])
+
   function setSelectedSiteId(id: string | null) {
+    if (role === 'responsable') return  // un responsable ne peut pas changer de site
     _set(id)
     localStorage.setItem(STORAGE_KEY, id ?? 'null')
   }
+
+  // Un responsable ne voit que son propre site dans le sélecteur
+  const sites = useMemo(() => {
+    if (role === 'responsable' && userSiteId) {
+      return allSites.filter(s => s.id === userSiteId)
+    }
+    return allSites
+  }, [allSites, role, userSiteId])
 
   const selectedSite = sites.find(s => s.id === selectedSiteId) ?? null
 
