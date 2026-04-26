@@ -21,7 +21,7 @@ interface Team {
 interface AppUser {
   id: string
   email: string
-  role: 'admin' | 'manager' | 'salarie'
+  role: 'admin' | 'responsable' | 'manager' | 'salarie'
   team_id: string | null
   allowed_teams: string[] | null
   employee_id: string | null
@@ -38,7 +38,7 @@ type ModalMode = 'add' | 'edit'
 const EMPTY_FORM = {
   email: '',
   password: '',
-  role: 'manager' as 'admin' | 'manager' | 'salarie',
+  role: 'manager' as 'admin' | 'responsable' | 'manager' | 'salarie',
   allowedTeams: [] as string[],
   employeeId: '',
 }
@@ -47,11 +47,18 @@ const EMPTY_FORM = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function RoleBadge({ role }: { role: 'admin' | 'manager' | 'salarie' }) {
+function RoleBadge({ role }: { role: 'admin' | 'responsable' | 'manager' | 'salarie' }) {
   if (role === 'admin') {
     return (
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-        Admin
+        Administrateur
+      </span>
+    )
+  }
+  if (role === 'responsable') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-700">
+        Responsable
       </span>
     )
   }
@@ -571,7 +578,7 @@ export default function UtilisateursPage() {
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
-                  <option value="admin">Admin</option>
+                  <option value="admin">Administrateur</option>
                   <option value="responsable">Responsable de site</option>
                   <option value="manager">Manager</option>
                   <option value="salarie">Salarié</option>
