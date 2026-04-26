@@ -1692,7 +1692,7 @@ function RolesAcces() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.from('role_permissions').select('role, permission, allowed').then(({ data }) => {
+    supabase.from('role_permissions').select('role, permission, allowed').then(({ data }: { data: { role: string; permission: string; allowed: boolean }[] | null }) => {
       const m: Record<string, Record<string, boolean>> = {}
       for (const r of PERM_ROLES_LIST) m[r.key] = { ...PERM_DEFAULTS[r.key] }
       for (const row of (data ?? [])) {

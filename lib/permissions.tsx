@@ -41,7 +41,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       .from('role_permissions')
       .select('permission, allowed')
       .eq('role', role)
-      .then(({ data }) => {
+      .then(({ data }: { data: { permission: string; allowed: boolean }[] | null }) => {
         const map: Record<string, boolean> = {}
         for (const row of (data ?? [])) {
           map[row.permission] = row.allowed
