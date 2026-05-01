@@ -49,18 +49,17 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   const [generatingPdf, setGeneratingPdf] = useState(false)
   const [a4Mode, setA4Mode] = useState<'off' | '1page' | '2pages'>('off')
 
-  // A4 disponible uniquement si moins de 15 personnes
-  const canA4 = employees.length < 15
+  // A4 disponible jusqu'à 15 salariés inclus
+  const canA4 = employees.length <= 15
 
   // Découpe du mois : 15 premiers jours / reste
   const daysA = days.slice(0, 15)
   const daysB = days.slice(15)
 
-  // Hauteurs de ligne A4 pour remplir la page
-  // A4 paysage ~718px utile (10mm marges). 1page : 2 tables → ~285px/table
+  // Hauteurs de ligne A4 — 1page : max 16px pour tenir sur A4 paysage
   const a4RowH = a4Mode === '2pages'
     ? Math.min(100, Math.max(14, Math.floor(600 / Math.max(1, employees.length))))
-    : Math.min(55,  Math.max(12, Math.floor(280 / Math.max(1, employees.length))))
+    : Math.min(16,  Math.max(10, Math.floor(280 / Math.max(1, employees.length))))
 
   useEffect(() => {
     const handler = () => setPrintTime(new Date())
@@ -117,24 +116,24 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
 
   // ── Rendu d'une demi-table A4 ────────────────────────────────────────────
   function renderHalfTable(halfDays: Date[], rowH: number) {
-    const dayColW = ((100 - 11 - 4 - 4) / halfDays.length).toFixed(2)
+    const dayColW = ((100 - 9 - 2.5 - 3) / halfDays.length).toFixed(2)
     return (
-      <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '9px' }}>
+      <table style={{ borderCollapse: 'collapse', width: '100%', tableLayout: 'fixed', fontSize: '7px' }}>
         <colgroup>
-          <col style={{ width: '11%' }} />
-          <col style={{ width: '4%' }} />
-          <col style={{ width: '4%' }} />
+          <col style={{ width: '9%' }} />
+          <col style={{ width: '2.5%' }} />
+          <col style={{ width: '3%' }} />
           {halfDays.map(d => <col key={toISO(d)} style={{ width: `${dayColW}%` }} />)}
         </colgroup>
         <thead>
           <tr>
-            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '3px 5px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '9px' }}>
+            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '2px 4px', textAlign: 'left', fontWeight: 700, color: '#374151', fontSize: '7px' }}>
               Salarié
             </th>
-            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '2px 1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '7px', maxWidth: 50 }}>
-              Contrat
+            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '6px' }}>
+              Ctr
             </th>
-            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '2px 1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '7px', maxWidth: 50 }}>
+            <th style={{ background: '#f1f5f9', border: '1px solid #94a3b8', padding: '1px', textAlign: 'center', fontWeight: 700, color: '#475569', fontSize: '6px' }}>
               H/mois
             </th>
             {halfDays.map(d => {
@@ -145,13 +144,13 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                   background: isWE ? '#e2e8f0' : '#f1f5f9',
                   color: isWE ? '#64748b' : '#374151',
                   border: '1px solid #94a3b8',
-                  padding: '2px 1px',
+                  padding: '1px 0',
                   textAlign: 'center',
                   fontWeight: 700,
                   ...(isMonday ? { borderLeft: '2px solid #374151' } : {}),
                 }}>
-                  <div style={{ fontSize: '7px', lineHeight: 1 }}>{DAY_LETTER[d.getDay()]}</div>
-                  <div style={{ fontSize: '10px', lineHeight: 1.3, fontWeight: 700 }}>{d.getDate()}</div>
+                  <div style={{ fontSize: '6px', lineHeight: 1 }}>{DAY_LETTER[d.getDay()]}</div>
+                  <div style={{ fontSize: '7px', lineHeight: 1.2, fontWeight: 700 }}>{d.getDate()}</div>
                 </th>
               )
             })}
@@ -166,16 +165,16 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 </tr>
               )}
             <tr style={{ height: rowH }}>
-              <td style={{ border: '1px solid #cbd5e1', padding: '2px 4px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              <td style={{ border: '1px solid #cbd5e1', padding: '1px 3px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '7px' }}>
                 {emp.last_name} {emp.first_name.charAt(0)}.
                 {effFonction(emp) && (
-                  <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '6px', marginLeft: 3 }}>{getFnCode(effFonction(emp)!, jobFunctions)}</span>
+                  <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '5.5px', marginLeft: 2 }}>{getFnCode(effFonction(emp)!, jobFunctions)}</span>
                 )}
               </td>
-              <td style={{ border: '1px solid #cbd5e1', padding: '2px 1px', textAlign: 'center', background: '#fafafa', fontSize: '7px', color: '#475569', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: 50 }}>
+              <td style={{ border: '1px solid #cbd5e1', padding: '1px', textAlign: 'center', background: '#fafafa', fontSize: '6px', color: '#475569', fontWeight: 600, overflow: 'hidden', whiteSpace: 'nowrap' }}>
                 {effContract(emp)}
               </td>
-              <td style={{ border: '1px solid #cbd5e1', padding: '2px 1px', textAlign: 'center', background: '#fafafa', fontSize: '7.5px', color: '#475569', fontWeight: 700, maxWidth: 50 }}>
+              <td style={{ border: '1px solid #cbd5e1', padding: '1px', textAlign: 'center', background: '#fafafa', fontSize: '6px', color: '#475569', fontWeight: 700 }}>
                 {monthlyHours(emp)}
               </td>
               {halfDays.map(d => {
@@ -192,18 +191,18 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                     border: '1px solid #cbd5e1',
                     textAlign: 'center',
                     verticalAlign: 'middle',
-                    padding: '2px 1px',
+                    padding: '1px 0',
                     background: bg,
                     ...(isMonday ? { borderLeft: '2px solid #374151' } : {}),
                   }}>
                     {!blocked && cell?.kind === 'shift' && (
                       <>
-                        <span style={{ fontWeight: 700, fontSize: '8.5px', display: 'block', lineHeight: 1.2, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>
-                        {cell.line2 && <span style={{ fontSize: '6px', display: 'block', lineHeight: 1.1, color: c?.text ?? '#475569', opacity: 0.85 }}>{cell.line2}</span>}
+                        <span style={{ fontWeight: 700, fontSize: '7px', display: 'block', lineHeight: 1.1, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>
+                        {cell.line2 && <span style={{ fontSize: '5.5px', display: 'block', lineHeight: 1, color: c?.text ?? '#475569', opacity: 0.85 }}>{cell.line2}</span>}
                       </>
                     )}
                     {!blocked && cell?.kind === 'absence' && (
-                      <span style={{ fontWeight: 700, fontSize: '8.5px', display: 'block', lineHeight: 1.2, color: c?.text ?? '#ffffff' }}>{cell.code}</span>
+                      <span style={{ fontWeight: 700, fontSize: '7px', display: 'block', lineHeight: 1.1, color: c?.text ?? '#ffffff' }}>{cell.code}</span>
                     )}
                   </td>
                 )
