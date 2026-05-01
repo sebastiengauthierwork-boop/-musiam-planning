@@ -73,7 +73,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
       isShift: !!sc,
       start: sc?.start_time?.slice(0, 5) ?? '',
       end: sc?.end_time?.slice(0, 5) ?? '',
-      net: fmtNet(sc?.net_hours),
+      paid: fmtNet(sc?.paid_hours),
     }
   }
 
@@ -167,7 +167,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               <th style={th()}>Poste</th>
               <th style={th()}>Prise de poste théo.</th>
               <th style={th()}>Fin de poste théo.</th>
-              <th style={th()}>H trav. théo.</th>
+              <th style={th()}>Temps payé</th>
               <th style={th({ background: '#fefce8', color: '#a16207' })}>H Arrivée réelle</th>
               <th style={th({ background: '#fefce8', color: '#a16207' })}>H Départ réel</th>
               <th style={th({ background: '#fefce8', color: '#a16207' })}>H Trav. réelles</th>
@@ -195,7 +195,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                   </td>
                   <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8' })}>{info?.start || '—'}</td>
                   <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8' })}>{info?.end || '—'}</td>
-                  <td style={td({ background: rowBg, fontWeight: 600 })}>{info?.net || '—'}</td>
+                  <td style={td({ background: rowBg, fontWeight: 600 })}>{info?.paid || '—'}</td>
                   <td style={tdSaisie(isWE ? '#fafafa' : '#fffbeb')} />
                   <td style={tdSaisie(isWE ? '#fafafa' : '#fffbeb')} />
                   <td style={tdSaisie(isWE ? '#fafafa' : '#fffbeb')} />

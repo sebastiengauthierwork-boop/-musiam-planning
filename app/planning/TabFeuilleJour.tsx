@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useMemo } from 'react'
+import { Fragment, useState, useMemo, useEffect } from 'react'
 import type { TabProps } from './types'
 import { getCodeColors } from '@/lib/codeColors'
 import { STATUT_ORDER } from '@/lib/employeeUtils'
@@ -28,8 +28,12 @@ function addMinutes(hhmm: string, minutes: number): string {
   return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
 }
 
+function saveToStorage(key: string, pauses: Record<string, string>, p1: Record<string, string>, p2: Record<string, string>) {
+  try { localStorage.setItem(key, JSON.stringify({ pauseStarts: pauses, poste1: p1, poste2: p2 })) } catch {}
+}
+
 export default function TabFeuilleJour({
-  employees, schedules, shiftCodes, absenceCodes, teamName, year, month,
+  employees, schedules, shiftCodes, absenceCodes, teamName, year, month, teamId,
 }: TabProps) {
   const today = new Date()
   const todayISO = toISO(today)
@@ -40,6 +44,29 @@ export default function TabFeuilleJour({
   const [pauseStarts, setPauseStarts]   = useState<Record<string, string>>({})
   const [poste1, setPoste1]             = useState<Record<string, string>>({})
   const [poste2, setPoste2]             = useState<Record<string, string>>({})
+
+  const storageKey = `daysheet_${teamId}_${selectedDate}`
+
+  // Charger les données sauvegardées quand la date ou l'équipe change
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`daysheet_${teamId}_${selectedDate}`)
+      if (raw) {
+        const data = JSON.parse(raw)
+        setPauseStarts(data.pauseStarts ?? {})
+        setPoste1(data.poste1 ?? {})
+        setPoste2(data.poste2 ?? {})
+      } else {
+        setPauseStarts({})
+        setPoste1({})
+        setPoste2({})
+      }
+    } catch {
+      setPauseStarts({})
+      setPoste1({})
+      setPoste2({})
+    }
+  }, [teamId, selectedDate])
 
   const schedMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -289,7 +316,14 @@ export default function TabFeuilleJour({
                             <input
                               type="time"
                               value={pStart}
-                              onChange={e => setPauseStarts(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                              onChange={e => {
+                                const val = e.target.value
+                                setPauseStarts(prev => {
+                                  const next = { ...prev, [emp.id]: val }
+                                  saveToStorage(storageKey, next, poste1, poste2)
+                                  return next
+                                })
+                              }}
                               className="fj-input"
                               style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none' }}
                             />
@@ -311,7 +345,14 @@ export default function TabFeuilleJour({
                           type="text"
                           maxLength={16}
                           value={poste1[emp.id] ?? ''}
-                          onChange={e => setPoste1(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                          onChange={e => {
+                            const val = e.target.value
+                            setPoste1(prev => {
+                              const next = { ...prev, [emp.id]: val }
+                              saveToStorage(storageKey, pauseStarts, next, poste2)
+                              return next
+                            })
+                          }}
                           placeholder="Poste…"
                           className="fj-input"
                           style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 3px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
@@ -327,7 +368,14 @@ export default function TabFeuilleJour({
                           type="text"
                           maxLength={16}
                           value={poste2[emp.id] ?? ''}
-                          onChange={e => setPoste2(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                          onChange={e => {
+                            const val = e.target.value
+                            setPoste2(prev => {
+                              const next = { ...prev, [emp.id]: val }
+                              saveToStorage(storageKey, pauseStarts, poste1, next)
+                              return next
+                            })
+                          }}
                           placeholder="Poste…"
                           className="fj-input"
                           style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 3px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
