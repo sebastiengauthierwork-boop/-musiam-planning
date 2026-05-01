@@ -56,6 +56,16 @@ export type Schedule = {
 
 export type Team = { id: string; name: string; cdpf: string | null; type: string; site_id?: string | null }
 
+export type EmployeeHistory = {
+  id: string
+  employee_id: string
+  field_name: string
+  old_value: string | null
+  new_value: string | null
+  effective_date: string
+  created_at: string
+}
+
 export type TabProps = {
   employees: Employee[]
   schedules: Schedule[]
@@ -72,4 +82,5 @@ export type TabProps = {
   archiveDate?: string | null // date d'archivage ISO
   onArchived?: () => void     // callback après archivage réussi
   onRefresh?: () => void      // callback pour recharger employees + schedules
+  employeeHistory?: EmployeeHistory[]
 }

@@ -1,8 +1,30 @@
 import { supabase } from '@/lib/supabase'
 import { sortEmployees } from '@/lib/employeeUtils'
-import type { Employee, Schedule } from '@/app/planning/types'
+import type { Employee, EmployeeHistory, Schedule } from '@/app/planning/types'
 
 export type TeamPlanningData = { employees: Employee[]; schedules: Schedule[] }
+
+export async function loadEmployeeHistory(employeeIds: string[]): Promise<EmployeeHistory[]> {
+  if (employeeIds.length === 0) return []
+  const { data } = await supabase
+    .from('employee_history')
+    .select('id, employee_id, field_name, old_value, new_value, effective_date, created_at')
+    .in('employee_id', employeeIds)
+  return data ?? []
+}
+
+export function getEffectiveValue(
+  employeeId: string,
+  fieldName: string,
+  currentValue: string | null | undefined,
+  monthStartDate: string,
+  history: EmployeeHistory[]
+): string | null {
+  const futureEntries = history
+    .filter(h => h.employee_id === employeeId && h.field_name === fieldName && h.effective_date > monthStartDate)
+    .sort((a, b) => a.effective_date.localeCompare(b.effective_date))
+  return futureEntries.length > 0 ? futureEntries[0].old_value : (currentValue ?? null)
+}
 
 export async function loadTeamData(teamId: string, month: number, year: number): Promise<TeamPlanningData> {
   const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`

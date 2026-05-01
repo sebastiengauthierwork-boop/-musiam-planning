@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Employee, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
 import { getFnCode } from '@/lib/employeeUtils'
+import { getEffectiveValue } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -25,7 +26,8 @@ function fmtNet(net: number | null | undefined): string {
   return decimalToHMin(h)
 }
 
-export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName }: TabProps) {
+export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [] }: TabProps) {
+  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
   const nonCadreEmployees = employees.filter(e => e.statut !== 'cadre')
 
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(
@@ -120,11 +122,11 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#0f172a', marginTop: 2 }}>
                 {emp.last_name} {emp.first_name}
               </div>
-              {emp.fonction && (
-                <div style={{ fontSize: '9px', color: '#64748b', marginTop: 1 }} title={emp.fonction}>{getFnCode(emp.fonction, jobFunctions)}</div>
+              {getEffectiveValue(emp.id, 'fonction', emp.fonction, monthStart, employeeHistory) && (
+                <div style={{ fontSize: '9px', color: '#64748b', marginTop: 1 }} title={emp.fonction ?? undefined}>{getFnCode(getEffectiveValue(emp.id, 'fonction', emp.fonction, monthStart, employeeHistory)!, jobFunctions)}</div>
               )}
               <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: 2 }}>
-                {emp.contract_type} · {emp.weekly_contract_hours ?? 35}h/sem · {teamName}
+                {getEffectiveValue(emp.id, 'contract_type', emp.contract_type, monthStart, employeeHistory) ?? emp.contract_type} · {emp.weekly_contract_hours ?? 35}h/sem · {teamName}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>

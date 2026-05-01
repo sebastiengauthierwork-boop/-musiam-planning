@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { AbsenceCode, CalendarDay, Employee, Schedule, ShiftCode, Team } from './types'
+import type { AbsenceCode, CalendarDay, Employee, EmployeeHistory, Schedule, ShiftCode, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
 import TabSaisie from './TabSaisie'
 import TabPlanning from './TabPlanning'
@@ -13,7 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
-import { loadTeamData } from '@/lib/planning-data'
+import { loadTeamData, loadEmployeeHistory } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TABS = [
@@ -38,6 +38,7 @@ export default function PlanningPage() {
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [absenceCodes, setAbsenceCodes] = useState<AbsenceCode[]>([])
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([])
+  const [employeeHistory, setEmployeeHistory] = useState<EmployeeHistory[]>([])
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState<string | null>(null)
   const [isArchived, setIsArchived]   = useState(false)
@@ -126,6 +127,7 @@ export default function PlanningPage() {
 
       setEmployees(planningData.employees)
       setSchedules(planningData.schedules)
+      loadEmployeeHistory(planningData.employees.map(e => e.id)).then(setEmployeeHistory).catch(() => setEmployeeHistory([]))
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
@@ -164,6 +166,7 @@ export default function PlanningPage() {
     archiveDate,
     onArchived: () => { setIsArchived(true); loadEmployeesAndSchedules() },
     onRefresh: loadEmployeesAndSchedules,
+    employeeHistory,
   }
 
   // The key forces TabSaisie to remount (and reset local state) when team/month/year changes

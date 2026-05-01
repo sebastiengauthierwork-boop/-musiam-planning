@@ -82,6 +82,11 @@ export default function EmployesPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [historyModal, setHistoryModal] = useState<{
+    changedFields: { field: 'contract_type' | 'fonction'; oldValue: string | null; newValue: string | null }[]
+    option: 'beginning' | 'from_date'
+    effectiveDate: string
+  } | null>(null)
 
   async function loadData() {
     let empQ = supabase.from('employees')
@@ -129,7 +134,7 @@ export default function EmployesPage() {
     setFormData({
       first_name: emp.first_name,
       last_name: emp.last_name,
-      email: emp.email,
+      email: emp.email ?? '',
       phone: emp.phone ?? '',
       matricule: emp.matricule ?? '',
       contract_type: emp.contract_type,
@@ -145,8 +150,27 @@ export default function EmployesPage() {
     setShowModal(true)
   }
 
-  async function handleSave() {
+  function handleSaveClick() {
     if (!formData.first_name.trim() || !formData.last_name.trim()) return
+    if (editingEmployee) {
+      const changed: { field: 'contract_type' | 'fonction'; oldValue: string | null; newValue: string | null }[] = []
+      if (formData.contract_type !== editingEmployee.contract_type) {
+        changed.push({ field: 'contract_type', oldValue: editingEmployee.contract_type, newValue: formData.contract_type })
+      }
+      const oldFn = editingEmployee.fonction ?? null
+      const newFn = formData.fonction.trim() || null
+      if (oldFn !== newFn) {
+        changed.push({ field: 'fonction', oldValue: oldFn, newValue: newFn })
+      }
+      if (changed.length > 0) {
+        setHistoryModal({ changedFields: changed, option: 'beginning', effectiveDate: new Date().toISOString().slice(0, 10) })
+        return
+      }
+    }
+    performSave(null)
+  }
+
+  async function performSave(historyEntries: { field: string; oldValue: string | null; newValue: string | null; effectiveDate: string }[] | null) {
     setSaving(true); setSaveError(null)
     try {
       const payload = {
@@ -169,15 +193,27 @@ export default function EmployesPage() {
       let employeeId: string
       if (editingEmployee) {
         const { error } = await supabase.from('employees').update(payload).eq('id', editingEmployee.id)
-        if (error) throw error
+        if (error) { console.error('UPDATE employees error:', error); throw error }
         employeeId = editingEmployee.id
+        if (historyEntries && historyEntries.length > 0) {
+          const { error: histErr } = await supabase.from('employee_history').insert(
+            historyEntries.map(h => ({
+              employee_id: employeeId,
+              field_name: h.field,
+              old_value: h.oldValue,
+              new_value: h.newValue,
+              effective_date: h.effectiveDate,
+            }))
+          )
+          if (histErr) console.error('INSERT employee_history error:', histErr)
+        }
         const { error: delErr } = await supabase.from('employee_teams').delete().eq('employee_id', employeeId)
-        if (delErr) throw delErr
+        if (delErr) { console.error('DELETE employee_teams error:', delErr); throw delErr }
       } else {
         const { data, error } = await supabase.from('employees')
           .insert({ ...payload, ...(selectedSiteId ? { site_id: selectedSiteId } : {}) })
           .select('id').single()
-        if (error) throw error
+        if (error) { console.error('INSERT employees error:', error); throw error }
         employeeId = data.id
       }
 
@@ -189,10 +225,11 @@ export default function EmployesPage() {
             is_primary: index === 0,
           }))
         )
-        if (insertErr) throw insertErr
+        if (insertErr) { console.error('INSERT employee_teams error:', insertErr); throw insertErr }
       }
 
       setShowModal(false)
+      setHistoryModal(null)
       await loadData()
     } catch (err: any) {
       setSaveError(err?.message ?? err?.details ?? JSON.stringify(err))
@@ -518,8 +555,62 @@ export default function EmployesPage() {
             <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button onClick={handleSave} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim()} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+            <button onClick={handleSaveClick} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim()} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* History modal */}
+      {historyModal && (
+        <Modal title="À partir de quand ce changement s'applique-t-il ?" onClose={() => setHistoryModal(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Vous modifiez {historyModal.changedFields.map(f => f.field === 'contract_type' ? 'le contrat' : 'la fonction').join(' et ')}.
+            </p>
+            <div className="space-y-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="radio" checked={historyModal.option === 'beginning'} onChange={() => setHistoryModal({ ...historyModal, option: 'beginning' })} className="mt-0.5 accent-slate-700" />
+                <div>
+                  <div className="text-sm font-medium text-gray-900">Depuis le début</div>
+                  <div className="text-xs text-gray-500">Écrase la valeur directement, sans conserver l'historique.</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="radio" checked={historyModal.option === 'from_date'} onChange={() => setHistoryModal({ ...historyModal, option: 'from_date' })} className="mt-0.5 accent-slate-700" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">À partir du</div>
+                  <div className="text-xs text-gray-500 mb-2">L'ancienne valeur sera conservée dans l'historique. Les plannings imprimés afficheront la bonne valeur selon la date.</div>
+                  <input
+                    type="date"
+                    value={historyModal.effectiveDate}
+                    onChange={e => setHistoryModal({ ...historyModal, effectiveDate: e.target.value, option: 'from_date' })}
+                    className="input w-40"
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
+          {saveError && (
+            <div className="mt-4 bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm">Erreur : {saveError}</div>
+          )}
+          <div className="flex justify-end gap-3 mt-6">
+            <button onClick={() => setHistoryModal(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              Annuler
+            </button>
+            <button
+              disabled={saving || (historyModal.option === 'from_date' && !historyModal.effectiveDate)}
+              onClick={() => {
+                const entries = historyModal.option === 'from_date'
+                  ? historyModal.changedFields.map(f => ({ field: f.field, oldValue: f.oldValue, newValue: f.newValue, effectiveDate: historyModal.effectiveDate }))
+                  : null
+                setHistoryModal(null)
+                performSave(entries)
+              }}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Enregistrement…' : 'Confirmer'}
             </button>
           </div>
         </Modal>
