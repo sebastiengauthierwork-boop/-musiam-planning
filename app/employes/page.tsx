@@ -8,6 +8,7 @@ import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
 import { sortEmployees, getFnCode } from '@/lib/employeeUtils'
+import { useAuth } from '@/lib/auth'
 
 type Employee = {
   id: string
@@ -69,8 +70,24 @@ const emptyForm: FormData = {
   end_date: '',
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  contract_type: 'Contrat',
+  fonction: 'Fonction',
+  weekly_contract_hours: 'H/semaine',
+  statut: 'Statut',
+}
+
+function formatHistoryValue(field: string, value: string | null): string {
+  if (value === null || value === '') return '—'
+  if (field === 'contract_type') return value === 'INTERIM' ? 'Intérim' : value
+  if (field === 'statut') return ({ cadre: 'Cadre', agent_de_maitrise: 'Agent de maîtrise', employe: 'Employé' } as Record<string, string>)[value] ?? value
+  if (field === 'weekly_contract_hours') return `${value}h/sem`
+  return value
+}
+
 export default function EmployesPage() {
   const { selectedSiteId } = useSite()
+  const { role } = useAuth()
   const [employees, setEmployees] = useState<EmployeeWithTeams[]>([])
   const [allTeams, setAllTeams] = useState<Team[]>([])
   const [jobFunctions, setJobFunctions] = useState<JobFunction[]>([])
@@ -83,10 +100,13 @@ export default function EmployesPage() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [historyModal, setHistoryModal] = useState<{
-    changedFields: { field: 'contract_type' | 'fonction'; oldValue: string | null; newValue: string | null }[]
+    changedFields: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[]
     option: 'beginning' | 'from_date'
     effectiveDate: string
   } | null>(null)
+  const [viewHistoryEmpId, setViewHistoryEmpId] = useState<string | null>(null)
+  const [empHistory, setEmpHistory] = useState<{ id: string; field_name: string; old_value: string | null; new_value: string | null; effective_date: string; created_at: string }[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   async function loadData() {
     let empQ = supabase.from('employees')
@@ -153,7 +173,7 @@ export default function EmployesPage() {
   function handleSaveClick() {
     if (!formData.first_name.trim() || !formData.last_name.trim()) return
     if (editingEmployee) {
-      const changed: { field: 'contract_type' | 'fonction'; oldValue: string | null; newValue: string | null }[] = []
+      const changed: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[] = []
       if (formData.contract_type !== editingEmployee.contract_type) {
         changed.push({ field: 'contract_type', oldValue: editingEmployee.contract_type, newValue: formData.contract_type })
       }
@@ -161,6 +181,16 @@ export default function EmployesPage() {
       const newFn = formData.fonction.trim() || null
       if (oldFn !== newFn) {
         changed.push({ field: 'fonction', oldValue: oldFn, newValue: newFn })
+      }
+      const oldHours = editingEmployee.weekly_contract_hours != null ? String(editingEmployee.weekly_contract_hours) : null
+      const newHours = formData.weekly_contract_hours.trim() || null
+      if (oldHours !== newHours) {
+        changed.push({ field: 'weekly_contract_hours', oldValue: oldHours, newValue: newHours })
+      }
+      const oldStatut = editingEmployee.statut ?? null
+      const newStatut = formData.statut || null
+      if (oldStatut !== newStatut) {
+        changed.push({ field: 'statut', oldValue: oldStatut, newValue: newStatut })
       }
       if (changed.length > 0) {
         setHistoryModal({ changedFields: changed, option: 'beginning', effectiveDate: new Date().toISOString().slice(0, 10) })
@@ -250,6 +280,19 @@ export default function EmployesPage() {
         ? prev.selectedTeamIds.filter((id) => id !== teamId)
         : [...prev.selectedTeamIds, teamId],
     }))
+  }
+
+  async function openHistory(empId: string) {
+    setViewHistoryEmpId(empId)
+    setHistoryLoading(true)
+    const { data } = await supabase
+      .from('employee_history')
+      .select('id, field_name, old_value, new_value, effective_date, created_at')
+      .eq('employee_id', empId)
+      .order('effective_date', { ascending: false })
+      .order('created_at', { ascending: false })
+    setEmpHistory(data ?? [])
+    setHistoryLoading(false)
   }
 
   if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
@@ -424,6 +467,13 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
+                    {(role === 'admin' || role === 'responsable') && (
+                      <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </button>
+                    )}
                     <button onClick={() => openEdit(emp)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -567,7 +617,7 @@ export default function EmployesPage() {
         <Modal title="À partir de quand ce changement s'applique-t-il ?" onClose={() => setHistoryModal(null)}>
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Vous modifiez {historyModal.changedFields.map(f => f.field === 'contract_type' ? 'le contrat' : 'la fonction').join(' et ')}.
+              Vous modifiez {historyModal.changedFields.map(f => FIELD_LABELS[f.field] ?? f.field).join(', ')}.
             </p>
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
@@ -611,6 +661,48 @@ export default function EmployesPage() {
               className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
             >
               {saving ? 'Enregistrement…' : 'Confirmer'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Employee history viewer */}
+      {viewHistoryEmpId && (
+        <Modal
+          title={`Historique — ${employees.find(e => e.id === viewHistoryEmpId)?.last_name ?? ''} ${employees.find(e => e.id === viewHistoryEmpId)?.first_name ?? ''}`}
+          onClose={() => setViewHistoryEmpId(null)}
+        >
+          {historyLoading ? (
+            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Chargement…</div>
+          ) : empHistory.length === 0 ? (
+            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Aucun historique enregistré.</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {empHistory.map(h => (
+                <div key={h.id} className="py-3 flex items-start gap-4">
+                  <div className="flex-shrink-0 w-24 text-xs font-mono text-gray-500 pt-0.5">
+                    {new Date(h.effective_date).toLocaleDateString('fr-FR')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold text-gray-700 mb-1">{FIELD_LABELS[h.field_name] ?? h.field_name}</div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-mono">{formatHistoryValue(h.field_name, h.old_value)}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="px-2 py-0.5 rounded bg-green-50 text-green-700 font-mono">{formatHistoryValue(h.field_name, h.new_value)}</span>
+                    </div>
+                  </div>
+                  <div className="flex-shrink-0 text-[10px] text-gray-400 pt-0.5">
+                    {new Date(h.created_at).toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end mt-4">
+            <button onClick={() => setViewHistoryEmpId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+              Fermer
             </button>
           </div>
         </Modal>
