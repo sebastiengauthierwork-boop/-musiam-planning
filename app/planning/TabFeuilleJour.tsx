@@ -5,6 +5,9 @@ import type { TabProps } from './types'
 import { getCodeColors } from '@/lib/codeColors'
 import { STATUT_ORDER } from '@/lib/employeeUtils'
 
+const CADRE_BAR_START = 8 * 60   // 08:00
+const CADRE_BAR_END   = 18 * 60  // 18:00
+
 function toISO(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -18,6 +21,13 @@ function timeToMin(t: string | null | undefined): number {
   return parts[0] * 60 + (parts[1] || 0)
 }
 
+function addMinutes(hhmm: string, minutes: number): string {
+  if (!hhmm || minutes <= 0) return ''
+  const [h, m] = hhmm.split(':').map(Number)
+  const total = h * 60 + (m || 0) + minutes
+  return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 export default function TabFeuilleJour({
   employees, schedules, shiftCodes, absenceCodes, teamName, year, month,
 }: TabProps) {
@@ -25,7 +35,11 @@ export default function TabFeuilleJour({
   const todayISO = toISO(today)
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`
   const defaultDate = todayISO.startsWith(monthStr) ? todayISO : `${monthStr}-01`
+
   const [selectedDate, setSelectedDate] = useState(defaultDate)
+  const [pauseStarts, setPauseStarts]   = useState<Record<string, string>>({})
+  const [poste1, setPoste1]             = useState<Record<string, string>>({})
+  const [poste2, setPoste2]             = useState<Record<string, string>>({})
 
   const schedMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -57,6 +71,12 @@ export default function TabFeuilleJour({
     let maxEnd = 6 * 60
     let hasData = false
     for (const emp of presentEmployees) {
+      if (emp.statut === 'cadre') {
+        minStart = Math.min(minStart, CADRE_BAR_START)
+        maxEnd = Math.max(maxEnd, CADRE_BAR_END)
+        hasData = true
+        continue
+      }
       const code = schedMap[`${emp.id}|${selectedDate}`]
       const sc = shiftCodes.find(s => s.code === code)
       if (!sc) continue
@@ -82,7 +102,15 @@ export default function TabFeuilleJour({
 
   return (
     <>
-      <style>{`@media print { @page { size: A4 portrait; margin: 10mm; } .print-gantt-area { position: static !important; overflow: visible !important; height: auto !important; } }`}</style>
+      <style>{`
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          .print-gantt-area { position: static !important; overflow: visible !important; height: auto !important; }
+          .fj-input  { display: none !important; }
+          .fj-print  { display: block !important; visibility: visible !important; }
+        }
+        .fj-print { display: none; }
+      `}</style>
 
       {/* Toolbar — masqué à l'impression */}
       <div className="no-print flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-white shrink-0 flex-wrap">
@@ -137,11 +165,11 @@ export default function TabFeuilleJour({
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9px', tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '18%' }} />
-              <col style={{ width: '52%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '10%' }} />
+              <col style={{ width: '15%' }} />
+              <col style={{ width: '43%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '14%' }} />
+              <col style={{ width: '14%' }} />
             </colgroup>
             <thead>
               <tr>
@@ -149,7 +177,6 @@ export default function TabFeuilleJour({
                   Salarié
                 </th>
                 <th style={{ padding: 0, borderBottom: '2px solid #cbd5e1', borderRight: '1px solid #cbd5e1', verticalAlign: 'bottom' }}>
-                  {/* Axe horaire */}
                   <div style={{ position: 'relative', height: 22, padding: '0 4px' }}>
                     {hours.map(h => {
                       const pct = ((h - ganttStart) / ganttDuration) * 100
@@ -161,22 +188,45 @@ export default function TabFeuilleJour({
                     })}
                   </div>
                 </th>
-                <th colSpan={3} style={{ textAlign: 'center', padding: '3px 6px', fontWeight: 700, color: '#374151', borderBottom: '2px solid #cbd5e1', fontSize: '8px', borderLeft: '1px solid #cbd5e1' }}>
-                  Postes
+                <th style={{ textAlign: 'center', padding: '3px 4px', fontWeight: 700, color: '#374151', borderBottom: '2px solid #cbd5e1', fontSize: '8px', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #e2e8f0' }}>
+                  Pause repas
+                </th>
+                <th style={{ textAlign: 'center', padding: '3px 4px', fontWeight: 700, color: '#374151', borderBottom: '2px solid #cbd5e1', fontSize: '8px', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0' }}>
+                  Poste 1
+                </th>
+                <th style={{ textAlign: 'center', padding: '3px 4px', fontWeight: 700, color: '#374151', borderBottom: '2px solid #cbd5e1', fontSize: '8px', borderLeft: '1px solid #e2e8f0' }}>
+                  Poste 2
                 </th>
               </tr>
             </thead>
             <tbody>
               {presentEmployees.map((emp, idx) => {
+                const isCadre = emp.statut === 'cadre'
                 const code = schedMap[`${emp.id}|${selectedDate}`]!
                 const sc = shiftCodes.find(s => s.code === code)
                 const colors = getCodeColors(code, shiftCodes, absenceCodes)
-                const startMin = timeToMin(sc?.start_time)
-                const endMin = timeToMin(sc?.end_time)
-                const hasBar = startMin >= 0 && endMin > startMin
-                const barLeft = hasBar ? Math.max(0, ((startMin - ganttStart) / ganttDuration) * 100) : 0
-                const barRight = hasBar ? Math.max(0, ((ganttEnd - endMin) / ganttDuration) * 100) : 100
-                const isEven = idx % 2 === 0
+
+                // Géométrie de la barre principale
+                const barStartMin = isCadre ? CADRE_BAR_START : timeToMin(sc?.start_time)
+                const barEndMin   = isCadre ? CADRE_BAR_END   : timeToMin(sc?.end_time)
+                const hasBar  = barStartMin >= 0 && barEndMin > barStartMin
+                const barLeft = hasBar ? Math.max(0, ((barStartMin - ganttStart) / ganttDuration) * 100) : 0
+                const barRight= hasBar ? Math.max(0, ((ganttEnd - barEndMin) / ganttDuration) * 100) : 100
+                const barBg   = isCadre ? '#cbd5e1' : (colors?.bg ?? '#6366f1')
+                const barText = isCadre ? '#64748b' : (colors?.text ?? '#fff')
+
+                // Pause repas
+                const pStart    = pauseStarts[emp.id] ?? ''
+                const breakMin  = sc?.break_minutes ?? 0
+                const pEnd      = pStart && breakMin > 0 ? addMinutes(pStart, breakMin) : ''
+                const pStartMin = pStart ? timeToMin(pStart) : -1
+                const pEndMin   = pEnd   ? timeToMin(pEnd)   : -1
+                const hasPause  = !isCadre && hasBar && pStartMin >= 0 && pEndMin > pStartMin
+                const pauseLeft = hasPause ? Math.max(0, ((pStartMin - ganttStart) / ganttDuration) * 100) : 0
+                const pauseRight= hasPause ? Math.max(0, ((ganttEnd - pEndMin)   / ganttDuration) * 100) : 100
+                const pDisplay  = pStart ? (pEnd ? `${pStart}–${pEnd}` : pStart) : ''
+
+                const isEven  = idx % 2 === 0
                 const prevEmp = presentEmployees[idx - 1]
                 const showSep = idx > 0 && (prevEmp?.statut ?? '') !== (emp.statut ?? '')
 
@@ -187,53 +237,105 @@ export default function TabFeuilleJour({
                         <td colSpan={5} style={{ height: 5, background: '#f1f5f9', border: 'none', padding: 0 }} />
                       </tr>
                     )}
-                    <tr style={{ background: isEven ? '#f8fafc' : '#ffffff', height: 28 }}>
+                    <tr style={{ background: isEven ? '#f8fafc' : '#ffffff', height: 30 }}>
+
+                      {/* Salarié */}
                       <td style={{ padding: '3px 6px', fontWeight: 600, color: '#1e293b', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                        <div style={{ fontWeight: 700, fontSize: '9px', lineHeight: 1.3 }}>{emp.last_name} {emp.first_name.charAt(0)}.</div>
-                        {sc?.start_time && (
+                        <div style={{ fontWeight: 700, fontSize: '9px', lineHeight: 1.3 }}>
+                          {emp.last_name} {emp.first_name.charAt(0)}.
+                        </div>
+                        {isCadre ? (
+                          <div style={{ fontSize: '7px', color: '#94a3b8', lineHeight: 1.2 }}>{code} · Forfait</div>
+                        ) : sc?.start_time ? (
                           <div style={{ fontSize: '7px', color: '#94a3b8', lineHeight: 1.2 }}>
                             {code} · {sc.start_time.slice(0, 5)}–{sc.end_time?.slice(0, 5) ?? '?'}
                           </div>
-                        )}
+                        ) : null}
                       </td>
+
+                      {/* Gantt */}
                       <td style={{ padding: '3px 4px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #cbd5e1', position: 'relative', verticalAlign: 'middle' }}>
-                        {/* Lignes de grille horaire */}
+                        {/* Grille horaire */}
                         {hours.map(h => {
                           const pct = ((h - ganttStart) / ganttDuration) * 100
-                          return (
-                            <div key={h} style={{ position: 'absolute', left: `${pct}%`, top: 0, bottom: 0, borderLeft: '1px solid #e5e7eb', zIndex: 0 }} />
-                          )
+                          return <div key={h} style={{ position: 'absolute', left: `${pct}%`, top: 0, bottom: 0, borderLeft: '1px solid #e5e7eb', zIndex: 0 }} />
                         })}
-                        {/* Barre Gantt */}
+                        {/* Barre de travail */}
                         {hasBar && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '20%',
-                            bottom: '20%',
-                            left: `${barLeft}%`,
-                            right: `${barRight}%`,
-                            background: colors?.bg ?? '#6366f1',
-                            borderRadius: 3,
-                            zIndex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            paddingLeft: 5,
-                            minWidth: 4,
-                          }}>
-                            <span style={{ fontSize: '7px', fontWeight: 700, color: colors?.text ?? '#fff', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                              {sc!.start_time!.slice(0, 5)}
-                            </span>
+                          <div style={{ position: 'absolute', top: '20%', bottom: '20%', left: `${barLeft}%`, right: `${barRight}%`, background: barBg, borderRadius: 3, zIndex: 1, display: 'flex', alignItems: 'center', paddingLeft: 5, minWidth: 4 }}>
+                            {!isCadre && sc?.start_time && (
+                              <span style={{ fontSize: '7px', fontWeight: 700, color: barText, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                {sc.start_time.slice(0, 5)}
+                              </span>
+                            )}
                           </div>
                         )}
-                        {!hasBar && code && (
+                        {/* Overlay pause repas */}
+                        {hasPause && (
+                          <div style={{ position: 'absolute', top: '12%', bottom: '12%', left: `${pauseLeft}%`, right: `${pauseRight}%`, background: 'rgba(255,255,255,0.88)', borderLeft: '2px solid #94a3b8', borderRight: '2px solid #94a3b8', zIndex: 2, minWidth: 2 }} />
+                        )}
+                        {/* Fallback code si pas de barre */}
+                        {!hasBar && !isCadre && code && (
                           <div style={{ position: 'absolute', top: '20%', bottom: '20%', left: '5%', right: '5%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: colors?.bg ?? '#e5e7eb', borderRadius: 3, zIndex: 1 }}>
                             <span style={{ fontSize: '7px', fontWeight: 700, color: colors?.text ?? '#374151' }}>{code}</span>
                           </div>
                         )}
                       </td>
-                      {[0, 1, 2].map(i => (
-                        <td key={i} style={{ borderBottom: '1px solid #e2e8f0', borderLeft: i === 0 ? '1px solid #cbd5e1' : '1px solid #e2e8f0' }} />
-                      ))}
+
+                      {/* Pause repas */}
+                      <td style={{ borderBottom: '1px solid #e2e8f0', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #e2e8f0', textAlign: 'center', padding: '2px 4px', verticalAlign: 'middle' }}>
+                        {!isCadre && (
+                          <>
+                            <input
+                              type="time"
+                              value={pStart}
+                              onChange={e => setPauseStarts(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                              className="fj-input"
+                              style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none' }}
+                            />
+                            {pDisplay && (
+                              <div className="no-print" style={{ fontSize: '7px', color: '#475569', marginTop: 1, fontWeight: 600 }}>
+                                {pDisplay}
+                              </div>
+                            )}
+                            <div className="fj-print" style={{ fontSize: '8px', color: '#374151', fontWeight: 600, lineHeight: 1.4 }}>
+                              {pDisplay}
+                            </div>
+                          </>
+                        )}
+                      </td>
+
+                      {/* Poste 1 */}
+                      <td style={{ borderBottom: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', textAlign: 'center', padding: '2px 4px', verticalAlign: 'middle' }}>
+                        <input
+                          type="text"
+                          maxLength={16}
+                          value={poste1[emp.id] ?? ''}
+                          onChange={e => setPoste1(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                          placeholder="Poste…"
+                          className="fj-input"
+                          style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 3px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
+                        />
+                        <div className="fj-print" style={{ fontSize: '8px', color: '#374151', fontWeight: 600 }}>
+                          {poste1[emp.id] ?? ''}
+                        </div>
+                      </td>
+
+                      {/* Poste 2 */}
+                      <td style={{ borderBottom: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0', textAlign: 'center', padding: '2px 4px', verticalAlign: 'middle' }}>
+                        <input
+                          type="text"
+                          maxLength={16}
+                          value={poste2[emp.id] ?? ''}
+                          onChange={e => setPoste2(prev => ({ ...prev, [emp.id]: e.target.value }))}
+                          placeholder="Poste…"
+                          className="fj-input"
+                          style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 3px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
+                        />
+                        <div className="fj-print" style={{ fontSize: '8px', color: '#374151', fontWeight: 600 }}>
+                          {poste2[emp.id] ?? ''}
+                        </div>
+                      </td>
                     </tr>
                   </Fragment>
                 )
@@ -242,7 +344,7 @@ export default function TabFeuilleJour({
           </table>
         )}
 
-        {/* Mention légale bas de page */}
+        {/* Mention bas de page */}
         <div style={{ marginTop: 14, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
           Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de 10 minutes par jour est comptabilisé en sus des horaires affichés.
         </div>
