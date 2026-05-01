@@ -93,4 +93,11 @@ body {
     display: none !important;
     visibility: hidden !important;
   }
+
+  /* Mode A4 : positionnement statique pour que le contenu s'étale sur la hauteur réelle */
+  .print-a4-layout {
+    position: static !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
 }

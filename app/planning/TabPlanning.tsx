@@ -243,29 +243,34 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
 
   // ── Légende pied de page ─────────────────────────────────────────────────
   const footerLegend = (
-    <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '7px', color: '#64748b' }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          {SHIFT_PALETTE.slice(0, 4).map(c => (
-            <span key={c.bg} style={{ display: 'inline-block', width: 9, height: 9, background: c.bg, border: '1px solid #cbd5e1' }} />
-          ))}
-          <span style={{ marginLeft: 3 }}>Codes horaires</span>
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ display: 'inline-block', width: 9, height: 9, background: ABSENCE_COLOR.bg, border: '1px solid #666' }} />
-          Absence / congé
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ display: 'inline-block', width: 9, height: 9, background: S.bgWE, border: '1px solid #cbd5e1' }} />
-          Week-end
-        </span>
+    <>
+      <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: '7px', color: '#64748b' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            {SHIFT_PALETTE.slice(0, 4).map(c => (
+              <span key={c.bg} style={{ display: 'inline-block', width: 9, height: 9, background: c.bg, border: '1px solid #cbd5e1' }} />
+            ))}
+            <span style={{ marginLeft: 3 }}>Codes horaires</span>
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ display: 'inline-block', width: 9, height: 9, background: ABSENCE_COLOR.bg, border: '1px solid #666' }} />
+            Absence / congé
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ display: 'inline-block', width: 9, height: 9, background: S.bgWE, border: '1px solid #cbd5e1' }} />
+            Week-end
+          </span>
+        </div>
+        <div style={{ fontSize: '6.5px', color: '#94a3b8', textAlign: 'right' }}>
+          Imprimé le {printTime
+            ? `${printTime.toLocaleDateString('fr-FR')} à ${printTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+            : new Date().toLocaleDateString('fr-FR')}
+        </div>
       </div>
-      <div style={{ fontSize: '6.5px', color: '#94a3b8', textAlign: 'right' }}>
-        Imprimé le {printTime
-          ? `${printTime.toLocaleDateString('fr-FR')} à ${printTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-          : new Date().toLocaleDateString('fr-FR')}
+      <div style={{ marginTop: 6, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
+        Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de 10 minutes par jour est comptabilisé en sus des horaires affichés.
       </div>
-    </div>
+    </>
   )
 
   // ── Largeurs colonnes A3 ─────────────────────────────────────────────────
@@ -277,7 +282,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   return (
     <>
       <style>{a4Mode !== 'off'
-        ? `@media print { @page { size: A4 landscape; margin: 10mm; } }`
+        ? `@media print { @page { size: A4 landscape; margin: 10mm; } .print-a4-layout { position: static !important; overflow: visible !important; height: auto !important; } }`
         : `@media print { @page { size: A3 landscape; margin: 10mm; } }`
       }</style>
 
@@ -330,7 +335,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
       </div>
 
       {/* ── Zone imprimable ── */}
-      <div className="print-planning-area overflow-auto flex-1 bg-white p-5">
+      <div className={`print-planning-area overflow-auto flex-1 bg-white p-5${a4Mode !== 'off' ? ' print-a4-layout' : ''}`}>
 
         {a4Mode === 'off' ? (
 

@@ -11,6 +11,7 @@ import TabPlanning from './TabPlanning'
 import TabCompteur from './TabCompteur'
 import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
+import TabFeuilleJour from './TabFeuilleJour'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
 import { loadTeamData, loadEmployeeHistory } from '@/lib/planning-data'
@@ -21,6 +22,7 @@ const TABS = [
   { id: 'planning',     label: 'Planning imprimable' },
   { id: 'compteur',     label: 'Compteur d\'heures' },
   { id: 'emargement',   label: 'Feuille d\'émargement' },
+  { id: 'feuille-jour', label: 'Feuille du jour' },
   { id: 'archives',     label: 'Archives' },
 ] as const
 type TabId = typeof TABS[number]['id']
@@ -241,11 +243,12 @@ export default function PlanningPage() {
           </div>
         ) : (
           <>
-            {tab === 'saisie'      && <TabSaisie     key={saisieKey} {...tabProps} />}
-            {tab === 'planning'    && <TabPlanning   {...tabProps} />}
-            {tab === 'compteur'    && <TabCompteur   {...tabProps} />}
-            {tab === 'emargement'  && <TabEmargement {...tabProps} />}
-            {tab === 'archives'    && <TabArchives   {...tabProps} />}
+            {tab === 'saisie'       && <TabSaisie      key={saisieKey} {...tabProps} />}
+            {tab === 'planning'     && <TabPlanning    {...tabProps} />}
+            {tab === 'compteur'     && <TabCompteur    {...tabProps} />}
+            {tab === 'emargement'   && <TabEmargement  {...tabProps} />}
+            {tab === 'feuille-jour' && <TabFeuilleJour {...tabProps} />}
+            {tab === 'archives'     && <TabArchives    {...tabProps} />}
           </>
         )}
       </div>

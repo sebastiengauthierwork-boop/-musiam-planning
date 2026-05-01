@@ -65,6 +65,11 @@ function getScheduleType(
   return 'absence'
 }
 
+function isCadreWorkedDay(code: string | null | undefined, shiftCodes: ShiftCode[], absenceCodes: AbsenceCode[]): boolean {
+  if (!code) return false
+  return getScheduleType(code, shiftCodes, absenceCodes) === 'shift'
+}
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1046,9 +1051,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
           <tbody>
             {permanentEmployees.map((emp) => {
+              const isCadre = emp.statut === 'cadre'
               const monthH = empMonthlyTotals[emp.id] ?? 0
               const limit = monthlyLimit(emp)
               const over = monthH > limit + 0.5
+              const cadreMonthDays = isCadre ? days.reduce((s, d) => {
+                const dateStr = toISO(d)
+                if (isDateBlocked(emp, dateStr)) return s
+                const code = cellValues[`${emp.id}|${dateStr}`]
+                return s + (isCadreWorkedDay(code, shiftCodes, absenceCodes) ? 1 : 0)
+              }, 0) : 0
               return (
                 <Fragment key={emp.id}>
                   <tr className="group hover:bg-blue-50/20">
@@ -1104,6 +1116,21 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {weeks.map(w => {
+                      if (isCadre) {
+                        const workedDays = w.days.reduce((s, d) => {
+                          const dateStr = toISO(d)
+                          if (isDateBlocked(emp, dateStr)) return s
+                          const code = cellValues[`${emp.id}|${dateStr}`]
+                          return s + (isCadreWorkedDay(code, shiftCodes, absenceCodes) ? 1 : 0)
+                        }, 0)
+                        return (
+                          <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-6 text-center text-xs font-semibold ${
+                            workedDays > 0 ? 'text-indigo-700 bg-indigo-50/50' : 'text-gray-200 bg-indigo-50/20'
+                          }`}>
+                            {workedDays > 0 ? `${workedDays}j` : ''}
+                          </td>
+                        )
+                      }
                       const wh = w.days.reduce((s, d) => {
                         const dateStr = toISO(d)
                         if (isDateBlocked(emp, dateStr)) return s
@@ -1118,10 +1145,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         </td>
                       )
                     })}
-                    <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 ${over ? 'text-red-600' : 'text-gray-700'}`}>
-                      {fmtH(monthH)}
-                      {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
-                    </td>
+                    {isCadre ? (
+                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 text-indigo-700">
+                        {cadreMonthDays > 0 ? `${cadreMonthDays}j` : '—'}
+                      </td>
+                    ) : (
+                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                        {fmtH(monthH)}
+                        {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
+                      </td>
+                    )}
                   </tr>
                 </Fragment>
               )

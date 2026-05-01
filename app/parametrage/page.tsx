@@ -325,7 +325,7 @@ function CodesHoraires() {
         <table className="w-full text-sm whitespace-nowrap">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              {['Code', 'Label', 'Arrivée', 'Prise de poste', 'Fin de poste', 'Départ', 'Repas', 'Habill.', 'Repas ✓', 'Payées'].map(h => (
+              {['Code', 'Label', 'Arrivée', 'Prise de poste', 'Fin de poste', 'Départ', 'Repas', 'Habill.', 'Pause repas', 'Payées'].map(h => (
                 <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
               <th className="px-3 py-2.5" />
@@ -458,7 +458,7 @@ function CodesHoraires() {
 
             {/* f) Repas + g) Habillage + h) Repas inclus */}
             <div className="grid grid-cols-3 gap-4 items-start">
-              <Field label="Temps de repas (min)" hint="Inclus dans le temps de présence si 'Repas inclus'">
+              <Field label="Temps de pause repas (min)" hint="Inclus dans le temps de présence si 'Pause repas' activé">
                 <input type="number" value={form.break_minutes}
                   onChange={e => updateForm({ break_minutes: e.target.value })}
                   className="input" min={0} step={5} />
@@ -468,12 +468,12 @@ function CodesHoraires() {
                   onChange={e => updateForm({ dressing_minutes: e.target.value })}
                   className="input" min={0} step={2} />
               </Field>
-              <Field label="Repas inclus">
+              <Field label="Pause repas">
                 <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
                   <input type="checkbox" checked={form.meal_included}
                     onChange={e => updateForm({ meal_included: e.target.checked })}
                     className="rounded border-gray-300 text-slate-900 w-4 h-4" />
-                  <span className="text-sm text-gray-700">Oui, repas fourni</span>
+                  <span className="text-sm text-gray-700">Oui, pause repas</span>
                 </label>
               </Field>
             </div>
@@ -509,7 +509,7 @@ function CodesHoraires() {
                 {form.paid_hours && (
                   <span className="text-xs text-slate-300 ml-auto">
                     {form.paid_hours} payées
-                    {parseInt(form.break_minutes) > 0 && ` · ${form.break_minutes}min repas`}
+                    {parseInt(form.break_minutes) > 0 && ` · ${form.break_minutes}min pause repas`}
                     {parseInt(form.dressing_minutes) > 0 && ` · ${fmtMinutes(Math.round(parseInt(form.dressing_minutes) / 2))} habill.`}
                   </span>
                 )}
