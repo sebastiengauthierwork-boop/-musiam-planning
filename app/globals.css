@@ -94,10 +94,33 @@ body {
     visibility: hidden !important;
   }
 
+  /* Masquer la sidebar (aside) : retire sa largeur pour libérer main à 100% */
+  aside {
+    display: none !important;
+  }
+
+  /* Main prend toute la largeur une fois la sidebar retirée */
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
   /* Mode A4 : positionnement statique pour que le contenu s'étale sur la hauteur réelle */
   .print-a4-layout {
     position: static !important;
     overflow: visible !important;
     height: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Blocs A4 sans coupure de page interne */
+  .print-a4-block {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

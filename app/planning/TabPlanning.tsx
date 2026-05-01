@@ -282,7 +282,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
   return (
     <>
       <style>{a4Mode !== 'off'
-        ? `@media print { @page { size: A4 landscape; margin: 10mm; } .print-a4-layout { position: static !important; overflow: visible !important; height: auto !important; } }`
+        ? `@media print { @page { size: A4 landscape; margin: 5mm; } aside { display: none !important; } main { margin: 0 !important; padding: 0 !important; width: 100% !important; } .print-a4-layout { position: static !important; overflow: visible !important; height: auto !important; width: 100% !important; margin: 0 !important; padding: 0 !important; } }`
         : `@media print { @page { size: A3 landscape; margin: 10mm; } }`
       }</style>
 
@@ -437,21 +437,24 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
           /* ── Vue A4 paysage ─────────────────────────────────────────────── */
           <>
             {/* Première quinzaine */}
-            {pageHeader('jours 1–15')}
-            {renderHalfTable(daysA, a4RowH)}
+            <div className="print-a4-block">
+              {pageHeader('jours 1–15')}
+              {renderHalfTable(daysA, a4RowH)}
+            </div>
 
             {/* Séparateur ou saut de page */}
             {a4Mode === '2pages' ? (
               <div style={{ breakAfter: 'page', pageBreakAfter: 'always' }} />
             ) : (
-              <div style={{ margin: '10px 0 8px', borderTop: '1px dashed #e2e8f0' }} />
+              <div style={{ margin: '4px 0', borderTop: '1px dashed #e2e8f0' }} />
             )}
 
             {/* Deuxième quinzaine */}
-            {a4Mode === '2pages' && pageHeader(`jours 16–${days.length}`)}
-            {renderHalfTable(daysB, a4RowH)}
-
-            {footerLegend}
+            <div className="print-a4-block">
+              {a4Mode === '2pages' && pageHeader(`jours 16–${days.length}`)}
+              {renderHalfTable(daysB, a4RowH)}
+              {footerLegend}
+            </div>
           </>
 
         )}
