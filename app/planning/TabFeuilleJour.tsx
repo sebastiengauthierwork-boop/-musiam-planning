@@ -5,8 +5,23 @@ import type { TabProps } from './types'
 import { getCodeColors } from '@/lib/codeColors'
 import { STATUT_ORDER } from '@/lib/employeeUtils'
 
-const CADRE_BAR_START = 8 * 60   // 08:00
-const CADRE_BAR_END   = 18 * 60  // 18:00
+const CADRE_INDICATIVE: Record<string, [number, number]> = {
+  'P/O': [5 * 60,       14 * 60],
+  'P/F': [13 * 60 + 30, 22 * 60 + 30],
+  'P':   [11 * 60 + 30, 20 * 60 + 30],
+}
+
+function getCadreBarRange(
+  code: string,
+  sc: { start_time?: string | null; end_time?: string | null } | undefined,
+): [number, number] {
+  if (sc?.start_time && sc?.end_time) {
+    const st = timeToMin(sc.start_time)
+    const et = timeToMin(sc.end_time)
+    if (st >= 0 && et > st) return [st, et]
+  }
+  return CADRE_INDICATIVE[code] ?? [8 * 60, 18 * 60]
+}
 
 function toISO(d: Date): string {
   const y = d.getFullYear()
@@ -98,17 +113,18 @@ export default function TabFeuilleJour({
     let maxEnd = 6 * 60
     let hasData = false
     for (const emp of presentEmployees) {
+      const empCode = schedMap[`${emp.id}|${selectedDate}`]
+      const empSc = shiftCodes.find(s => s.code === empCode)
       if (emp.statut === 'cadre') {
-        minStart = Math.min(minStart, CADRE_BAR_START)
-        maxEnd = Math.max(maxEnd, CADRE_BAR_END)
+        const [cStart, cEnd] = getCadreBarRange(empCode ?? '', empSc)
+        minStart = Math.min(minStart, cStart)
+        maxEnd = Math.max(maxEnd, cEnd)
         hasData = true
         continue
       }
-      const code = schedMap[`${emp.id}|${selectedDate}`]
-      const sc = shiftCodes.find(s => s.code === code)
-      if (!sc) continue
-      const st = timeToMin(sc.start_time)
-      const et = timeToMin(sc.end_time)
+      if (!empSc) continue
+      const st = timeToMin(empSc.start_time)
+      const et = timeToMin(empSc.end_time)
       if (st >= 0) { minStart = Math.min(minStart, st); hasData = true }
       if (et >= 0) { maxEnd = Math.max(maxEnd, et); hasData = true }
     }
@@ -234,13 +250,14 @@ export default function TabFeuilleJour({
                 const colors = getCodeColors(code, shiftCodes, absenceCodes)
 
                 // Géométrie de la barre principale
-                const barStartMin = isCadre ? CADRE_BAR_START : timeToMin(sc?.start_time)
-                const barEndMin   = isCadre ? CADRE_BAR_END   : timeToMin(sc?.end_time)
+                const [barStartMin, barEndMin] = isCadre
+                  ? getCadreBarRange(code, sc)
+                  : [timeToMin(sc?.start_time), timeToMin(sc?.end_time)]
                 const hasBar  = barStartMin >= 0 && barEndMin > barStartMin
                 const barLeft = hasBar ? Math.max(0, ((barStartMin - ganttStart) / ganttDuration) * 100) : 0
                 const barRight= hasBar ? Math.max(0, ((ganttEnd - barEndMin) / ganttDuration) * 100) : 100
-                const barBg   = isCadre ? '#cbd5e1' : (colors?.bg ?? '#6366f1')
-                const barText = isCadre ? '#64748b' : (colors?.text ?? '#fff')
+                const barBg   = isCadre ? '#D0D0D0' : (colors?.bg ?? '#6366f1')
+                const barText = isCadre ? '#4B5563' : (colors?.text ?? '#fff')
 
                 // Pause repas
                 const pStart    = pauseStarts[emp.id] ?? ''
@@ -290,11 +307,15 @@ export default function TabFeuilleJour({
                         {/* Barre de travail */}
                         {hasBar && (
                           <div style={{ position: 'absolute', top: '20%', bottom: '20%', left: `${barLeft}%`, right: `${barRight}%`, background: barBg, borderRadius: 3, zIndex: 1, display: 'flex', alignItems: 'center', paddingLeft: 5, minWidth: 4 }}>
-                            {!isCadre && sc?.start_time && (
+                            {isCadre ? (
+                              <span style={{ fontSize: '7px', fontWeight: 700, color: barText, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                {code}
+                              </span>
+                            ) : sc?.start_time ? (
                               <span style={{ fontSize: '7px', fontWeight: 700, color: barText, whiteSpace: 'nowrap', overflow: 'hidden' }}>
                                 {sc.start_time.slice(0, 5)}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         )}
                         {/* Overlay pause repas */}
