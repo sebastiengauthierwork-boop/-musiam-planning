@@ -29,7 +29,7 @@ type TabId = typeof TABS[number]['id']
 
 export default function PlanningPage() {
   const now = new Date()
-  const { role, allowedTeams, loading: authLoading } = useAuth()
+  const { role, allowedTeams, loading: authLoading, user } = useAuth()
   const { selectedSiteId } = useSite()
   const [teamId, setTeamId]     = useState<string>('')
   const [month, setMonth]       = useState(now.getMonth())
@@ -45,6 +45,8 @@ export default function PlanningPage() {
   const [error, setError]       = useState<string | null>(null)
   const [isArchived, setIsArchived]   = useState(false)
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
+  const [planningStatus, setPlanningStatus] = useState<'brouillon' | 'publie'>('brouillon')
+  const [publishLoading, setPublishLoading] = useState(false)
 
   // Filtre par site + filtre manager, réactifs sans re-fetch
   const teams = useMemo(() => {
@@ -96,7 +98,7 @@ export default function PlanningPage() {
       const lastDay = new Date(year, month + 1, 0).getDate()
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`
 
-      const [planningData, archRes] = await Promise.all([
+      const [planningData, archRes, psRes] = await Promise.all([
         loadTeamData(teamId, month, year),
         supabase
           .from('planning_archives')
@@ -105,10 +107,18 @@ export default function PlanningPage() {
           .eq('month', month + 1)
           .eq('year', year)
           .maybeSingle(),
+        supabase
+          .from('planning_status')
+          .select('status')
+          .eq('team_id', teamId)
+          .eq('month', month + 1)
+          .eq('year', year)
+          .maybeSingle(),
       ])
 
       setIsArchived(!!archRes.data)
       setArchiveDate(archRes.data?.archived_at ?? null)
+      setPlanningStatus((psRes.data?.status as 'brouillon' | 'publie') ?? 'brouillon')
 
       // Fetch calendar days (non-blocking — table may not exist yet)
       try {
@@ -171,6 +181,28 @@ export default function PlanningPage() {
     employeeHistory,
   }
 
+  async function handlePublish() {
+    if (!confirm(`Publier le planning de ${currentTeamName} pour ${MONTHS[month]} ${year} ? Les salariés pourront le consulter sur leur téléphone.`)) return
+    setPublishLoading(true)
+    await supabase.from('planning_status').upsert(
+      { team_id: teamId, month: month + 1, year, status: 'publie', published_at: new Date().toISOString(), published_by: user?.id ?? null },
+      { onConflict: 'team_id,month,year' }
+    )
+    setPlanningStatus('publie')
+    setPublishLoading(false)
+  }
+
+  async function handleUnpublish() {
+    if (!confirm(`Repasser en brouillon le planning de ${currentTeamName} pour ${MONTHS[month]} ${year} ?`)) return
+    setPublishLoading(true)
+    await supabase.from('planning_status').upsert(
+      { team_id: teamId, month: month + 1, year, status: 'brouillon', published_at: null, published_by: null },
+      { onConflict: 'team_id,month,year' }
+    )
+    setPlanningStatus('brouillon')
+    setPublishLoading(false)
+  }
+
   // The key forces TabSaisie to remount (and reset local state) when team/month/year changes
   const saisieKey = `${teamId}-${year}-${month}`
 
@@ -208,6 +240,25 @@ export default function PlanningPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
+
+        {/* Badge statut + bouton publication */}
+        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+          planningStatus === 'publie' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+        }`}>
+          {planningStatus === 'publie' ? 'Publié' : 'Brouillon'}
+        </span>
+        {planningStatus === 'brouillon' && (role === 'admin' || role === 'responsable' || role === 'manager') && (
+          <button onClick={handlePublish} disabled={publishLoading}
+            className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
+            {publishLoading ? '…' : 'Publier'}
+          </button>
+        )}
+        {planningStatus === 'publie' && (role === 'admin' || role === 'responsable') && (
+          <button onClick={handleUnpublish} disabled={publishLoading}
+            className="px-3 py-1.5 text-xs font-semibold border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
+            {publishLoading ? '…' : 'Dépublier'}
+          </button>
+        )}
 
         <div className="ml-auto text-xs text-gray-400">
           {employees.length} employé{employees.length !== 1 ? 's' : ''}

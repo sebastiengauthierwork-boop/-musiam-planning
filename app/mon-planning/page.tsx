@@ -130,6 +130,7 @@ export default function MonPlanningPage() {
   const [loadingStatic, setLoadingStatic] = useState(true)
   const [loadingSched, setLoadingSched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [nextMonthBlocked, setNextMonthBlocked] = useState(false)
 
   // Enregistrement du service worker (PWA)
   useEffect(() => {
@@ -180,6 +181,21 @@ export default function MonPlanningPage() {
   const loadSchedules = useCallback(async () => {
     if (!employeeId || !teamId) return
     setLoadingSched(true)
+
+    const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
+    if (isNextMonth) {
+      const psRes = await supabase.from('planning_status')
+        .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year).maybeSingle()
+      if (psRes.data?.status !== 'publie') {
+        setNextMonthBlocked(true)
+        setSchedules([])
+        setTeamSchedules([])
+        setTeamEmployees([])
+        setLoadingSched(false)
+        return
+      }
+    }
+    setNextMonthBlocked(false)
 
     const start = `${year}-${pad(month + 1)}-01`
     const lastDay = new Date(year, month + 1, 0).getDate()
@@ -377,7 +393,17 @@ export default function MonPlanningPage() {
       {/* Contenu */}
       <div className="flex-1 overflow-y-auto">
         {/* ── Onglet Mon planning ── */}
-        {tab === 'planning' && (
+        {tab === 'planning' && nextMonthBlocked && (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <p className="text-gray-600 text-base font-medium">
+              Le planning de {MONTHS[month]} {year} n'est pas encore disponible.
+            </p>
+            <p className="text-sm text-gray-400 mt-2">
+              Il sera visible dès sa publication par votre responsable.
+            </p>
+          </div>
+        )}
+        {tab === 'planning' && !nextMonthBlocked && (
           <div className="p-4 space-y-2 pb-10">
             {days.map(({ d, ds, code, colors, sc, isToday, isWE }) => (
               <div
@@ -431,7 +457,14 @@ export default function MonPlanningPage() {
         )}
 
         {/* ── Onglet Mon équipe ── */}
-        {tab === 'equipe' && (
+        {tab === 'equipe' && nextMonthBlocked && (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <p className="text-gray-600 text-base font-medium">
+              Le planning de {MONTHS[month]} {year} n'est pas encore disponible.
+            </p>
+          </div>
+        )}
+        {tab === 'equipe' && !nextMonthBlocked && (
           <div className="overflow-x-auto pb-10">
             <table className="border-collapse" style={{ fontSize: 11 }}>
               <thead>
