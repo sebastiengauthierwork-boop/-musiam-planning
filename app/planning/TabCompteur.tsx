@@ -275,7 +275,18 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
       {/* ── Main content ── */}
       <div className="flex-1 overflow-auto bg-gray-50/50">
         {loading ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Chargement…</div>
+          <div className="p-6 animate-pulse space-y-3">
+            <div className="h-5 bg-gray-200 rounded w-40 mb-4" />
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="flex items-center gap-3 h-8 bg-white rounded-lg border border-gray-100 px-3">
+                <div className="h-3 bg-gray-200 rounded" style={{ width: [120,96,140,104,88,128,112,100][i] }} />
+                <div className="ml-auto flex gap-2">
+                  {[0,1,2,3,4].map(w => <div key={w} className="w-12 h-4 bg-gray-100 rounded" />)}
+                  <div className="w-14 h-4 bg-gray-200 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : selectedTeamIds.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Sélectionnez au moins une équipe.</div>
         ) : (

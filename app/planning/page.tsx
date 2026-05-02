@@ -287,7 +287,53 @@ export default function PlanningPage() {
           </div>
         )}
         {loading ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
+          <div className="flex-1 overflow-hidden animate-pulse">
+            {/* Barre actions skeleton */}
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div className="h-6 w-28 bg-gray-200 rounded-lg" />
+              <div className="h-6 w-36 bg-gray-200 rounded-lg" />
+              <div className="h-6 w-24 ml-auto bg-gray-200 rounded-lg" />
+            </div>
+            {/* Grille skeleton */}
+            <div className="overflow-auto h-full">
+              {/* Header */}
+              <div className="flex sticky top-0 z-20 border-b border-gray-100 bg-white">
+                <div className="w-40 shrink-0 h-9 bg-gray-50 border-r border-gray-100" />
+                {Array.from({ length: 31 }, (_, i) => (
+                  <div key={i} className={`w-10 shrink-0 h-9 border-r border-gray-100 ${i % 7 >= 5 ? 'bg-gray-100' : 'bg-gray-50'}`} />
+                ))}
+                {[0,1,2,3,4].map(w => (
+                  <div key={w} className="w-14 shrink-0 h-9 bg-indigo-50 border-r border-indigo-100" />
+                ))}
+                <div className="w-16 shrink-0 h-9 bg-gray-50 border-l border-gray-100" />
+              </div>
+              {/* Effectifs row */}
+              <div className="flex border-b border-gray-100">
+                <div className="w-40 shrink-0 h-5 bg-white border-r border-gray-100 px-3">
+                  <div className="h-2 bg-gray-200 rounded w-16 mt-1.5" />
+                </div>
+                {Array.from({ length: 36 }, (_, i) => (
+                  <div key={i} className="w-10 shrink-0 h-5 border-r border-gray-100" />
+                ))}
+                <div className="w-16 shrink-0 h-5 border-l border-gray-100" />
+              </div>
+              {/* Employee rows */}
+              {Array.from({ length: 10 }, (_, row) => (
+                <div key={row} className="flex border-b border-gray-100">
+                  <div className="w-40 shrink-0 h-6 border-r border-gray-100 bg-white px-3 flex items-center">
+                    <div className={`h-2.5 bg-gray-200 rounded ${[28,24,20,26,22,30,18,25,23,27][row]}px`} style={{ width: [112,96,80,104,88,120,72,100,92,108][row] }} />
+                  </div>
+                  {Array.from({ length: 31 }, (_, col) => (
+                    <div key={col} className={`w-10 shrink-0 h-6 border-r border-gray-100 ${col % 7 >= 5 ? 'bg-gray-100' : ''}`} />
+                  ))}
+                  {[0,1,2,3,4].map(w => (
+                    <div key={w} className="w-14 shrink-0 h-6 bg-indigo-50/30 border-r border-indigo-100" />
+                  ))}
+                  <div className="w-16 shrink-0 h-6 border-l border-gray-100 bg-white" />
+                </div>
+              ))}
+            </div>
+          </div>
         ) : employees.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
             Aucun salarié actif pour cette équipe. Vérifiez les affectations dans <strong className="mx-1">Salariés</strong>.

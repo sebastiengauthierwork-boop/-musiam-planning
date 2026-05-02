@@ -478,7 +478,6 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     if (code === prevCode) return
 
     setCellValues(cur => { const n = { ...cur }; if (code) n[key] = code; else delete n[key]; return n })
-    setCellStatus(cur => ({ ...cur, [key]: 'saving' }))
     setCellErrors(cur => { const n = { ...cur }; delete n[key]; return n })
 
     try {
@@ -1068,7 +1067,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         <table ref={tableRef} className="border-collapse text-xs w-max min-w-full">
           <thead className="sticky top-0 z-20 bg-white">
             <tr>
-              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-40 min-w-[160px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
+              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 w-40 min-w-[160px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
                 Employé
               </th>
               {days.map(d => {
@@ -1078,8 +1077,8 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const structName = calStructureMap[toISO(d)]
                 return (
                   <th key={toISO(d)}
-                    className="w-10 min-w-[40px] border-b border-r border-gray-200 py-1 text-center"
-                    style={{ background: isWE ? '#e0e0e0' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
+                    className="w-10 min-w-[40px] border-b border-r border-gray-100 py-1 text-center"
+                    style={{ background: isTo ? '#dbeafe' : isWE ? '#e5e7eb' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
                     {structName
                       ? <div className="text-[7px] text-violet-500 leading-none truncate px-0.5 mb-0.5">{structName.slice(0, 5)}</div>
                       : <div className="text-[10px] leading-none mb-0.5 invisible">·</div>
@@ -1095,7 +1094,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   <div className="text-[9px] font-normal text-indigo-400">{w.days.length}j</div>
                 </th>
               ))}
-              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-200 px-2 py-2 text-center text-gray-500 font-semibold text-xs uppercase tracking-wider w-16">
+              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-2 py-2 text-center text-gray-500 font-semibold text-xs uppercase tracking-wider w-16">
                 Total
               </th>
             </tr>
@@ -1257,12 +1256,13 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const dateStr = toISO(d)
                       const isWE = d.getDay() === 0 || d.getDay() === 6
                       const isMonday = d.getDay() === 1
+                      const isTo = dateStr === today
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       const blocked = isDateBlocked(emp, dateStr)
                       return (
                         <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative"
-                          style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
+                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : {}) }}>
                           {blocked ? (
                             <div className="w-full h-full" style={{ background: '#e5e7eb' }}
                               title={emp.start_date && dateStr < emp.start_date ? `Entrée le ${emp.start_date}` : `Sortie le ${emp.end_date}`} />
@@ -1387,11 +1387,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const dateStr = toISO(d)
                       const isWE = d.getDay() === 0 || d.getDay() === 6
                       const isMonday = d.getDay() === 1
+                      const isTo = dateStr === today
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       return (
                         <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-6 relative"
-                          style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
+                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : {}) }}>
                           {isArchived ? (
                             <div
                               className="w-full h-full flex items-center justify-center text-xs font-mono"
@@ -1450,7 +1451,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
           <tfoot className="sticky bottom-0 z-20 bg-gray-50">
             <tr>
-              <td className="sticky left-0 z-30 bg-gray-50 border-t border-r border-gray-200 px-3 py-1.5 font-semibold text-gray-500 text-xs">
+              <td className="sticky left-0 z-30 bg-gray-50 border-t border-r border-gray-100 px-3 py-1.5 font-semibold text-gray-500 text-xs">
                 Total équipe
               </td>
               {days.map(d => {
@@ -1460,7 +1461,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const isMonday = d.getDay() === 1
                 return (
                   <td key={dateStr}
-                    className={`border-t border-r border-gray-200 text-center font-semibold py-1.5 ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}
+                    className={`border-t border-r border-gray-100 text-center font-semibold py-1.5 ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}
                     style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                     {h > 0 ? fmtH(h) : ''}
                   </td>
@@ -1475,7 +1476,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   </td>
                 )
               })}
-              <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-200 px-2 py-1.5 text-center font-bold text-gray-700">
+              <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-100 px-2 py-1.5 text-center font-bold text-gray-700">
                 {fmtH(Object.values(dayTotals).reduce((s, h) => s + h, 0))}
               </td>
             </tr>

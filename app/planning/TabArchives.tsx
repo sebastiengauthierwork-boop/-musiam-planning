@@ -204,8 +204,17 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
       <div className="flex-1 overflow-auto bg-white px-6 py-4">
 
         {loading ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-            Chargement des archives…
+          <div className="animate-pulse space-y-2 pt-2">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="flex items-center gap-4 p-3 border border-gray-100 rounded-lg">
+                <div className="w-10 h-10 bg-gray-200 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 bg-gray-200 rounded" style={{ width: [128,112,140,104,120][i] }} />
+                  <div className="h-2.5 bg-gray-100 rounded w-48" />
+                </div>
+                <div className="w-16 h-7 bg-gray-100 rounded-lg shrink-0" />
+              </div>
+            ))}
           </div>
         ) : archives.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2">

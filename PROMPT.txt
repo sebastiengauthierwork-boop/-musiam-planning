@@ -1,16 +1,24 @@
-Bug "Acces refuse" sur /api/create-user :
+Ameliorations visuelles et performance :
 
-L'API retourne "Acces refuse" quand un admin essaie de creer un utilisateur. Le probleme vient probablement de la verification du role de l'appelant.
+1. POLICE INTER :
+Ajouter la police Inter depuis Google Fonts dans le layout.tsx. L'utiliser comme police principale de l'application via Tailwind (font-sans).
 
-Debugger :
-1. Dans app/api/create-user/route.ts, ajouter des console.log pour voir :
-   - Le token recu
-   - Le user recupere depuis le token
-   - Le role du user
-   - La raison exacte du refus
-2. Verifier que la verification du token utilise bien la anon key pour decoder (pas la service_role key)
-3. Verifier que le role est bien lu depuis la table users (pas depuis auth.users qui n'a pas de champ role)
-4. S'assurer que la route accepte les roles 'admin' ET 'responsable'
-5. Tester avec un console.log en tout debut de route pour verifier que la route est bien atteinte
+2. CONTRASTE AUTO SUR LES CODES HORAIRES :
+Pour chaque cellule avec une couleur de fond (codes horaires, repos, absences), calculer automatiquement si le texte doit etre noir ou blanc en fonction de la luminosite du fond. Utiliser la formule : luminance = (0.299*R + 0.587*G + 0.114*B) / 255. Si luminance > 0.5 : texte noir. Sinon : texte blanc. Appliquer sur la grille de saisie ET le planning imprimable.
 
-git add . && git commit -m "fix: debug acces refuse create-user" && git push origin main
+3. BORDURES GRISES CLAIRES :
+Remplacer les bordures de tableau actuelles par des bordures de 1px en gris tres clair (#F3F4F6) sur la grille de saisie. Garder les bordures plus marquees uniquement pour la separation des semaines (trait epais lundi).
+
+4. SURBRILLANCE JOUR ACTUEL :
+Sur la grille de saisie, la colonne du jour actuel a un fond bleu tres pale (#EFF6FF). L'en-tete du jour actuel a un fond bleu un peu plus marque. Cela permet de reperer instantanement ou on en est.
+
+5. ICONES SIDEBAR PLUS FINES :
+Sur toutes les icones Lucide-React de la sidebar, utiliser strokeWidth={1.5} au lieu de la valeur par defaut pour un look plus aerien.
+
+6. OPTIMISTIC UPDATES :
+Quand un code est saisi dans la grille, mettre a jour le state local IMMEDIATEMENT. La sauvegarde Supabase se fait en arriere-plan (pas de await visible). Si la sauvegarde echoue, remettre l'ancienne valeur et afficher une erreur discrete en bas de page.
+
+7. SKELETON LOADING :
+Remplacer tous les "Chargement..." et spinners par des squelettes gris animes (rectangles avec animation pulse) qui reprennent la forme exacte de la grille ou du tableau qui va s'afficher. Pas de saut d'ecran au chargement.
+
+git add . && git commit -m "feat: polish visuel + optimistic updates + skeleton" && git push origin main

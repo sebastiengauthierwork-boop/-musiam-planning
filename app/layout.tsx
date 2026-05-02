@@ -1,11 +1,17 @@
 import type { Metadata } from "next"
 import localFont from "next/font/local"
+import { Inter } from "next/font/google"
 import "./globals.css"
 import AppShell from "@/components/AppShell"
 import { AuthProvider } from "@/lib/auth"
 import { PermissionsProvider } from "@/lib/permissions"
 import { SiteProvider } from "@/lib/site-context"
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -30,7 +36,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           <PermissionsProvider>
             <SiteProvider>
