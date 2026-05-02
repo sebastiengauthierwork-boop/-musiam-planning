@@ -8,17 +8,24 @@ export async function POST(req: NextRequest) {
   }
   const token = authHeader.slice(7)
 
-  // Vérifier que l'appelant est admin uniquement
-  const callerClient = createClient(
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey) {
+    return NextResponse.json({ error: 'Configuration serveur manquante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 })
+  }
+
+  // Utiliser le service role key pour valider le token et lire le profil (contourne les RLS)
+  const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    serviceKey,
+    { auth: { autoRefreshToken: false, persistSession: false } }
   )
-  const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token)
+
+  const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(token)
   if (authError || !caller) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
   }
 
-  const { data: callerProfile } = await callerClient
+  const { data: callerProfile } = await adminClient
     .from('users').select('role').eq('id', caller.id).single()
   if (!callerProfile || callerProfile.role !== 'admin') {
     return NextResponse.json({ error: 'Accès refusé — réservé aux administrateurs' }, { status: 403 })
@@ -30,17 +37,6 @@ export async function POST(req: NextRequest) {
   if (!user_id || !new_email) {
     return NextResponse.json({ error: 'user_id et new_email requis' }, { status: 400 })
   }
-
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) {
-    return NextResponse.json({ error: 'Configuration serveur manquante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 })
-  }
-
-  const adminClient = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceKey,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
 
   const emailNorm = String(new_email).trim().toLowerCase()
 

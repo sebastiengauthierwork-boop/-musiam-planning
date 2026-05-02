@@ -1,14 +1,16 @@
-Possibilite de modifier l'email d'un utilisateur depuis /admin/utilisateurs :
+Bug "Acces refuse" sur /api/create-user :
 
-1. Dans le modal de modification d'un utilisateur, rendre le champ email modifiable UNIQUEMENT si l'utilisateur connecte est admin. Si c'est un responsable ou manager, le champ email est affiche mais non modifiable (disabled).
+L'API retourne "Acces refuse" quand un admin essaie de creer un utilisateur. Le probleme vient probablement de la verification du role de l'appelant.
 
-2. Quand l'admin modifie l'email et clique Enregistrer :
-   a) Appeler une nouvelle API route POST /api/update-user avec : user_id, new_email
-   b) Cette route verifie que l'appelant est admin (pas responsable, pas manager)
-   c) Utilise SUPABASE_SERVICE_ROLE_KEY et supabase.auth.admin.updateUserById(user_id, { email: new_email, email_confirm: true })
-   d) Met a jour l'email dans la table users
-   e) Met a jour l'email dans la table employees si le user a un employee_id
+Debugger :
+1. Dans app/api/create-user/route.ts, ajouter des console.log pour voir :
+   - Le token recu
+   - Le user recupere depuis le token
+   - Le role du user
+   - La raison exacte du refus
+2. Verifier que la verification du token utilise bien la anon key pour decoder (pas la service_role key)
+3. Verifier que le role est bien lu depuis la table users (pas depuis auth.users qui n'a pas de champ role)
+4. S'assurer que la route accepte les roles 'admin' ET 'responsable'
+5. Tester avec un console.log en tout debut de route pour verifier que la route est bien atteinte
 
-3. Message de succes : "Email modifie. Le salarie doit maintenant se connecter avec [nouvel email]"
-
-git add . && git commit -m "feat: modification email par admin uniquement" && git push origin main
+git add . && git commit -m "fix: debug acces refuse create-user" && git push origin main
