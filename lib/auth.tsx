@@ -112,9 +112,14 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
   }
 
   if (user) {
-    // Connecté sur /login → redirect selon rôle
+    // Connecté sur /login → redirect selon rôle et taille d'écran
     if (pathname.startsWith('/login')) {
-      window.location.href = role === 'salarie' ? '/mon-planning' : '/choix'
+      if (role === 'salarie') {
+        window.location.href = '/mon-planning'
+      } else {
+        // admin/responsable/manager : choix sur mobile, tableau-de-bord sur PC
+        window.location.href = window.innerWidth < 768 ? '/choix' : '/tableau-de-bord'
+      }
       return true
     }
 
