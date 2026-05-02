@@ -230,22 +230,6 @@ export default function MonPlanningPage() {
     )
   }
 
-  if (role !== 'salarie') {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50 px-6">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-900">Accès réservé aux salariés</p>
-          <button
-            onClick={signOut}
-            className="mt-6 w-full py-3.5 bg-slate-900 text-white rounded-2xl text-base font-semibold"
-          >
-            Se déconnecter
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   if (!employeeId || !employee) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 px-6">
@@ -277,6 +261,8 @@ export default function MonPlanningPage() {
   }
 
   // --- Données pour le rendu ---
+
+  const isManagement = role === 'admin' || role === 'responsable' || role === 'manager'
 
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
@@ -318,6 +304,17 @@ export default function MonPlanningPage() {
             )}
           </div>
           <div className="flex items-center gap-1">
+            {isManagement && (
+              <a
+                href="/tableau-de-bord"
+                className="flex items-center gap-1 text-slate-400 text-xs py-2 px-2.5 rounded-xl active:bg-slate-700 active:text-white font-medium"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Gestion
+              </a>
+            )}
             <button
               onClick={() => setShowPasswordModal(true)}
               className="flex items-center justify-center text-slate-400 py-2.5 px-2.5 rounded-xl active:bg-slate-700 active:text-white"

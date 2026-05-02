@@ -1,14 +1,22 @@
-Deux corrections separees :
+Acces au planning personnel pour les admins, responsables et managers :
 
-1. PLANNING IMPRIMABLE -  :
-EN PLUS DU FORMAT GLOBAL A3 PAYSAGE SI L'EQUIPE A MOINS DE 15 PERSONNES DONNE LA POSSIBILITE D'UNE OPTION D'IMPRESSION Format A4 Paysage :
-- Ooption 1 page (15 premiers jours en haut, 15 derniers en bas) ou POSSIBILITE D4IMPRREESION EN 2 pages 15 PREMIERS JORS PAGE 1 15 DERNIERS JOURS PAGE 2
-- Si l'equipe a 15 personnes ou plus : option non disponible
-- Agrandir au maximum la taille de police et des cellules pour remplir la page A4 paysage
-- Marges fines (10mm)
-- Ajouter colonnes Contrat et H/mois apres le nom (etroites, max 50px)
+1. APRES LE LOGIN pour admin, responsable et manager :
+- Si l'ecran est un smartphone (largeur < 768px) : afficher un ecran de choix avec 2 boutons :
+  a) "Mon planning" : redirige vers /mon-planning (meme vue que les salaries, avec son planning perso et le planning equipe)
+  b) "Gestion" : redirige vers /tableau-de-bord (l'interface complete habituelle)
+- Si l'ecran est un PC/tablette (largeur >= 768px) : rediriger directement vers /tableau-de-bord comme d'habitude
 
-2. FEUILLE D'EMARGEMENT - hauteur des lignes dynamique :
-augmenter dynamiquement la hauteur des lignes pour remplir toute la page A4 portrait. Calculer : hauteur disponible de la page / nombre total de lignes (jours de la semaine + en-tetes). Plus il y a d'espace disponible, plus les lignes doivent etre hautes pour que les salaries aient de la place pour signer. La page doit etre remplie au maximum, pas de grand espace blanc en bas.
+2. LIEN "MON PLANNING" DANS LA SIDEBAR :
+- Ajouter un lien "Mon planning" en haut de la sidebar pour les admins, responsables et managers
+- Ce lien ouvre /mon-planning avec leur planning personnel (comme un salarie)
+- Pour que ca fonctionne, il faut que le user admin/responsable/manager ait un employee_id dans la table users (lie a leur fiche salarie)
 
-git add . && git commit -m "feat: planning A4 + emargement lignes dynamiques" && git push origin main
+3. SUR /mon-planning :
+- Si le user est admin/responsable/manager, ajouter un bouton "Retour a la gestion" en haut qui redirige vers /tableau-de-bord
+- Les salaries ne voient PAS ce bouton
+
+4. ASSOCIATION EMPLOYEE_ID :
+- Dans le formulaire de creation/modification d'utilisateur (/admin/utilisateurs), quand le role est admin, responsable ou manager, ajouter un dropdown optionnel "Salarie associe" (comme pour les salaries)
+- Ca permet de lier le compte utilisateur a une fiche salarie pour voir son planning perso
+
+git add . && git commit -m "feat: mon planning pour admins et managers" && git push origin main

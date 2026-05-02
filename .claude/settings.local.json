@@ -23,7 +23,13 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git config:*)",
-      "Bash(grep -E \"\\(>|\\\\\"|\\\\`|'\\)[^<]*[Ee]mploy[eé][^'\\\\\"<]*\\(<|\\\\\"|\\\\`|'\\)\")"
+      "Bash(grep -E \"\\(>|\\\\\"|\\\\`|'\\)[^<]*[Ee]mploy[eé][^'\\\\\"<]*\\(<|\\\\\"|\\\\`|'\\)\")",
+      "Bash(xargs grep *)",
+      "PowerShell(Set-Clipboard *)",
+      "Bash(grep *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\MUSIAM-planning\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)"
     ]
   }
 }

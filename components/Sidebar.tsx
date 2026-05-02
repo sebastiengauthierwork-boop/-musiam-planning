@@ -308,6 +308,23 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 py-3" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>
         <ul className="space-y-0.5">
+          {/* Mon planning — admins, responsables, managers */}
+          {(role === 'admin' || role === 'responsable' || role === 'manager') && (
+            <li>
+              <Link
+                href="/mon-planning"
+                title={collapsed ? 'Mon planning' : undefined}
+                className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
+                  collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                } ${pathname.startsWith('/mon-planning') ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                {!collapsed && <span className="whitespace-nowrap overflow-hidden">Mon planning</span>}
+              </Link>
+            </li>
+          )}
           {visibleItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (

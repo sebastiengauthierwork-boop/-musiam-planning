@@ -34,7 +34,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  // /mon-planning : guard actif (salarié), pas de sidebar
+  // /choix et /mon-planning : pas de sidebar
+  if (pathname === '/choix') {
+    return <>{children}</>
+  }
+
   if (pathname === '/mon-planning') {
     return (
       <>

@@ -114,7 +114,12 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
   if (user) {
     // Connecté sur /login → redirect selon rôle
     if (pathname.startsWith('/login')) {
-      window.location.href = role === 'salarie' ? '/mon-planning' : '/tableau-de-bord'
+      if (role === 'salarie') {
+        window.location.href = '/mon-planning'
+      } else {
+        const isMobile = window.innerWidth < 768
+        window.location.href = isMobile ? '/choix' : '/tableau-de-bord'
+      }
       return true
     }
 

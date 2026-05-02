@@ -198,6 +198,7 @@ export default function UtilisateursPage() {
     })
     setModalError(null)
     setModalOpen(true)
+    loadEmployees()
   }
 
   function closeModal() {
@@ -257,7 +258,7 @@ export default function UtilisateursPage() {
             role: form.role,
             allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
             allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-            employee_id: form.role === 'salarie' ? form.employeeId || null : null,
+            employee_id: form.employeeId || null,
           })
           .eq('id', existingProfile.id)
         if (updateError) {
@@ -317,7 +318,7 @@ export default function UtilisateursPage() {
         role: form.role,
         allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
         allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-        employee_id: form.role === 'salarie' ? form.employeeId || null : null,
+        employee_id: form.employeeId || null,
       })
       if (insertError) {
         setModalError(insertError.message)
@@ -329,7 +330,7 @@ export default function UtilisateursPage() {
       closeModal()
       setPageSuccess('Compte créé avec succès.')
     } else {
-      // Edit: update role and allowed_teams
+      // Edit: update role, teams, and employee link
       if (!editingUser) return
       const { error: updateError } = await supabase
         .from('users')
@@ -337,6 +338,7 @@ export default function UtilisateursPage() {
           role: form.role,
           allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
           allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
+          employee_id: form.employeeId || null,
         })
         .eq('id', editingUser.id)
       if (updateError) {
@@ -601,33 +603,29 @@ export default function UtilisateursPage() {
                 </select>
               </div>
 
-              {/* Salarié associé — salarie only */}
-              {form.role === 'salarie' && modalMode === 'add' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Salarié associé
-                  </label>
-                  <select
-                    value={form.employeeId}
-                    onChange={(e) => {
-                      const emp = employees.find(x => x.id === e.target.value)
-                      setForm(prev => ({
-                        ...prev,
-                        employeeId: e.target.value,
-                        email: emp ? prev.email || '' : prev.email,
-                      }))
-                    }}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                  >
-                    <option value="">— Sélectionner un salarié —</option>
-                    {employees.map(emp => (
-                      <option key={emp.id} value={emp.id}>
-                        {emp.last_name} {emp.first_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              {/* Salarié associé — tous les rôles */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Salarié associé{form.role !== 'salarie' ? ' (optionnel)' : ''}
+                </label>
+                <select
+                  value={form.employeeId}
+                  onChange={(e) => setForm(prev => ({ ...prev, employeeId: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                >
+                  <option value="">— Sélectionner un salarié —</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.last_name} {emp.first_name}
+                    </option>
+                  ))}
+                </select>
+                {form.role !== 'salarie' && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Permet d&apos;accéder à &laquo;&nbsp;Mon planning&nbsp;&raquo; avec le planning personnel.
+                  </p>
+                )}
+              </div>
 
               {/* Site autorisé — responsable only */}
               {form.role === 'responsable' && (
