@@ -12,14 +12,16 @@ const DAYS_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam']
 function pad(n: number) { return String(n).padStart(2, '0') }
 function toISO(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}` }
 function fmtH(h: number): string {
-  const hours = Math.floor(h)
-  const mins = Math.round((h - hours) * 60)
-  return mins === 0 ? `${hours}h` : `${hours}h${String(mins).padStart(2, '0')}`
+  const abs = Math.abs(h)
+  const hours = Math.floor(abs)
+  const mins = Math.round((abs - hours) * 60)
+  const str = mins === 0 ? `${hours}h` : `${hours}h${String(mins).padStart(2, '0')}`
+  return h < 0 ? `−${str}` : str
 }
 
 type EffectifsJour = { matin: number; aprem: number; soir: number }
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
-type BudgetData = { realized: number; forecast: number; budget: number | null }
+type BudgetData = { realized: number; forecast: number; budget: number }
 
 export default function TableauDeBord() {
   const { selectedSiteId } = useSite()
@@ -30,7 +32,7 @@ export default function TableauDeBord() {
   const [error, setError] = useState<string | null>(null)
   const [effectifs, setEffectifs] = useState<EffectifsJour>({ matin: 0, aprem: 0, soir: 0 })
   const [vigilance, setVigilance] = useState<DayVigilance[]>([])
-  const [budget, setBudget] = useState<BudgetData>({ realized: 0, forecast: 0, budget: null })
+  const [budget, setBudget] = useState<BudgetData>({ realized: 0, forecast: 0, budget: 0 })
   const [teamCount, setTeamCount] = useState(0)
   const [employeeCount, setEmployeeCount] = useState(0)
 
@@ -40,21 +42,17 @@ export default function TableauDeBord() {
     setLoading(true)
     setError(null)
     try {
-      // 1. Teams (+ budget optionnel)
-      let teamsQ = supabase.from('teams').select('id, monthly_budget_hours')
+      // 1. Teams
+      let teamsQ = supabase.from('teams').select('id')
       if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
       const teamsRes = await teamsQ
       if (teamsRes.error) throw teamsRes.error
 
       const teams = teamsRes.data ?? []
       const teamIds = teams.map((t: any) => t.id)
-      const totalBudget = teams.reduce((s: number, t: any) => s + Number(t.monthly_budget_hours ?? 0), 0)
       setTeamCount(teams.length)
 
-      if (!teamIds.length) {
-        setLoading(false)
-        return
-      }
+      if (!teamIds.length) { setLoading(false); return }
 
       // 2. Shift codes map (code → paid_hours)
       const { data: scData } = await supabase.from('shift_codes').select('code, paid_hours')
@@ -74,7 +72,7 @@ export default function TableauDeBord() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
       const lastOfMonth = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${lastDay}`
 
-      // 5. Requêtes parallèles
+      // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
           .select('employee_id, start_time')
@@ -87,7 +85,7 @@ export default function TableauDeBord() {
           .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth).eq('type', 'shift'),
         supabase.from('annual_calendar')
           .select('date, structure_id')
-          .in('team_id', teamIds).in('date', next5Strs),
+          .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth),
         supabase.from('employee_teams')
           .select('employee_id', { count: 'exact', head: true })
           .in('team_id', teamIds),
@@ -106,22 +104,27 @@ export default function TableauDeBord() {
       }
       setEffectifs({ matin: buckets.matin.size, aprem: buckets.aprem.size, soir: buckets.soir.size })
 
-      // 7. Vigilance J+5
+      // 7. Structure positions (vigilance + budget, une seule requête)
+      const allStructureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
+      const structureReq: Record<string, number> = {}   // pour vigilance (nb personnes)
+      const structHoursMap: Record<string, number> = {} // pour budget (heures payées)
+
+      if (allStructureIds.length) {
+        const { data: spData } = await supabase
+          .from('staffing_structure_positions').select('structure_id, position_name, required_count')
+          .in('structure_id', allStructureIds)
+        for (const sp of spData ?? []) {
+          structureReq[sp.structure_id] = (structureReq[sp.structure_id] ?? 0) + sp.required_count
+          const paidH = scMap[sp.position_name] ?? 0
+          structHoursMap[sp.structure_id] = (structHoursMap[sp.structure_id] ?? 0) + paidH * sp.required_count
+        }
+      }
+
+      // 8. Vigilance J+5
       const plannedByDay: Record<string, Set<string>> = {}
       for (const s of next5Res.data ?? []) {
         if (!plannedByDay[s.date]) plannedByDay[s.date] = new Set()
         plannedByDay[s.date].add(s.employee_id)
-      }
-
-      const structureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
-      let structureReq: Record<string, number> = {}
-      if (structureIds.length) {
-        const { data: spData } = await supabase
-          .from('staffing_structure_positions').select('structure_id, required_count')
-          .in('structure_id', structureIds)
-        for (const sp of spData ?? []) {
-          structureReq[sp.structure_id] = (structureReq[sp.structure_id] ?? 0) + sp.required_count
-        }
       }
 
       const theoreticalByDate: Record<string, number | null> = {}
@@ -136,14 +139,20 @@ export default function TableauDeBord() {
         return { date: ds, label: `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`, planned: plannedByDay[ds]?.size ?? 0, theoretical: theoreticalByDate[ds] ?? null }
       }))
 
-      // 8. Budget heures
+      // 9. Budget structure — somme paid_hours × effectif_requis pour chaque jour du mois
+      let structBudget = 0
+      for (const c of calRes.data ?? []) {
+        if (c.structure_id) structBudget += structHoursMap[c.structure_id] ?? 0
+      }
+
+      // 10. Heures planifiées (schedules du mois)
       let realized = 0, forecast = 0
       for (const s of monthRes.data ?? []) {
         const h = scMap[s.code] ?? 0
         if (s.date <= todayStr) realized += h
         else forecast += h
       }
-      setBudget({ realized, forecast, budget: totalBudget > 0 ? totalBudget : null })
+      setBudget({ realized, forecast, budget: structBudget })
 
     } catch (err: any) {
       setError(err?.message ?? String(err))
@@ -156,8 +165,12 @@ export default function TableauDeBord() {
   if (error) return <div className="p-8"><div className="bg-red-50 text-red-700 rounded-xl px-4 py-3 text-sm">Erreur : {error}</div></div>
 
   const monthLabel = `${MONTHS_FR[now.getMonth()]} ${now.getFullYear()}`
-  const budgetTotal = budget.realized + budget.forecast
-  const budgetPct = budget.budget ? Math.min(Math.round((budgetTotal / budget.budget) * 100), 999) : null
+  const planned = budget.realized + budget.forecast
+  const ecartH = planned - budget.budget
+  const pct = budget.budget > 0 ? Math.min(Math.round((planned / budget.budget) * 100), 999) : null
+  const barColor = pct === null ? 'bg-gray-300' : pct > 105 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-400' : 'bg-emerald-500'
+  const pctColor = pct === null ? 'text-gray-400' : pct > 105 ? 'text-red-600' : pct >= 90 ? 'text-amber-500' : 'text-emerald-600'
+  const ecartColor = ecartH > 0 ? 'text-red-600' : ecartH < 0 ? 'text-emerald-600' : 'text-gray-500'
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
@@ -172,9 +185,9 @@ export default function TableauDeBord() {
       {/* Effectifs du jour */}
       <Card title="Effectifs du jour" badge={`${effectifs.matin + effectifs.aprem + effectifs.soir} présents`}>
         <div className="flex gap-3">
-          <Pill label="Matin" sublabel="avant 12h" count={effectifs.matin} colorClass="bg-blue-50 border-blue-100 text-blue-700" />
+          <Pill label="Matin"      sublabel="avant 12h"  count={effectifs.matin} colorClass="bg-blue-50 border-blue-100 text-blue-700" />
           <Pill label="Après-midi" sublabel="12h – 18h"  count={effectifs.aprem} colorClass="bg-amber-50 border-amber-100 text-amber-700" />
-          <Pill label="Soir"      sublabel="après 18h"  count={effectifs.soir}  colorClass="bg-violet-50 border-violet-100 text-violet-700" />
+          <Pill label="Soir"       sublabel="après 18h"  count={effectifs.soir}  colorClass="bg-violet-50 border-violet-100 text-violet-700" />
         </div>
       </Card>
 
@@ -205,34 +218,40 @@ export default function TableauDeBord() {
         </div>
       </Card>
 
-      {/* Budget heures */}
+      {/* Pilotage budgétaire */}
       <Card title="Pilotage budgétaire" badge={monthLabel}>
         <div className="space-y-4">
           <div className="flex items-end gap-8 flex-wrap">
             <BudgetStat label="Réalisé" value={budget.realized} />
             <BudgetStat label="Prévisionnel" value={budget.forecast} />
             <div className="h-8 w-px bg-gray-100" />
-            <BudgetStat label="Total mois" value={budgetTotal} accent />
-            {budget.budget !== null && <BudgetStat label="Budget" value={budget.budget} />}
-            {budgetPct !== null && (
-              <span className={`ml-auto text-3xl font-bold tabular-nums ${budgetPct > 100 ? 'text-red-600' : budgetPct >= 90 ? 'text-amber-500' : 'text-emerald-600'}`}>
-                {budgetPct}%
+            <BudgetStat label="Total planifié" value={planned} accent />
+            {budget.budget > 0 && <BudgetStat label="Budget structure" value={budget.budget} />}
+            {pct !== null && (
+              <span className={`ml-auto text-3xl font-bold tabular-nums ${pctColor}`}>
+                {pct}%
               </span>
             )}
           </div>
-          {budget.budget !== null ? (
-            <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full ${budgetPct! > 100 ? 'bg-red-500' : budgetPct! >= 90 ? 'bg-amber-400' : 'bg-emerald-500'}`}
-                style={{ width: `${Math.min(budgetPct!, 100)}%` }}
-              />
-            </div>
+
+          {budget.budget > 0 ? (
+            <>
+              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${barColor}`}
+                  style={{ width: `${Math.min(pct!, 100)}%` }}
+                />
+              </div>
+              <div className={`text-sm font-semibold ${ecartColor}`}>
+                Écart : {ecartH > 0 ? '+' : ''}{fmtH(ecartH)}
+                <span className="font-normal text-xs ml-1.5 opacity-70">
+                  {ecartH > 0 ? 'dépassement' : ecartH < 0 ? 'économie' : 'équilibré'}
+                </span>
+              </div>
+            </>
           ) : (
             <p className="text-xs text-gray-400 italic">
-              Budget non configuré.{' '}
-              <code className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 text-[11px]">
-                ALTER TABLE teams ADD COLUMN IF NOT EXISTS monthly_budget_hours DECIMAL(10,2);
-              </code>
+              Aucune structure configurée dans le calendrier annuel pour ce mois.
             </p>
           )}
         </div>
@@ -276,7 +295,12 @@ function BudgetStat({ label, value, accent }: { label: string; value: number; ac
     <div>
       <div className="text-xs text-gray-400 mb-0.5">{label}</div>
       <div className={`tabular-nums ${accent ? 'text-xl font-bold text-gray-900' : 'text-lg font-semibold text-gray-600'}`}>
-        {fmtH(value)}
+        {(() => {
+          const abs = Math.abs(value)
+          const hours = Math.floor(abs)
+          const mins = Math.round((abs - hours) * 60)
+          return mins === 0 ? `${hours}h` : `${hours}h${String(mins).padStart(2, '0')}`
+        })()}
       </div>
     </div>
   )
@@ -301,7 +325,7 @@ function SkeletonDashboard() {
       {[80, 110, 90].map((h, i) => (
         <div key={i} className="bg-white border border-gray-100 rounded-xl p-5">
           <div className="h-4 bg-gray-200 rounded w-36 mb-4" />
-          <div className={`bg-gray-100 rounded-lg`} style={{ height: h }} />
+          <div className="bg-gray-100 rounded-lg" style={{ height: h }} />
         </div>
       ))}
       <div className="grid grid-cols-2 gap-3">

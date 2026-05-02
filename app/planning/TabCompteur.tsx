@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Employee, Schedule, TabProps, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
 import { loadTeamData } from '@/lib/planning-data'
+import { supabase } from '@/lib/supabase'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -37,17 +38,57 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([teamId])
   const [teamDataMap, setTeamDataMap] = useState<Record<string, TeamData>>({})
+  const [structureBudgetMap, setStructureBudgetMap] = useState<Record<string, Record<string, number>>>({})
   const [loading, setLoading] = useState(false)
 
   // ─── Data loading ──────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
-    if (!selectedTeamIds.length) { setTeamDataMap({}); return }
+    if (!selectedTeamIds.length) { setTeamDataMap({}); setStructureBudgetMap({}); return }
     setLoading(true)
     try {
-      const results = await Promise.all(selectedTeamIds.map(tid => loadTeamData(tid, month, year)))
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
+      const lastDay = new Date(year, month + 1, 0).getDate()
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+      const [results, calRes] = await Promise.all([
+        Promise.all(selectedTeamIds.map(tid => loadTeamData(tid, month, year))),
+        supabase.from('annual_calendar')
+          .select('team_id, date, structure_id')
+          .in('team_id', selectedTeamIds)
+          .gte('date', startDate)
+          .lte('date', endDate),
+      ])
+
       const newMap: Record<string, TeamData> = {}
       selectedTeamIds.forEach((tid, i) => { newMap[tid] = results[i] })
       setTeamDataMap(newMap)
+
+      // Budget structure par équipe par jour
+      const structureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
+      const budgetMap: Record<string, Record<string, number>> = {}
+
+      if (structureIds.length) {
+        const scMap: Record<string, number> = {}
+        for (const sc of shiftCodes) {
+          if (sc.code && !(sc.code in scMap)) scMap[sc.code] = Number(sc.paid_hours ?? 0)
+        }
+        const { data: spData } = await supabase
+          .from('staffing_structure_positions')
+          .select('structure_id, position_name, required_count')
+          .in('structure_id', structureIds)
+
+        const structHoursMap: Record<string, number> = {}
+        for (const sp of spData ?? []) {
+          const h = scMap[sp.position_name] ?? 0
+          structHoursMap[sp.structure_id] = (structHoursMap[sp.structure_id] ?? 0) + h * sp.required_count
+        }
+        for (const c of calRes.data ?? []) {
+          if (!c.structure_id) continue
+          if (!budgetMap[c.team_id]) budgetMap[c.team_id] = {}
+          budgetMap[c.team_id][c.date] = (budgetMap[c.team_id][c.date] ?? 0) + (structHoursMap[c.structure_id] ?? 0)
+        }
+      }
+      setStructureBudgetMap(budgetMap)
     } finally {
       setLoading(false)
     }
@@ -101,6 +142,14 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
 
   function getEmpMonthHoursForTeam(tid: string, empId: string): number {
     return days.reduce((sum, d) => sum + getEmpDayHoursForTeam(tid, empId, toISO(d)), 0)
+  }
+
+  function getStructureBudgetForTeamDay(tid: string, dateStr: string): number {
+    return structureBudgetMap[tid]?.[dateStr] ?? 0
+  }
+
+  function getStructureBudgetMonthForTeam(tid: string): number {
+    return days.reduce((sum, d) => sum + getStructureBudgetForTeamDay(tid, toISO(d)), 0)
   }
 
   // Employees who have at least one schedule attributed to this team in the month
@@ -315,8 +364,10 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                           <thead>
                             <tr className="bg-slate-100 text-slate-600 text-[11px] uppercase tracking-wide">
                               <th className="px-3 py-2 text-left font-semibold w-20">Jour</th>
-                              <th className="px-3 py-2 text-right font-semibold">Total heures</th>
-                              <th className="px-3 py-2 text-right font-semibold">Nb personnes</th>
+                              <th className="px-3 py-2 text-right font-semibold">Planifié</th>
+                              <th className="px-3 py-2 text-right font-semibold">Budget struct.</th>
+                              <th className="px-3 py-2 text-right font-semibold">Écart</th>
+                              <th className="px-3 py-2 text-right font-semibold">Nb pers.</th>
                               <th className="px-3 py-2 text-right font-semibold">Moy h/pers</th>
                             </tr>
                           </thead>
@@ -324,6 +375,8 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                             {days.map(d => {
                               const dateStr = toISO(d)
                               const { total, nbPersonnes } = getDayHoursForTeam(tid, dateStr)
+                              const structBudget = getStructureBudgetForTeamDay(tid, dateStr)
+                              const ecart = structBudget > 0 ? total - structBudget : null
                               const moy = nbPersonnes > 0 ? total / nbPersonnes : 0
                               const isWE = isWeekend(d)
                               totalH += total; totalPersons += nbPersonnes
@@ -336,6 +389,12 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                                   <td className="px-3 py-1.5 text-right font-mono text-gray-700">
                                     {total > 0 ? fmtDecimal(total) : ''}
                                   </td>
+                                  <td className="px-3 py-1.5 text-right font-mono text-gray-400">
+                                    {structBudget > 0 ? fmtDecimal(structBudget) : ''}
+                                  </td>
+                                  <td className={`px-3 py-1.5 text-right font-mono font-semibold ${ecart === null ? '' : ecart > 0 ? 'text-red-500' : ecart < 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    {ecart === null ? '' : ecart === 0 ? '=' : ecart > 0 ? `+${fmtDecimal(ecart)}` : `−${fmtDecimal(Math.abs(ecart))}`}
+                                  </td>
                                   <td className="px-3 py-1.5 text-right text-gray-600">
                                     {nbPersonnes > 0 ? nbPersonnes : ''}
                                   </td>
@@ -347,14 +406,24 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                             })}
                           </tbody>
                           <tfoot>
-                            <tr className="border-t-2 border-slate-300 bg-slate-800 text-white">
-                              <td className="px-3 py-2 font-bold text-xs uppercase">Total</td>
-                              <td className="px-3 py-2 text-right font-bold font-mono">{fmtDecimal(totalH) || '0.00'}</td>
-                              <td className="px-3 py-2 text-right font-semibold">{totalPersons}</td>
-                              <td className="px-3 py-2 text-right font-mono text-slate-300">
-                                {totalPersons > 0 ? fmtDecimal(totalH / days.length) : ''}
-                              </td>
-                            </tr>
+                            {(() => {
+                              const totalBudget = getStructureBudgetMonthForTeam(tid)
+                              const totalEcart = totalBudget > 0 ? totalH - totalBudget : null
+                              return (
+                                <tr className="border-t-2 border-slate-300 bg-slate-800 text-white">
+                                  <td className="px-3 py-2 font-bold text-xs uppercase">Total</td>
+                                  <td className="px-3 py-2 text-right font-bold font-mono">{fmtDecimal(totalH) || '0.00'}</td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-300">{totalBudget > 0 ? fmtDecimal(totalBudget) : '—'}</td>
+                                  <td className={`px-3 py-2 text-right font-bold font-mono ${totalEcart === null ? 'text-slate-400' : totalEcart > 0 ? 'text-red-400' : totalEcart < 0 ? 'text-emerald-400' : 'text-slate-300'}`}>
+                                    {totalEcart === null ? '—' : totalEcart === 0 ? '=' : totalEcart > 0 ? `+${fmtDecimal(totalEcart)}` : `−${fmtDecimal(Math.abs(totalEcart))}`}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-semibold">{totalPersons}</td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-300">
+                                    {totalPersons > 0 ? fmtDecimal(totalH / days.length) : ''}
+                                  </td>
+                                </tr>
+                              )
+                            })()}
                           </tfoot>
                         </table>
                       </div>
