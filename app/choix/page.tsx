@@ -2,21 +2,45 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth'
 
 export default function ChoixPage() {
   const { role, loading } = useAuth()
+  const [isSmartphone, setIsSmartphone] = useState<boolean | null>(null)
 
+  // Redirection selon le rôle
   useEffect(() => {
     if (loading) return
     if (!role) { window.location.href = '/login'; return }
     if (role === 'salarie') { window.location.href = '/mon-planning'; return }
-    // Sur PC, pas de page de choix → tableau de bord directement
-    if (window.innerWidth >= 768) { window.location.href = '/tableau-de-bord'; return }
   }, [role, loading])
 
-  if (loading) {
+  // Détection fiable de la taille d'écran : délai 100ms + matchMedia + listener resize
+  useEffect(() => {
+    const detect = () => window.matchMedia('(max-width: 767px)').matches
+
+    const timer = setTimeout(() => {
+      const mobile = detect()
+      setIsSmartphone(mobile)
+      if (!mobile) window.location.href = '/tableau-de-bord'
+    }, 100)
+
+    const mq = window.matchMedia('(max-width: 767px)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      setIsSmartphone(e.matches)
+      if (!e.matches) window.location.href = '/tableau-de-bord'
+    }
+    mq.addEventListener('change', handleChange)
+
+    return () => {
+      clearTimeout(timer)
+      mq.removeEventListener('change', handleChange)
+    }
+  }, [])
+
+  // Indéterminé ou PC → écran de chargement (le PC sera redirigé automatiquement)
+  if (loading || isSmartphone === null || isSmartphone === false) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <p className="text-gray-400 text-sm">Chargement…</p>
@@ -24,6 +48,7 @@ export default function ChoixPage() {
     )
   }
 
+  // Smartphone confirmé → page de choix
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-6 py-10"
       style={{ paddingTop: 'max(env(safe-area-inset-top), 40px)', paddingBottom: 'max(env(safe-area-inset-bottom), 40px)' }}>

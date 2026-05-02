@@ -118,7 +118,7 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
         window.location.href = '/mon-planning'
       } else {
         // admin/responsable/manager : choix sur mobile, tableau-de-bord sur PC
-        window.location.href = window.innerWidth < 768 ? '/choix' : '/tableau-de-bord'
+        window.location.href = window.matchMedia('(max-width: 767px)').matches ? '/choix' : '/tableau-de-bord'
       }
       return true
     }
