@@ -255,8 +255,8 @@ export default function Sidebar() {
       >
         {!collapsed && (
           <div className="overflow-hidden">
-            <div className="text-base font-semibold tracking-tight whitespace-nowrap">Musiam Planning</div>
-            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap">Planification multi-sites</p>
+            <div className="text-base font-bold tracking-tight whitespace-nowrap">Musiam Planning</div>
+            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap italic">by Planekipe ©</p>
           </div>
         )}
         <button
