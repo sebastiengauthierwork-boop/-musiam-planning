@@ -14,6 +14,8 @@ import TabArchives from './TabArchives'
 import TabFeuilleJour from './TabFeuilleJour'
 import { useAuth } from '@/lib/auth'
 import { useSite } from '@/lib/site-context'
+import { usePermissions } from '@/lib/permissions'
+import type { Permission } from '@/lib/permissions'
 import { loadTeamData, loadEmployeeHistory } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
@@ -27,10 +29,19 @@ const TABS = [
 ] as const
 type TabId = typeof TABS[number]['id']
 
+const TAB_PERMISSIONS: Partial<Record<TabId, Permission>> = {
+  saisie:       'edit_planning',
+  planning:     'print_planning',
+  compteur:     'view_hours_counter',
+  emargement:   'print_emargement',
+  archives:     'archive_planning',
+}
+
 export default function PlanningPage() {
   const now = new Date()
   const { role, allowedTeams, loading: authLoading, user } = useAuth()
   const { selectedSiteId } = useSite()
+  const { can } = usePermissions()
   const [teamId, setTeamId]     = useState<string>('')
   const [month, setMonth]       = useState(now.getMonth())
   const [year, setYear]         = useState(now.getFullYear())
@@ -47,6 +58,17 @@ export default function PlanningPage() {
   const [archiveDate, setArchiveDate] = useState<string | null>(null)
   const [planningStatus, setPlanningStatus] = useState<'brouillon' | 'publie'>('brouillon')
   const [publishLoading, setPublishLoading] = useState(false)
+
+  // Onglets visibles selon permissions
+  const visibleTabs = TABS.filter(t => {
+    const perm = TAB_PERMISSIONS[t.id]
+    return !perm || can(perm)
+  })
+  useEffect(() => {
+    if (visibleTabs.length > 0 && !visibleTabs.find(t => t.id === tab)) {
+      setTab(visibleTabs[0].id)
+    }
+  }, [visibleTabs.map(t => t.id).join(',')])
 
   // Filtre par site + filtre manager, réactifs sans re-fetch
   const teams = useMemo(() => {
@@ -267,7 +289,7 @@ export default function PlanningPage() {
 
       {/* ── Tabs ── */}
       <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex gap-0">
-        {TABS.map(t => (
+        {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               tab === t.id

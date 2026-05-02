@@ -12,12 +12,13 @@ interface AuthContextValue {
   role: Role
   allowedTeams: string[]
   allowedSiteId: string | null
+  employeeId: string | null
   loading: boolean
   signOut: () => void
 }
 
 export const AuthContext = createContext<AuthContextValue>({
-  user: null, role: null, allowedTeams: [], allowedSiteId: null, loading: true, signOut: () => {},
+  user: null, role: null, allowedTeams: [], allowedSiteId: null, employeeId: null, loading: true, signOut: () => {},
 })
 
 const RESTRICTED_ROUTES = ['/parametrage', '/admin']
@@ -27,18 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>(null)
   const [allowedTeams, setAllowedTeams] = useState<string[]>([])
   const [allowedSiteId, setAllowedSiteId] = useState<string | null>(null)
+  const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   async function fetchUserProfile(authUser: User): Promise<Role> {
     const { data, error } = await supabase
-      .from('users').select('role, allowed_teams, allowed_site_id').eq('id', authUser.id).single()
+      .from('users').select('role, allowed_teams, allowed_site_id, employee_id').eq('id', authUser.id).single()
     if (!error && data) {
       setRole((data.role as Role) ?? null)
       setAllowedTeams(data.allowed_teams ?? [])
       setAllowedSiteId(data.allowed_site_id ?? null)
+      setEmployeeId(data.employee_id ?? null)
       return (data.role as Role) ?? null
     }
-    setRole(null); setAllowedTeams([]); setAllowedSiteId(null)
+    setRole(null); setAllowedTeams([]); setAllowedSiteId(null); setEmployeeId(null)
     return null
   }
 
@@ -49,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // non connecté et on redirige vers /login pour ne pas bloquer indéfiniment.
     const timeout = setTimeout(() => {
       timedOut = true
-      setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null)
+      setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null); setEmployeeId(null)
       const redirected = redirectIfNeeded(null, null)
       if (!redirected) setLoading(false)
     }, 3000)
@@ -67,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!redirected) setLoading(false)
         })
       } else {
-        setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null)
+        setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null); setEmployeeId(null)
         const redirected = redirectIfNeeded(null, null)
         if (!redirected) setLoading(false)
       }
@@ -82,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!redirected) setLoading(false)
         })
       } else {
-        setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null)
+        setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null); setEmployeeId(null)
         const redirected = redirectIfNeeded(null, null)
         if (!redirected) setLoading(false)
       }
@@ -101,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Children toujours rendus — chaque page gère son propre état de chargement
   return (
-    <AuthContext.Provider value={{ user, role, allowedTeams, allowedSiteId, loading, signOut }}>
+    <AuthContext.Provider value={{ user, role, allowedTeams, allowedSiteId, employeeId, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   )

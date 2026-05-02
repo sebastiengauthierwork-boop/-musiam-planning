@@ -103,7 +103,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MonPlanningPage() {
-  const { user, role, loading: authLoading, signOut } = useAuth()
+  const { user, role, employeeId, loading: authLoading, signOut } = useAuth()
 
   const now = new Date()
   const todayKey = dateStr(now.getFullYear(), now.getMonth(), now.getDate())
@@ -118,7 +118,6 @@ export default function MonPlanningPage() {
   const [tab, setTab] = useState<'planning' | 'equipe'>('planning')
 
   // Data
-  const [employeeId, setEmployeeId] = useState<string | null>(null)
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [team, setTeam] = useState<Team | null>(null)
   const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
@@ -139,17 +138,7 @@ export default function MonPlanningPage() {
     }
   }, [])
 
-  // Étape 1 : récupérer employee_id depuis users
-  useEffect(() => {
-    if (!user?.id) return
-    supabase.from('users')
-      .select('employee_id')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }: { data: any }) => setEmployeeId(data?.employee_id ?? null))
-  }, [user?.id])
-
-  // Étape 2 : charger les données statiques (employé, équipe, codes)
+  // Étape 1 : charger les données statiques (employé, équipe, codes)
   useEffect(() => {
     if (!employeeId) return
     setLoadingStatic(true)

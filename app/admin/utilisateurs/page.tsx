@@ -38,11 +38,10 @@ interface SimpleEmployee {
   last_name: string
 }
 
-type ModalMode = 'add' | 'edit'
+type ModalMode = 'edit'
 
 const EMPTY_FORM = {
   email: '',
-  password: '',
   role: 'manager' as 'admin' | 'responsable' | 'manager' | 'salarie',
   allowedTeams: [] as string[],
   allowedSiteId: '',
@@ -98,7 +97,7 @@ export default function UtilisateursPage() {
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<ModalMode>('add')
+  const [modalMode, setModalMode] = useState<ModalMode>('edit')
   const [editingUser, setEditingUser] = useState<AppUser | null>(null)
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [saving, setSaving] = useState(false)
@@ -175,21 +174,11 @@ export default function UtilisateursPage() {
     setEmployees(data ?? [])
   }
 
-  function openAddModal() {
-    setModalMode('add')
-    setEditingUser(null)
-    setForm({ ...EMPTY_FORM })
-    setModalError(null)
-    setModalOpen(true)
-    loadEmployees()
-  }
-
   function openEditModal(user: AppUser) {
     setModalMode('edit')
     setEditingUser(user)
     setForm({
       email: user.email,
-      password: '',
       role: user.role,
       allowedTeams: user.allowed_teams ?? [],
       allowedSiteId: user.allowed_site_id ?? '',
@@ -222,132 +211,51 @@ export default function UtilisateursPage() {
   async function handleSave() {
     setModalError(null)
     setSaving(true)
+    if (!editingUser) return
 
-    if (modalMode === 'add') {
-      if (!form.email.trim()) {
-        setModalError("L'adresse e-mail est requise.")
-        setSaving(false)
-        return
-      }
-      if (!form.password || form.password.length < 6) {
-        setModalError('Le mot de passe doit contenir au moins 6 caractères.')
-        setSaving(false)
-        return
-      }
-      if (form.role === 'salarie' && !form.employeeId) {
-        setModalError('Veuillez sélectionner le salarié associé.')
-        setSaving(false)
-        return
-      }
+    const emailNorm = form.email.trim().toLowerCase()
+    const emailChanged = emailNorm !== editingUser.email.toLowerCase()
 
-      const emailNorm = form.email.trim().toLowerCase()
-
-      // Vérifie d'abord si un profil existe déjà dans notre table users
-      const { data: existingProfile } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', emailNorm)
-        .maybeSingle()
-
-      if (existingProfile) {
-        // Profil déjà présent → mise à jour du rôle et des équipes
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            role: form.role,
-            allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
-            allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-            employee_id: form.employeeId || null,
-          })
-          .eq('id', existingProfile.id)
-        if (updateError) {
-          setModalError(updateError.message)
-          setSaving(false)
-          return
-        }
-        await loadData()
-        setSaving(false)
-        closeModal()
-        setPageSuccess('Compte mis à jour avec succès.')
-        return
-      }
-
-      // Création via l'API route sécurisée (utilise le service role key côté serveur)
+    if (emailChanged && currentRole === 'admin') {
       const session = (await supabase.auth.getSession()).data.session
-      const res = await fetch('/api/create-user', {
+      const res = await fetch('/api/update-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
-        body: JSON.stringify({
-          email: emailNorm,
-          password: form.password,
-          role: form.role,
-          employee_id: form.employeeId || null,
-          allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
-          allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-        }),
+        body: JSON.stringify({ user_id: editingUser.id, new_email: emailNorm }),
       })
       const result = await res.json()
       if (!res.ok) {
-        setModalError(result.error ?? 'Erreur lors de la création du compte')
+        setModalError(result.error ?? "Erreur lors de la modification de l'email")
         setSaving(false)
         return
       }
-      await loadData()
-      setSaving(false)
-      closeModal()
-      setPageSuccess('Compte créé avec succès.')
-    } else {
-      // Edit: update role, teams, employee link, and optionally email
-      if (!editingUser) return
-
-      const emailNorm = form.email.trim().toLowerCase()
-      const emailChanged = emailNorm !== editingUser.email.toLowerCase()
-
-      // Modifier l'email via l'API route si l'admin l'a changé
-      if (emailChanged && currentRole === 'admin') {
-        const session = (await supabase.auth.getSession()).data.session
-        const res = await fetch('/api/update-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token ?? ''}`,
-          },
-          body: JSON.stringify({ user_id: editingUser.id, new_email: emailNorm }),
-        })
-        const result = await res.json()
-        if (!res.ok) {
-          setModalError(result.error ?? "Erreur lors de la modification de l'email")
-          setSaving(false)
-          return
-        }
-      }
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({
-          role: form.role,
-          allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
-          allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-          employee_id: form.employeeId || null,
-        })
-        .eq('id', editingUser.id)
-      if (updateError) {
-        setModalError(updateError.message)
-        setSaving(false)
-        return
-      }
-      await loadData()
-      setSaving(false)
-      closeModal()
-      setPageSuccess(
-        emailChanged && currentRole === 'admin'
-          ? `Email modifié. Le salarié doit maintenant se connecter avec ${emailNorm}`
-          : 'Utilisateur mis à jour avec succès.'
-      )
     }
+
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({
+        role: form.role,
+        allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+        allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
+        employee_id: form.employeeId || null,
+      })
+      .eq('id', editingUser.id)
+    if (updateError) {
+      setModalError(updateError.message)
+      setSaving(false)
+      return
+    }
+    await loadData()
+    setSaving(false)
+    closeModal()
+    setPageSuccess(
+      emailChanged && currentRole === 'admin'
+        ? `Email modifié. Le salarié doit maintenant se connecter avec ${emailNorm}`
+        : 'Utilisateur mis à jour avec succès.'
+    )
   }
 
   // -------------------------------------------------------------------------
@@ -386,42 +294,12 @@ export default function UtilisateursPage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
-            Gestion des utilisateurs
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Gérez les accès et les rôles des membres de l'équipe.
-          </p>
-        </div>
-        <button
-          onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Ajouter un utilisateur
-        </button>
-      </div>
-
-      {/* Notice */}
-      <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
-        <p className="text-sm text-blue-800">
-          <span className="font-medium">Info :</span> Les comptes sont créés directement sans e-mail de confirmation.
-          Si un compte Auth existe déjà pour cet e-mail, le profil sera mis à jour sans recréer le compte.
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+          Gestion des utilisateurs
+        </h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Modifiez les rôles et les accès. Pour créer un accès, utilisez le bouton "Créer accès" dans la page <strong>Salariés</strong>.
         </p>
       </div>
 
@@ -543,7 +421,7 @@ export default function UtilisateursPage() {
           {/* Panel */}
           <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-xl p-7">
             <h2 className="text-lg font-semibold text-slate-900 mb-5">
-              {modalMode === 'add' ? 'Ajouter un utilisateur' : "Modifier l'utilisateur"}
+              Modifier l'utilisateur
             </h2>
 
             <div className="space-y-4">
@@ -564,22 +442,6 @@ export default function UtilisateursPage() {
                   <p className="text-xs text-slate-400 mt-1">Seul l&apos;administrateur peut modifier l&apos;email.</p>
                 )}
               </div>
-
-              {/* Password — add only */}
-              {modalMode === 'add' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Mot de passe
-                  </label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="Min. 6 caractères"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                  />
-                </div>
-              )}
 
               {/* Role */}
               <div>
