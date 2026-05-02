@@ -70,6 +70,175 @@ function isCadreWorkedDay(code: string | null | undefined, shiftCodes: ShiftCode
   return getScheduleType(code, shiftCodes, absenceCodes) === 'shift'
 }
 
+// ─── Conformité droit du travail ──────────────────────────────────────────────
+
+type ConformiteAlert = { severity: 'red' | 'orange'; rule: string; detail: string }
+type EmployeeConformite = { employee: Employee; alerts: ConformiteAlert[] }
+type ConformiteReport = { perEmployee: EmployeeConformite[]; totalAlerts: number; totalEmployeesWithAlerts: number }
+
+function fmtTime(totalMins: number): string {
+  const m = ((totalMins % (24 * 60)) + 24 * 60) % (24 * 60)
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+function fmtDuration(mins: number): string {
+  const h = Math.floor(mins / 60); const m = mins % 60
+  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`
+}
+function timeStrToMins(t: string | null | undefined): number | null {
+  if (!t) return null
+  const parts = t.split(':')
+  const h = Number(parts[0]); const m = Number(parts[1] ?? '0')
+  if (isNaN(h) || isNaN(m)) return null
+  return h * 60 + m
+}
+
+function computeConformite(
+  employees: Employee[],
+  days: Date[],
+  cellValues: Record<string, string>,
+  shiftCodes: ShiftCode[],
+  absenceCodes: AbsenceCode[],
+  month: number
+): ConformiteReport {
+  const MONTHS_LONG = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
+
+  interface DayInfo {
+    d: Date; dateStr: string; worked: boolean
+    startMins: number | null; endMins: number | null; netH: number
+  }
+
+  function fmtDate(d: Date) {
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+  function isWorked(code: string | null | undefined): boolean {
+    return !!code && getScheduleType(code, shiftCodes, absenceCodes) === 'shift'
+  }
+
+  const perEmployee: EmployeeConformite[] = []
+
+  for (const emp of employees) {
+    const alerts: ConformiteAlert[] = []
+    const isCadre = emp.statut === 'cadre'
+    const isTmp = isTemporaire(emp.contract_type)
+    const isCDI = (emp.contract_type ?? '').toUpperCase() === 'CDI'
+
+    const empDays: DayInfo[] = days.map(d => {
+      const dateStr = toISO(d)
+      const code = cellValues[`${emp.id}|${dateStr}`] || null
+      if (!code || !isWorked(code)) return { d, dateStr, worked: false, startMins: null, endMins: null, netH: 0 }
+      const sc = shiftCodes.find(c => c.code === code)
+      const startMins = timeStrToMins(sc?.start_time)
+      let endMins = timeStrToMins(sc?.end_time)
+      if (startMins !== null && endMins !== null && endMins < startMins) endMins += 24 * 60
+      return { d, dateStr, worked: true, startMins, endMins, netH: Number(sc?.net_hours ?? sc?.paid_hours ?? 0) }
+    })
+
+    if (!isCadre) {
+      // 1. Amplitude journalière > 13h
+      for (const day of empDays) {
+        if (!day.worked || day.startMins === null || day.endMins === null) continue
+        const amp = day.endMins - day.startMins
+        if (amp > 13 * 60) {
+          alerts.push({
+            severity: 'red', rule: 'Amplitude journalière > 13h',
+            detail: `${fmtDate(day.d)} : ${fmtTime(day.startMins)}–${fmtTime(day.endMins)} → ${fmtDuration(amp)} d'amplitude (max 13h)`,
+          })
+        }
+      }
+
+      // 2. Repos quotidien < 11h
+      for (let i = 0; i < empDays.length - 1; i++) {
+        const cur = empDays[i]; const nxt = empDays[i + 1]
+        if (!cur.worked || !nxt.worked || cur.endMins === null || nxt.startMins === null) continue
+        const rest = (i + 1) * 24 * 60 + nxt.startMins - (i * 24 * 60 + cur.endMins)
+        if (rest < 11 * 60) {
+          alerts.push({
+            severity: 'red', rule: 'Repos quotidien < 11h',
+            detail: `${fmtDate(cur.d)} (fin ${fmtTime(cur.endMins)}) → ${fmtDate(nxt.d)} (début ${fmtTime(nxt.startMins)}) : repos de ${fmtDuration(Math.max(0, rest))} (minimum 11h)`,
+          })
+        }
+      }
+
+      // 3. Max 6 jours consécutifs
+      let streak = 0; let streakStart = 0
+      for (let i = 0; i <= empDays.length; i++) {
+        if (i < empDays.length && empDays[i].worked) {
+          if (streak === 0) streakStart = i
+          streak++
+        } else {
+          if (streak > 6) {
+            alerts.push({
+              severity: 'red', rule: 'Plus de 6 jours consécutifs travaillés',
+              detail: `Du ${fmtDate(empDays[streakStart].d)} au ${fmtDate(empDays[i - 1].d)} : ${streak} jours consécutifs (maximum 6)`,
+            })
+          }
+          streak = 0
+        }
+      }
+
+      // 4 & 5. Par semaine
+      const weeksList = getWeeksOfMonth(days)
+      for (const week of weeksList) {
+        // 4. 48h max
+        const weekH = week.days.reduce((s, d) => s + (empDays.find(x => x.dateStr === toISO(d))?.netH ?? 0), 0)
+        if (weekH > 48) {
+          alerts.push({
+            severity: 'red', rule: 'Durée hebdomadaire > 48h',
+            detail: `Semaine du ${fmtDate(week.days[0])} au ${fmtDate(week.days[week.days.length - 1])} : ${weekH.toFixed(1)}h travaillées (maximum 48h)`,
+          })
+        }
+
+        // 5. 35h repos consécutifs (semaines complètes uniquement)
+        if (week.days.length === 7) {
+          const intervals: { start: number; end: number }[] = []
+          for (let i = 0; i < 7; i++) {
+            const di = empDays.find(x => x.dateStr === toISO(week.days[i]))
+            if (!di?.worked || di.startMins === null || di.endMins === null) continue
+            intervals.push({ start: i * 24 * 60 + di.startMins, end: i * 24 * 60 + di.endMins })
+          }
+          intervals.sort((a, b) => a.start - b.start)
+          const merged: { start: number; end: number }[] = []
+          for (const iv of intervals) {
+            if (!merged.length || merged[merged.length - 1].end < iv.start) merged.push({ ...iv })
+            else merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, iv.end)
+          }
+          let maxRest = 0; let cursor = 0
+          for (const iv of merged) { maxRest = Math.max(maxRest, iv.start - cursor); cursor = iv.end }
+          maxRest = Math.max(maxRest, 7 * 24 * 60 - cursor)
+          if (maxRest < 35 * 60) {
+            alerts.push({
+              severity: 'red', rule: 'Repos hebdomadaire < 35h consécutives',
+              detail: `Semaine du ${fmtDate(week.days[0])} au ${fmtDate(week.days[6])} : repos max de ${fmtDuration(maxRest)} (minimum 35h)`,
+            })
+          }
+        }
+      }
+    }
+
+    // 6. Week-end complet (CDI, hors temporaires)
+    if (isCDI && !isTmp) {
+      let hasWeekend = false
+      for (let i = 0; i < empDays.length - 1; i++) {
+        if (empDays[i].d.getDay() !== 6 || empDays[i + 1].d.getDay() !== 0) continue
+        if (!empDays[i].worked && !empDays[i + 1].worked) { hasWeekend = true; break }
+      }
+      if (!hasWeekend) {
+        alerts.push({
+          severity: 'orange', rule: 'Aucun week-end complet dans le mois',
+          detail: `Aucun week-end complet (samedi + dimanche en repos) en ${MONTHS_LONG[month]}`,
+        })
+      }
+    }
+
+    if (alerts.length > 0) perEmployee.push({ employee: emp, alerts })
+  }
+
+  return {
+    perEmployee,
+    totalAlerts: perEmployee.reduce((s, e) => s + e.alerts.length, 0),
+    totalEmployeesWithAlerts: perEmployee.length,
+  }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -283,6 +452,14 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [loadingAvailable, setLoadingAvailable] = useState(false)
   const [interimAdding, setInterimAdding] = useState(false)
 
+  // ── Conformité ──
+  const [showComplianceModal, setShowComplianceModal] = useState(false)
+  const [complianceReport, setComplianceReport] = useState<ConformiteReport | null>(null)
+
+  function runConformite() {
+    setComplianceReport(computeConformite(employees, days, cellValues, shiftCodes, absenceCodes, month))
+    setShowComplianceModal(true)
+  }
 
   // ── Bandeau effectifs ──
   const [bandeauOpen, setBandeauOpen] = useState(false)
@@ -858,9 +1035,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </div>
       )}
 
-      {/* Action bar: cycle + archive */}
+      {/* Action bar: cycle + conformité + archive */}
       {!isArchived && (
-        <div className="shrink-0 flex items-center justify-between px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
           <button onClick={() => { setCycleResult(null); setCycleStartWeek(1); setCycleOverwrite(false); setCycleStartDate(`${year}-${String(month + 1).padStart(2, '0')}-01`); setCycleEndDate(toISO(new Date(year, month + 1, 0))); setShowCycleModal(true) }}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -868,9 +1045,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
             </svg>
             Appliquer le cycle
           </button>
+          <button onClick={runConformite}
+            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Vérifier la conformité
+          </button>
           {year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
             <button onClick={() => setShowArchiveModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+              className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
               </svg>
@@ -1373,6 +1557,73 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Conformité modal */}
+      {showComplianceModal && complianceReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowComplianceModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Vérification de conformité</h2>
+                <p className="text-xs text-gray-400 mt-0.5">{teamName} — {MONTHS_FR[month]} {year}</p>
+              </div>
+              <button onClick={() => setShowComplianceModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none p-1 rounded">×</button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {complianceReport.totalAlerts === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-base font-semibold text-green-700">Planning conforme</p>
+                  <p className="text-sm text-gray-400 mt-1">Aucune anomalie détectée</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="px-2.5 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
+                      {complianceReport.totalAlerts} anomalie{complianceReport.totalAlerts > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      pour {complianceReport.totalEmployeesWithAlerts} salarié{complianceReport.totalEmployeesWithAlerts > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {complianceReport.perEmployee.map(({ employee, alerts }) => (
+                      <div key={employee.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-800">{employee.last_name} {employee.first_name}</span>
+                          <span className="text-xs text-gray-400">{employee.contract_type}{employee.statut ? ` · ${employee.statut}` : ''}</span>
+                        </div>
+                        <div className="divide-y divide-gray-50">
+                          {alerts.map((alert, idx) => (
+                            <div key={idx} className={`flex items-start gap-3 px-4 py-2.5 ${alert.severity === 'red' ? 'bg-red-50' : 'bg-orange-50'}`}>
+                              <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${alert.severity === 'red' ? 'bg-red-500' : 'bg-orange-400'}`} />
+                              <div>
+                                <div className={`text-xs font-semibold ${alert.severity === 'red' ? 'text-red-700' : 'text-orange-700'}`}>{alert.rule}</div>
+                                <div className={`text-xs mt-0.5 ${alert.severity === 'red' ? 'text-red-600' : 'text-orange-600'}`}>{alert.detail}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="px-6 py-3 border-t border-gray-100 shrink-0 flex justify-end">
+              <button onClick={() => setShowComplianceModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
