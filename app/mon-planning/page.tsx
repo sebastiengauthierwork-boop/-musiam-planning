@@ -130,7 +130,7 @@ export default function MonPlanningPage() {
   const [loadingStatic, setLoadingStatic] = useState(true)
   const [loadingSched, setLoadingSched] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [nextMonthBlocked, setNextMonthBlocked] = useState(false)
+  const [nextMonthBlocked, setNextMonthBlocked] = useState<boolean | null>(null)
 
   // Enregistrement du service worker (PWA)
   useEffect(() => {
@@ -181,14 +181,17 @@ export default function MonPlanningPage() {
   const loadSchedules = useCallback(async () => {
     if (!employeeId || !teamId) return
     setLoadingSched(true)
-    // Vider immédiatement pour éviter d'afficher des données stales pendant la vérification async
     setSchedules([])
     setTeamSchedules([])
     setTeamEmployees([])
-    setNextMonthBlocked(false)
 
     const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
-    if (isNextMonth) {
+    if (!isNextMonth) {
+      // Mois courant : toujours visible
+      setNextMonthBlocked(false)
+    } else {
+      // Mois suivant : vérifier le statut avant tout rendu
+      setNextMonthBlocked(null)
       const psRes = await supabase.from('planning_status')
         .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year).maybeSingle()
       if (psRes.data?.status !== 'publie') {
@@ -196,8 +199,8 @@ export default function MonPlanningPage() {
         setLoadingSched(false)
         return
       }
+      setNextMonthBlocked(false)
     }
-    setNextMonthBlocked(false)
 
     const start = `${year}-${pad(month + 1)}-01`
     const lastDay = new Date(year, month + 1, 0).getDate()
@@ -244,6 +247,25 @@ export default function MonPlanningPage() {
     document.addEventListener('visibilitychange', handleVisibility)
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [loadSchedules])
+
+  // Re-vérifier la publication au changement d'onglet (Mon planning ↔ Mon équipe)
+  // Permet de détecter une dépublication faite par l'admin pendant que l'employé est sur la page
+  useEffect(() => {
+    if (!teamId || !employeeId) return
+    const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
+    if (!isNextMonth) { setNextMonthBlocked(false); return }
+    supabase.from('planning_status')
+      .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year)
+      .maybeSingle()
+      .then(({ data }: { data: any }) => {
+        if (data?.status !== 'publie') {
+          setNextMonthBlocked(true)
+          setTeamSchedules([])
+          setTeamEmployees([])
+          setSchedules([])
+        }
+      })
+  }, [tab, teamId, year, month, employeeId])
 
   // --- Guards ---
 
@@ -391,7 +413,7 @@ export default function MonPlanningPage() {
       {/* Contenu */}
       <div className="flex-1 overflow-y-auto">
         {/* ── Onglet Mon planning ── */}
-        {tab === 'planning' && nextMonthBlocked && (
+        {tab === 'planning' && nextMonthBlocked === true && (
           <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
             <p className="text-gray-600 text-base font-medium">
               Le planning de {MONTHS[month]} {year} n'est pas encore disponible.
@@ -401,7 +423,7 @@ export default function MonPlanningPage() {
             </p>
           </div>
         )}
-        {tab === 'planning' && !nextMonthBlocked && (
+        {tab === 'planning' && nextMonthBlocked === false && (
           <div className="p-4 space-y-2 pb-10">
             {days.map(({ d, ds, code, colors, sc, isToday, isWE }) => (
               <div
@@ -455,14 +477,14 @@ export default function MonPlanningPage() {
         )}
 
         {/* ── Onglet Mon équipe ── */}
-        {tab === 'equipe' && nextMonthBlocked && (
+        {tab === 'equipe' && nextMonthBlocked === true && (
           <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
             <p className="text-gray-600 text-base font-medium">
               Le planning de {MONTHS[month]} {year} n'est pas encore disponible.
             </p>
           </div>
         )}
-        {tab === 'equipe' && !nextMonthBlocked && (
+        {tab === 'equipe' && nextMonthBlocked === false && (
           <div className="overflow-x-auto pb-10">
             <table className="border-collapse" style={{ fontSize: 11 }}>
               <thead>
