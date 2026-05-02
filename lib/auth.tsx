@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session.user)
         // Attendre le rôle avant de libérer le rendu — évite le flash dashboard/sidebar
         fetchUserProfile(session.user).then(userRole => {
+          if (handleJustLoggedIn(userRole)) return
           const redirected = redirectIfNeeded(session.user, userRole)
           if (!redirected) setLoading(false)
         })
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setUser(session.user)
         fetchUserProfile(session.user).then(userRole => {
+          if (handleJustLoggedIn(userRole)) return
           const redirected = redirectIfNeeded(session.user, userRole)
           if (!redirected) setLoading(false)
         })
@@ -90,7 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   function signOut() {
-    supabase.auth.signOut().then(() => { window.location.href = '/login' })
+    supabase.auth.signOut().then(() => {
+      try { localStorage.clear() } catch {}
+      try { sessionStorage.clear() } catch {}
+      window.location.href = '/login'
+    })
   }
 
   // Children toujours rendus — chaque page gère son propre état de chargement
@@ -99,6 +105,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
+}
+
+function handleJustLoggedIn(role: Role): boolean {
+  if (typeof window === 'undefined') return false
+  const flag = sessionStorage.getItem('just_logged_in')
+  if (!flag) return false
+  sessionStorage.removeItem('just_logged_in')
+  if (role === 'salarie') {
+    window.location.href = '/mon-planning'
+  } else {
+    // Par défaut smartphone si matchMedia échoue (plus sûr)
+    const isMobile = (() => {
+      try { return window.matchMedia('(max-width: 767px)').matches } catch { return true }
+    })()
+    window.location.href = isMobile ? '/choix' : '/tableau-de-bord'
+  }
+  return true
 }
 
 function redirectIfNeeded(user: User | null, role: Role): boolean {

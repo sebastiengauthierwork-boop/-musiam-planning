@@ -31,7 +31,8 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = '/planning'
+      // Marquer "vient de se connecter" — l'AuthProvider gère la redirection
+      sessionStorage.setItem('just_logged_in', 'true')
     } catch (err) {
       console.error('Unexpected error:', err)
       setError('Une erreur inattendue est survenue.')
