@@ -181,6 +181,11 @@ export default function MonPlanningPage() {
   const loadSchedules = useCallback(async () => {
     if (!employeeId || !teamId) return
     setLoadingSched(true)
+    // Vider immédiatement pour éviter d'afficher des données stales pendant la vérification async
+    setSchedules([])
+    setTeamSchedules([])
+    setTeamEmployees([])
+    setNextMonthBlocked(false)
 
     const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
     if (isNextMonth) {
@@ -188,9 +193,6 @@ export default function MonPlanningPage() {
         .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year).maybeSingle()
       if (psRes.data?.status !== 'publie') {
         setNextMonthBlocked(true)
-        setSchedules([])
-        setTeamSchedules([])
-        setTeamEmployees([])
         setLoadingSched(false)
         return
       }
@@ -235,6 +237,13 @@ export default function MonPlanningPage() {
   }, [employeeId, teamId, year, month])
 
   useEffect(() => { loadSchedules() }, [loadSchedules])
+
+  // Re-vérifier le statut de publication quand l'utilisateur revient sur l'onglet navigateur
+  useEffect(() => {
+    const handleVisibility = () => { if (document.visibilityState === 'visible') loadSchedules() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [loadSchedules])
 
   // --- Guards ---
 

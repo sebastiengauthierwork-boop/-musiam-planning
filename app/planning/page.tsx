@@ -184,22 +184,22 @@ export default function PlanningPage() {
   async function handlePublish() {
     if (!confirm(`Publier le planning de ${currentTeamName} pour ${MONTHS[month]} ${year} ? Les salariés pourront le consulter sur leur téléphone.`)) return
     setPublishLoading(true)
+    setPlanningStatus('publie') // update optimiste immédiat
     await supabase.from('planning_status').upsert(
       { team_id: teamId, month: month + 1, year, status: 'publie', published_at: new Date().toISOString(), published_by: user?.id ?? null },
       { onConflict: 'team_id,month,year' }
     )
-    setPlanningStatus('publie')
     setPublishLoading(false)
   }
 
   async function handleUnpublish() {
     if (!confirm(`Repasser en brouillon le planning de ${currentTeamName} pour ${MONTHS[month]} ${year} ?`)) return
     setPublishLoading(true)
+    setPlanningStatus('brouillon') // update optimiste immédiat
     await supabase.from('planning_status').upsert(
       { team_id: teamId, month: month + 1, year, status: 'brouillon', published_at: null, published_by: null },
       { onConflict: 'team_id,month,year' }
     )
-    setPlanningStatus('brouillon')
     setPublishLoading(false)
   }
 
