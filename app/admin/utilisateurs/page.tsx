@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState, Fragment } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
@@ -273,55 +272,26 @@ export default function UtilisateursPage() {
         return
       }
 
-      // Création via un client temporaire (sans persistance de session)
-      // pour ne pas écraser la session admin en cours.
-      const tempClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
-      )
-      const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
-        email: emailNorm,
-        password: form.password,
-        options: { data: { role: form.role } },
+      // Création via l'API route sécurisée (utilise le service role key côté serveur)
+      const session = (await supabase.auth.getSession()).data.session
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          email: emailNorm,
+          password: form.password,
+          role: form.role,
+          employee_id: form.employeeId || null,
+          allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
+          allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
+        }),
       })
-
-      if (signUpError) {
-        const msg = signUpError.message.toLowerCase()
-        if (msg.includes('already') || msg.includes('registered')) {
-          setModalError(
-            "Ce compte existe déjà dans Supabase Auth mais n'a pas encore de profil. " +
-            "Confirmez-le manuellement dans Dashboard → Authentication → Users, puis réessayez."
-          )
-        } else {
-          setModalError(signUpError.message)
-        }
-        setSaving(false)
-        return
-      }
-
-      const authUserId = signUpData.user?.id
-      if (!authUserId) {
-        setModalError(
-          "Compte en attente de confirmation e-mail. " +
-          "Pour éviter cela, désactivez la confirmation dans Supabase : " +
-          "Authentication → Settings → Disable email confirmations. " +
-          "Ou confirmez manuellement dans Dashboard → Authentication → Users."
-        )
-        setSaving(false)
-        return
-      }
-
-      const { error: insertError } = await supabase.from('users').insert({
-        id: authUserId,
-        email: emailNorm,
-        role: form.role,
-        allowed_teams: form.role === 'manager' ? form.allowedTeams : [],
-        allowed_site_id: form.role === 'responsable' ? form.allowedSiteId || null : null,
-        employee_id: form.employeeId || null,
-      })
-      if (insertError) {
-        setModalError(insertError.message)
+      const result = await res.json()
+      if (!res.ok) {
+        setModalError(result.error ?? 'Erreur lors de la création du compte')
         setSaving(false)
         return
       }
@@ -422,9 +392,8 @@ export default function UtilisateursPage() {
       {/* Notice */}
       <div className="mb-5 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
         <p className="text-sm text-blue-800">
-          <span className="font-medium">Info :</span> Pour éviter les e-mails de confirmation,
-          désactivez-les dans Supabase : <strong>Authentication → Settings → Disable email confirmations</strong>.
-          Si un compte Auth existe déjà, entrez son e-mail — le profil sera mis à jour sans recréer le compte.
+          <span className="font-medium">Info :</span> Les comptes sont créés directement sans e-mail de confirmation.
+          Si un compte Auth existe déjà pour cet e-mail, le profil sera mis à jour sans recréer le compte.
         </p>
       </div>
 

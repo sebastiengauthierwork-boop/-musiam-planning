@@ -30,6 +30,7 @@ type Employee = {
 }
 
 type Team = { id: string; name: string; cdpf: string | null }
+type Site = { id: string; name: string }
 type JobFunction = { id: string; name: string; code: string | null; is_active: boolean }
 
 type EmployeeWithTeams = Employee & {
@@ -90,6 +91,7 @@ export default function EmployesPage() {
   const { role } = useAuth()
   const [employees, setEmployees] = useState<EmployeeWithTeams[]>([])
   const [allTeams, setAllTeams] = useState<Team[]>([])
+  const [sites, setSites] = useState<Site[]>([])
   const [jobFunctions, setJobFunctions] = useState<JobFunction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -99,6 +101,20 @@ export default function EmployesPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  // Créer accès utilisateur
+  const [employeeUserIds, setEmployeeUserIds] = useState<Set<string>>(new Set())
+  const [createAccessEmp, setCreateAccessEmp] = useState<EmployeeWithTeams | null>(null)
+  const [createAccessForm, setCreateAccessForm] = useState({
+    email: '', password: '',
+    role: 'salarie' as 'salarie' | 'manager' | 'responsable',
+    allowedTeams: [] as string[],
+    allowedSiteId: '',
+  })
+  const [createAccessSaving, setCreateAccessSaving] = useState(false)
+  const [createAccessError, setCreateAccessError] = useState<string | null>(null)
+  const [createAccessSuccess, setCreateAccessSuccess] = useState<string | null>(null)
+
   const [historyModal, setHistoryModal] = useState<{
     changedFields: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[]
     option: 'beginning' | 'from_date'
@@ -117,11 +133,13 @@ export default function EmployesPage() {
     let teamsQ = supabase.from('teams').select('id, name, cdpf').order('name').limit(100)
     if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
 
-    const [empRes, etRes, teamsRes, fnRes] = await Promise.all([
+    const [empRes, etRes, teamsRes, fnRes, usersRes, sitesRes] = await Promise.all([
       empQ,
       supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
       teamsQ,
       supabase.from('job_functions').select('id, name, code, is_active').eq('is_active', true).order('name').limit(100),
+      supabase.from('users').select('employee_id').not('employee_id', 'is', null),
+      supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
     ])
 
     if (empRes.error) { setError(empRes.error.message); return }
@@ -140,6 +158,8 @@ export default function EmployesPage() {
     setEmployees((empRes.data ?? []).map((emp: any) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })))
     setAllTeams(teamsRes.data ?? [])
     setJobFunctions(fnRes.data ?? [])
+    setEmployeeUserIds(new Set((usersRes.data ?? []).map((u: any) => u.employee_id).filter(Boolean)))
+    setSites(sitesRes.data ?? [])
   }
 
   useEffect(() => { loadData().finally(() => setLoading(false)) }, [selectedSiteId])
@@ -293,6 +313,52 @@ export default function EmployesPage() {
       .order('created_at', { ascending: false })
     setEmpHistory(data ?? [])
     setHistoryLoading(false)
+  }
+
+  function openCreateAccess(emp: EmployeeWithTeams) {
+    setCreateAccessEmp(emp)
+    setCreateAccessForm({ email: emp.email ?? '', password: '', role: 'salarie', allowedTeams: [], allowedSiteId: '' })
+    setCreateAccessError(null)
+    setCreateAccessSuccess(null)
+  }
+
+  async function handleCreateAccess() {
+    if (!createAccessEmp) return
+    if (!createAccessForm.email.trim() || !createAccessForm.password) {
+      setCreateAccessError('Email et mot de passe requis')
+      return
+    }
+    setCreateAccessSaving(true)
+    setCreateAccessError(null)
+    try {
+      const session = (await supabase.auth.getSession()).data.session
+      const res = await fetch('/api/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({
+          email: createAccessForm.email.trim().toLowerCase(),
+          password: createAccessForm.password,
+          role: createAccessForm.role,
+          employee_id: createAccessEmp.id,
+          allowed_teams: createAccessForm.role === 'manager' ? createAccessForm.allowedTeams : [],
+          allowed_site_id: createAccessForm.role === 'responsable' ? createAccessForm.allowedSiteId || null : null,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        setCreateAccessError(result.error ?? 'Erreur lors de la création du compte')
+        return
+      }
+      setCreateAccessSuccess('Compte créé avec succès.')
+      await loadData()
+    } catch (e: any) {
+      setCreateAccessError(e?.message ?? 'Erreur réseau')
+    } finally {
+      setCreateAccessSaving(false)
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
@@ -467,6 +533,21 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
+                    {(role === 'admin' || role === 'responsable') && (
+                      employeeUserIds.has(emp.id) ? (
+                        <span title="Accès actif" className="p-1 text-green-500">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </span>
+                      ) : (
+                        <button onClick={() => openCreateAccess(emp)} title="Créer un accès" className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                        </button>
+                      )
+                    )}
                     {(role === 'admin' || role === 'responsable') && (
                       <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -705,6 +786,83 @@ export default function EmployesPage() {
               Fermer
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal Créer accès */}
+      {createAccessEmp && (
+        <Modal title="Créer un accès utilisateur" onClose={() => setCreateAccessEmp(null)}>
+          {createAccessSuccess ? (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                {createAccessSuccess}
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => setCreateAccessEmp(null)} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg">
+                  Fermer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Salarié</label>
+                <div className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 font-medium">
+                  {createAccessEmp.last_name} {createAccessEmp.first_name}
+                </div>
+              </div>
+              <Field label="Email *">
+                <input type="email" value={createAccessForm.email} onChange={e => setCreateAccessForm(p => ({ ...p, email: e.target.value }))} className="input" placeholder="prenom.nom@exemple.fr" />
+              </Field>
+              <Field label="Mot de passe *">
+                <input type="password" value={createAccessForm.password} onChange={e => setCreateAccessForm(p => ({ ...p, password: e.target.value }))} className="input" placeholder="Min. 6 caractères" />
+              </Field>
+              <Field label="Rôle">
+                <select value={createAccessForm.role} onChange={e => setCreateAccessForm(p => ({ ...p, role: e.target.value as typeof p.role, allowedTeams: [], allowedSiteId: '' }))} className="input">
+                  <option value="salarie">Salarié</option>
+                  <option value="manager">Manager</option>
+                  <option value="responsable">Responsable de site</option>
+                </select>
+              </Field>
+              {createAccessForm.role === 'manager' && (
+                <Field label="Équipes autorisées">
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-36 overflow-y-auto">
+                    {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucune équipe disponible</p>}
+                    {allTeams.map(t => (
+                      <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                        <input type="checkbox" checked={createAccessForm.allowedTeams.includes(t.id)}
+                          onChange={() => setCreateAccessForm(p => ({
+                            ...p,
+                            allowedTeams: p.allowedTeams.includes(t.id) ? p.allowedTeams.filter(id => id !== t.id) : [...p.allowedTeams, t.id],
+                          }))}
+                          className="rounded border-gray-300 text-slate-900" />
+                        <span className="text-sm text-gray-700">{teamLabel(t)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              )}
+              {createAccessForm.role === 'responsable' && (
+                <Field label="Site">
+                  <select value={createAccessForm.allowedSiteId} onChange={e => setCreateAccessForm(p => ({ ...p, allowedSiteId: e.target.value }))} className="input">
+                    <option value="">— Sélectionner un site —</option>
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </Field>
+              )}
+              {createAccessError && (
+                <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm">Erreur : {createAccessError}</div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setCreateAccessEmp(null)} disabled={createAccessSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                  Annuler
+                </button>
+                <button onClick={handleCreateAccess} disabled={createAccessSaving || !createAccessForm.email.trim() || !createAccessForm.password} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+                  {createAccessSaving ? 'Création…' : 'Créer le compte'}
+                </button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
 
