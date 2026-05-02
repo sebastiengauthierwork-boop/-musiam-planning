@@ -300,8 +300,31 @@ export default function UtilisateursPage() {
       closeModal()
       setPageSuccess('Compte créé avec succès.')
     } else {
-      // Edit: update role, teams, and employee link
+      // Edit: update role, teams, employee link, and optionally email
       if (!editingUser) return
+
+      const emailNorm = form.email.trim().toLowerCase()
+      const emailChanged = emailNorm !== editingUser.email.toLowerCase()
+
+      // Modifier l'email via l'API route si l'admin l'a changé
+      if (emailChanged && currentRole === 'admin') {
+        const session = (await supabase.auth.getSession()).data.session
+        const res = await fetch('/api/update-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token ?? ''}`,
+          },
+          body: JSON.stringify({ user_id: editingUser.id, new_email: emailNorm }),
+        })
+        const result = await res.json()
+        if (!res.ok) {
+          setModalError(result.error ?? "Erreur lors de la modification de l'email")
+          setSaving(false)
+          return
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('users')
         .update({
@@ -319,6 +342,11 @@ export default function UtilisateursPage() {
       await loadData()
       setSaving(false)
       closeModal()
+      setPageSuccess(
+        emailChanged && currentRole === 'admin'
+          ? `Email modifié. Le salarié doit maintenant se connecter avec ${emailNorm}`
+          : 'Utilisateur mis à jour avec succès.'
+      )
     }
   }
 
@@ -519,34 +547,38 @@ export default function UtilisateursPage() {
             </h2>
 
             <div className="space-y-4">
-              {/* Email + Password — add only */}
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Adresse e-mail
+                </label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  placeholder="prenom.nom@musiam.fr"
+                  disabled={modalMode === 'edit' && currentRole !== 'admin'}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                />
+                {modalMode === 'edit' && currentRole !== 'admin' && (
+                  <p className="text-xs text-slate-400 mt-1">Seul l&apos;administrateur peut modifier l&apos;email.</p>
+                )}
+              </div>
+
+              {/* Password — add only */}
               {modalMode === 'add' && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Adresse e-mail
-                    </label>
-                    <input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="prenom.nom@musiam.fr"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Mot de passe
-                    </label>
-                    <input
-                      type="password"
-                      value={form.password}
-                      onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="Min. 6 caractères"
-                      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
-                    />
-                  </div>
-                </>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Mot de passe
+                  </label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder="Min. 6 caractères"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                  />
+                </div>
               )}
 
               {/* Role */}

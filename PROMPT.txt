@@ -1,46 +1,14 @@
-Creer les utilisateurs directement depuis l'app sans passer par le dashboard Supabase :
+Possibilite de modifier l'email d'un utilisateur depuis /admin/utilisateurs :
 
-1. CREER UNE API ROUTE Next.js : app/api/create-user/route.ts
-- Cette route recoit en POST : email, password, role, employee_id, allowed_teams, allowed_site_id
-- Elle utilise le SUPABASE SERVICE ROLE KEY (pas la anon key) pour creer le user dans auth.users avec supabase.auth.admin.createUser()
-- Le service role key permet de creer un user sans email de confirmation
-- Puis elle insere dans la table users avec le bon role, employee_id, etc.
-- Retourne success ou erreur
+1. Dans le modal de modification d'un utilisateur, rendre le champ email modifiable UNIQUEMENT si l'utilisateur connecte est admin. Si c'est un responsable ou manager, le champ email est affiche mais non modifiable (disabled).
 
-2. VARIABLE D'ENVIRONNEMENT :
-- Ajouter SUPABASE_SERVICE_ROLE_KEY dans les variables d'environnement Vercel (pas NEXT_PUBLIC, c'est cote serveur uniquement)
-- Dans le code, utiliser process.env.SUPABASE_SERVICE_ROLE_KEY
-- Genere les instructions pour recuperer la service role key dans Supabase : Settings > API > service_role key
+2. Quand l'admin modifie l'email et clique Enregistrer :
+   a) Appeler une nouvelle API route POST /api/update-user avec : user_id, new_email
+   b) Cette route verifie que l'appelant est admin (pas responsable, pas manager)
+   c) Utilise SUPABASE_SERVICE_ROLE_KEY et supabase.auth.admin.updateUserById(user_id, { email: new_email, email_confirm: true })
+   d) Met a jour l'email dans la table users
+   e) Met a jour l'email dans la table employees si le user a un employee_id
 
-3. SECURITE :
-- La route /api/create-user doit verifier que l'appelant est un admin ou responsable connecte (verifier le token auth)
-- Ne JAMAIS exposer le service_role key cote client
-- La route est accessible uniquement en POST avec un token valide
+3. Message de succes : "Email modifie. Le salarie doit maintenant se connecter avec [nouvel email]"
 
-4. PAGE /admin/utilisateurs :
-- Modifier le formulaire pour appeler /api/create-user au lieu de supabase.auth.signUp()
-- Le champ mot de passe est obligatoire
-- Plus besoin de passer par le dashboard Supabase
-
-git add . && git commit -m "feat: creation utilisateur via API route" && git push origin main
-
-
-Creer un compte utilisateur directement depuis la fiche salarie :
-
-1. PAGE /employes (liste des salaries) :
-- Ajouter un bouton "Creer acces" a cote de chaque salarie dans le tableau (une icone cle ou un petit bouton)
-- Ce bouton n'apparait QUE si le salarie n'a pas encore de compte utilisateur (verifier dans la table users si un user avec cet employee_id existe)
-- Si le salarie a deja un compte, afficher une icone verte "Acces actif" a la place
-
-2. QUAND ON CLIQUE SUR "CREER ACCES" :
-- Un modal s'ouvre avec :
-  a) Nom et prenom du salarie (pre-rempli, non modifiable)
-  b) Email : pre-rempli avec l'email du salarie si il existe, sinon champ vide a remplir
-  c) Mot de passe : champ a remplir par l'admin
-  d) Role : dropdown avec "Salarie" pre-selectionne, mais modifiable (Manager, Responsable)
-  e) Si role Manager : afficher les checkboxes des equipes
-  f) Si role Responsable : afficher le dropdown site
-  g) Bouton "Creer le compte"
-
-3. QUAND ON CLIQUE "CREER LE COMPTE" :
-- Appeler l'API route /api/create-user avec email, password, role, emp
+git add . && git commit -m "feat: modification email par admin uniquement" && git push origin main
