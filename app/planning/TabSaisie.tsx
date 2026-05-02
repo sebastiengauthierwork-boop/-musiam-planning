@@ -1064,7 +1064,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               return (
                 <Fragment key={emp.id}>
                   <tr className="group hover:bg-blue-50/20">
-                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap bg-white group-hover:bg-blue-50/20">
+                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap bg-white group-hover:bg-blue-50">
                       <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
                       <span className="text-gray-500">{emp.first_name}</span>
                       {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
@@ -1146,11 +1146,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {isCadre ? (
-                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 text-indigo-700">
+                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50 text-indigo-700">
                         {cadreMonthDays > 0 ? `${cadreMonthDays}j` : '—'}
                       </td>
                     ) : (
-                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50/20 ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50 ${over ? 'text-red-600' : 'text-gray-700'}`}>
                         {fmtH(monthH)}
                         {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
                       </td>
@@ -1184,7 +1184,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const monthH = empMonthlyTotals[emp.id] ?? 0
                 return (
                   <tr key={emp.id} className="group bg-amber-50/20 hover:bg-amber-50/50">
-                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50/30 group-hover:bg-amber-50/70">
+                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50 group-hover:bg-amber-100">
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-semibold text-amber-800 text-xs">
                           {isInterim ? (emp.first_name || emp.last_name) : `${emp.last_name} ${emp.first_name}`}
@@ -1253,7 +1253,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-6 text-center font-semibold bg-amber-50/30 group-hover:bg-amber-50/70 text-amber-800">
+                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-6 text-center font-semibold bg-amber-50 group-hover:bg-amber-100 text-amber-800">
                       {fmtH(monthH)}
                     </td>
                   </tr>

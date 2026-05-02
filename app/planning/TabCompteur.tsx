@@ -404,8 +404,8 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                               {activeEmps.map((emp, empIdx) => {
                                 const empTotal = getEmpMonthHoursForTeam(tid, emp.id)
                                 return (
-                                  <tr key={emp.id} className={`${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-yellow-50/30 group`}>
-                                    <td className="sticky left-0 z-10 bg-inherit group-hover:bg-yellow-50/30 border-b border-r border-gray-100 px-3 py-1.5 whitespace-nowrap">
+                                  <tr key={emp.id} className={`${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50 group`}>
+                                    <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-1.5 whitespace-nowrap group-hover:bg-yellow-50 ${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                       <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
                                       <span className="text-gray-500">{emp.first_name}</span>
                                     </td>
@@ -420,7 +420,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                                         </td>
                                       )
                                     })}
-                                    <td className="sticky right-0 z-10 bg-white group-hover:bg-yellow-50/30 border-b border-l-2 border-gray-200 text-center py-1.5 h-7 font-bold text-gray-800">
+                                    <td className="sticky right-0 z-10 bg-white group-hover:bg-yellow-50 border-b border-l-2 border-gray-200 text-center py-1.5 h-7 font-bold text-gray-800">
                                       {empTotal > 0 ? fmtDecimal(empTotal) : '—'}
                                     </td>
                                   </tr>
