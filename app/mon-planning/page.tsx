@@ -185,12 +185,9 @@ export default function MonPlanningPage() {
     setTeamSchedules([])
     setTeamEmployees([])
 
-    const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
-    if (!isNextMonth) {
-      // Mois courant : toujours visible
-      setNextMonthBlocked(false)
-    } else {
-      // Mois suivant : vérifier le statut avant tout rendu
+    // Vérifier le statut de publication pour tous les mois (sauf management qui voit toujours)
+    const isMgmt = role === 'admin' || role === 'responsable' || role === 'manager'
+    if (!isMgmt) {
       setNextMonthBlocked(null)
       const psRes = await supabase.from('planning_status')
         .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year).maybeSingle()
@@ -199,8 +196,8 @@ export default function MonPlanningPage() {
         setLoadingSched(false)
         return
       }
-      setNextMonthBlocked(false)
     }
+    setNextMonthBlocked(false)
 
     const start = `${year}-${pad(month + 1)}-01`
     const lastDay = new Date(year, month + 1, 0).getDate()
@@ -237,7 +234,7 @@ export default function MonPlanningPage() {
     setTeamEmployees([...permanents, ...temporaires])
     setTeamSchedules(tschedRes.data ?? [])
     setLoadingSched(false)
-  }, [employeeId, teamId, year, month])
+  }, [employeeId, teamId, year, month, role])
 
   useEffect(() => { loadSchedules() }, [loadSchedules])
 
@@ -252,8 +249,8 @@ export default function MonPlanningPage() {
   // Permet de détecter une dépublication faite par l'admin pendant que l'employé est sur la page
   useEffect(() => {
     if (!teamId || !employeeId) return
-    const isNextMonth = year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())
-    if (!isNextMonth) { setNextMonthBlocked(false); return }
+    const isMgmt = role === 'admin' || role === 'responsable' || role === 'manager'
+    if (isMgmt) { setNextMonthBlocked(false); return }
     supabase.from('planning_status')
       .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year)
       .maybeSingle()
@@ -263,9 +260,11 @@ export default function MonPlanningPage() {
           setTeamSchedules([])
           setTeamEmployees([])
           setSchedules([])
+        } else {
+          setNextMonthBlocked(false)
         }
       })
-  }, [tab, teamId, year, month, employeeId])
+  }, [tab, teamId, year, month, employeeId, role])
 
   // --- Guards ---
 
