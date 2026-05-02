@@ -306,50 +306,39 @@ export default function MonPlanningPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" style={{ maxWidth: 600, margin: '0 auto' }}>
       {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} />}
-      {/* Header */}
-      <div className="bg-slate-900 text-white px-5 pt-safe pb-5" style={{ paddingTop: 'max(env(safe-area-inset-top), 20px)' }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-lg font-bold text-white leading-tight">Musiam Planning</div>
-            <div className="text-xs text-slate-400 italic mb-2">by Planekipe</div>
-            <div className="text-2xl font-bold">{employee.first_name} {employee.last_name}</div>
-            {team && (
-              <div className="text-sm text-slate-300 mt-0.5">
-                {team.name}{team.cdpf ? ` · ${team.cdpf}` : ''}
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
+      {/* Header compact */}
+      <div className="bg-slate-900 text-white px-4" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)', paddingBottom: '8px' }}>
+        {/* Ligne 1 : titre + actions */}
+        <div className="flex items-center justify-between">
+          <span className="text-base font-bold text-white">Musiam Planning</span>
+          <div className="flex items-center gap-0.5">
             {isManagement && (
-              <a
-                href="/tableau-de-bord"
-                className="flex items-center gap-1 text-slate-400 text-xs py-2 px-2.5 rounded-xl active:bg-slate-700 active:text-white font-medium"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Gestion
+              <a href="/tableau-de-bord"
+                className="text-slate-400 text-xs px-2 py-1 rounded-lg active:bg-slate-700 active:text-white font-medium">
+                ← Gestion
               </a>
             )}
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="flex items-center justify-center text-slate-400 py-2.5 px-2.5 rounded-xl active:bg-slate-700 active:text-white"
-              title="Modifier mon mot de passe"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button onClick={() => setShowPasswordModal(true)}
+              className="text-slate-500 p-1.5 rounded-lg active:bg-slate-700 active:text-white"
+              title="Modifier mon mot de passe">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
               </svg>
             </button>
-            <button
-              onClick={signOut}
-              className="flex items-center gap-1.5 text-slate-400 text-sm py-2.5 px-3 rounded-xl active:bg-slate-700 active:text-white"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+            <button onClick={signOut}
+              className="text-slate-400 text-xs px-2 py-1 rounded-lg active:bg-slate-700 active:text-white font-medium">
               Quitter
             </button>
           </div>
+        </div>
+        {/* Ligne 2 : nom + équipe */}
+        <div className="flex items-baseline gap-2 mt-1">
+          <span className="text-sm font-bold text-white">{employee.first_name} {employee.last_name}</span>
+          {team && (
+            <span className="text-xs text-slate-400">
+              {team.name}{team.cdpf ? ` · ${team.cdpf}` : ''}
+            </span>
+          )}
         </div>
       </div>
 
