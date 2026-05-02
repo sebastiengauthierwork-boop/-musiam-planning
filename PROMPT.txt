@@ -1,24 +1,25 @@
-Ameliorations visuelles et performance :
+Vue mobile admin - consultation des plannings de toutes les equipes :
 
-1. POLICE INTER :
-Ajouter la police Inter depuis Google Fonts dans le layout.tsx. L'utiliser comme police principale de l'application via Tailwind (font-sans).
+1. PAGE /mon-planning POUR LES ADMINS :
+Quand un admin accede a /mon-planning (via le choix smartphone ou via la sidebar) :
+- En haut, afficher deux dropdowns :
+  a) "Site" : liste de tous les sites (l'admin voit tout)
+  b) "Equipe" : liste des equipes du site selectionne
+- Quand un site et une equipe sont selectionnes, afficher le planning de cette equipe (meme vue que l'onglet "Mon equipe" des salaries)
+- L'admin peut naviguer entre les mois (mois en cours et mois suivant)
+- Consultation uniquement, pas de modification depuis le smartphone
 
-2. CONTRASTE AUTO SUR LES CODES HORAIRES :
-Pour chaque cellule avec une couleur de fond (codes horaires, repos, absences), calculer automatiquement si le texte doit etre noir ou blanc en fonction de la luminosite du fond. Utiliser la formule : luminance = (0.299*R + 0.587*G + 0.114*B) / 255. Si luminance > 0.5 : texte noir. Sinon : texte blanc. Appliquer sur la grille de saisie ET le planning imprimable.
+2. PLANNING PERSONNEL DE L'ADMIN :
+- Si l'admin a un employee_id dans la table users (il est aussi salarie sur un site), afficher un onglet supplementaire "Mon planning" avec son planning personnel
+- Si l'admin n'a PAS de employee_id, ne pas afficher l'onglet "Mon planning" personnel, uniquement la consultation des equipes
 
-3. BORDURES GRISES CLAIRES :
-Remplacer les bordures de tableau actuelles par des bordures de 1px en gris tres clair (#F3F4F6) sur la grille de saisie. Garder les bordures plus marquees uniquement pour la separation des semaines (trait epais lundi).
+3. POUR LES RESPONSABLES :
+Meme logique mais le dropdown Site est limite a son site. Le dropdown equipe montre toutes les equipes de son site.
 
-4. SURBRILLANCE JOUR ACTUEL :
-Sur la grille de saisie, la colonne du jour actuel a un fond bleu tres pale (#EFF6FF). L'en-tete du jour actuel a un fond bleu un peu plus marque. Cela permet de reperer instantanement ou on en est.
+4. POUR LES MANAGERS :
+Pas de dropdown site. Le dropdown equipe montre uniquement ses equipes autorisees.
 
-5. ICONES SIDEBAR PLUS FINES :
-Sur toutes les icones Lucide-React de la sidebar, utiliser strokeWidth={1.5} au lieu de la valeur par defaut pour un look plus aerien.
+5. POUR LES SALARIES :
+Pas de changement. Pas de dropdown. Ils voient leur planning et celui de leur equipe.
 
-6. OPTIMISTIC UPDATES :
-Quand un code est saisi dans la grille, mettre a jour le state local IMMEDIATEMENT. La sauvegarde Supabase se fait en arriere-plan (pas de await visible). Si la sauvegarde echoue, remettre l'ancienne valeur et afficher une erreur discrete en bas de page.
-
-7. SKELETON LOADING :
-Remplacer tous les "Chargement..." et spinners par des squelettes gris animes (rectangles avec animation pulse) qui reprennent la forme exacte de la grille ou du tableau qui va s'afficher. Pas de saut d'ecran au chargement.
-
-git add . && git commit -m "feat: polish visuel + optimistic updates + skeleton" && git push origin main
+git add . && git commit -m "feat: vue mobile admin consultation equipes" && git push origin main
