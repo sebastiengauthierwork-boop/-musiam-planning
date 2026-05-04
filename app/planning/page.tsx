@@ -269,13 +269,13 @@ export default function PlanningPage() {
         }`}>
           {planningStatus === 'publie' ? 'Publié' : 'Brouillon'}
         </span>
-        {planningStatus === 'brouillon' && (role === 'admin' || role === 'responsable' || role === 'manager') && (
+        {planningStatus === 'brouillon' && (role === 'superadmin' || role === 'admin' || role === 'responsable' || role === 'manager') && (
           <button onClick={handlePublish} disabled={publishLoading}
             className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
             {publishLoading ? '…' : 'Publier'}
           </button>
         )}
-        {planningStatus === 'publie' && (role === 'admin' || role === 'responsable') && (
+        {planningStatus === 'publie' && (role === 'superadmin' || role === 'admin' || role === 'responsable') && (
           <button onClick={handleUnpublish} disabled={publishLoading}
             className="px-3 py-1.5 text-xs font-semibold border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
             {publishLoading ? '…' : 'Dépublier'}

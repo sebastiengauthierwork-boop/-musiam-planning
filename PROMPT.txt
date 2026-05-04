@@ -1,26 +1,27 @@
-Distinction superadmin et admin :
+URGENT : le superadmin a MOINS de droits qu'avant car partout le code verifie role === 'admin' mais mon role est 'superadmin'.
 
-1. SUPERADMIN (toi uniquement, sgauthier@musiam-paris.com) :
-- Acces total a TOUT sans exception
-- Seul a pouvoir creer, modifier, supprimer des utilisateurs dans /admin/utilisateurs
-- Seul a pouvoir modifier les permissions (Roles et acces)
-- Seul a pouvoir desarchiver les plannings
+Faire un remplacement GLOBAL dans TOUT le code :
 
-2. ADMIN (ex: controleuse de gestion) :
-- Acces complet a tous les sites et equipes
-- Peut voir et modifier les plannings, salaries, equipes, codes horaires, cycles, parametrage
-- Peut archiver les plannings
-- Peut exporter les donnees
-- Peut imprimer tout
-- NE peut PAS acceder a /admin/utilisateurs (la page est masquee dans la sidebar pour les admins)
-- NE peut PAS creer, modifier ou supprimer des utilisateurs
-- NE peut PAS modifier les permissions (Roles et acces masque)
-- NE peut PAS desarchiver les plannings
+1. Chercher dans TOUS les fichiers .tsx et .ts du projet TOUTES les occurrences de :
+   - role === 'admin'
+   - role == 'admin'
+   - role !== 'admin'
+   - role != 'admin'
+   - role === "admin"
+   - role == "admin"
+   - .includes('admin')
+   - IN ('admin'
 
-3. DANS LE CODE :
-- Partout ou il y a role === 'admin', ajouter role === 'superadmin' pour que le superadmin garde tous les acces
-- La page /admin/utilisateurs : verifier role === 'superadmin' au lieu de role === 'admin'
-- La sidebar masque "Utilisateurs" si role !== 'superadmin'
-- Le bouton "Creer acces" sur la page Salaries : visible uniquement pour le superadmin
+2. Pour CHAQUE occurrence, ajouter 'superadmin' :
+   - role === 'admin' -> role === 'admin' || role === 'superadmin'
+   - role === "admin" -> role === "admin" || role === "superadmin"
+   - ['admin'].includes(role) -> ['admin', 'superadmin'].includes(role)
+   - role IN ('admin', ...) -> role IN ('admin', 'superadmin', ...)
 
-git add . && git commit -m "feat: superadmin seul gestionnaire des users" && git push origin main
+3. La regle : PARTOUT ou un admin a un droit, le superadmin a le MEME droit PLUS les droits exclusifs du superadmin.
+
+4. Verifier aussi les politiques RLS dans le code qui generent du SQL avec 'admin'
+
+5. Utiliser grep -r "admin" pour trouver toutes les occurrences
+
+git add . && git commit -m "fix: superadmin tous droits admin" && git push origin main

@@ -193,7 +193,7 @@ export default function MonPlanningPage() {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
 
-  const isMgmt = role === 'admin' || role === 'responsable' || role === 'manager'
+  const isMgmt = role === 'superadmin' || role === 'admin' || role === 'responsable' || role === 'manager'
 
   // ── Tab state ──
   // mgmt: 'browser' (équipes) | 'personal' (mon planning, si employeeId)

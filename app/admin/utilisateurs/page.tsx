@@ -226,7 +226,7 @@ export default function UtilisateursPage() {
     const emailNorm = form.email.trim().toLowerCase()
     const emailChanged = emailNorm !== editingUser.email.toLowerCase()
 
-    if (emailChanged && currentRole === 'admin') {
+    if (emailChanged && (currentRole === 'admin' || currentRole === 'superadmin')) {
       const session = (await supabase.auth.getSession()).data.session
       const res = await fetch('/api/update-user', {
         method: 'POST',
@@ -262,7 +262,7 @@ export default function UtilisateursPage() {
     setSaving(false)
     closeModal()
     setPageSuccess(
-      emailChanged && currentRole === 'admin'
+      emailChanged && (currentRole === 'admin' || currentRole === 'superadmin')
         ? `Email modifié. Le salarié doit maintenant se connecter avec ${emailNorm}`
         : 'Utilisateur mis à jour avec succès.'
     )
