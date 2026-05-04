@@ -1,23 +1,12 @@
-Deux ameliorations sur la grille de saisie :
+Ajouter un bouton "Exporter la base" dans /admin pour l'administrateur :
 
-1. AFFICHAGE NOM DES INTERIMAIRES :
-Sur la grille de saisie, le nom affiche pour chaque salarie est actuellement le PRENOM + initiale du nom. Pour les interimaires c'est problematique car le prenom est le nom de la societe (CRIT) et le nom est le vrai nom du salarie.
-Corriger l'affichage : afficher NOM Prenom (et pas Prenom NOM). Exemples :
-- "DARMOULI Donia" au lieu de "Donia D."
-- Pour un interim : "DUPONT Jean (CRIT)" : afficher NOM.Prenom en premier puis entre parentheses le prenom qui est le nom de la societe
-- En fait pour TOUT le monde : afficher NOM en majuscule + Prenom. Pas d'initiale.
-- Si c'est trop long pour la colonne, tronquer le prenom mais garder le nom complet
-- Meme logique sur le planning imprimable
+1. PAGE /admin/utilisateurs ou /parametrage, ajouter un bouton "Sauvegarder les donnees" visible uniquement par l'admin
 
-2. LISTE DEROULANTE DES CODES AU CLIC SUR UNE CELLULE :
-Quand on clique sur une cellule de la grille de saisie :
-- Afficher une liste deroulante avec tous les codes horaires du site + tous les codes d'absence
-- Grouper par categorie :
-  a) "Codes horaires" : tous les shift_codes du site (EOS, MOS, EFS, etc.) avec le label en tooltip
-  b) "Absences" : tous les absence_codes (R, CP, RTT, M, AT, etc.)
-- L'utilisateur peut soit taper directement le code au clavier (comportement actuel), soit cliquer dans la liste
-- La liste se ferme quand on selectionne un code ou quand on clique ailleurs
-- La liste est filtree en temps reel quand l'utilisateur commence a taper (autocompletion)
-- Afficher le code en gras + le label a cote en gris. Exemple : "EOS - Employe Ouverture Salon"
+2. Quand on clique, exporter TOUTES les tables en un seul fichier JSON telechareable :
+- sites, teams, employees, employee_teams, shift_codes, absence_codes, schedules, cycle_schedules, users, staffing_structures, staffing_structure_positions, annual_calendar, planning_archives, planning_status, job_functions, role_permissions, contacts_utiles, employee_history
 
-git add . && git commit -m "feat: affichage nom + liste codes au clic" && git push origin main
+3. Le fichier JSON est telecharge automatiquement avec le nom : backup_planekipe_YYYY-MM-DD.json
+
+4. Ce n'est pas un import automatique, c'est juste une sauvegarde de secours. En cas de probleme on pourra reconstruire les donnees a partir de ce fichier.
+
+git add . && git commit -m "feat: export backup base de donnees" && git push origin main

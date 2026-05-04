@@ -108,6 +108,9 @@ export default function UtilisateursPage() {
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  // Export backup
+  const [exporting, setExporting] = useState(false)
+
   // -------------------------------------------------------------------------
   // Data loading
   // -------------------------------------------------------------------------
@@ -288,19 +291,66 @@ export default function UtilisateursPage() {
   }
 
   // -------------------------------------------------------------------------
+  // Export backup
+  // -------------------------------------------------------------------------
+
+  async function handleExportBackup() {
+    setExporting(true)
+    try {
+      const tables = [
+        'sites', 'teams', 'employees', 'employee_teams', 'shift_codes', 'absence_codes',
+        'schedules', 'cycle_schedules', 'users', 'staffing_structures',
+        'staffing_structure_positions', 'annual_calendar', 'planning_archives',
+        'planning_status', 'job_functions', 'role_permissions', 'contacts_utiles',
+        'employee_history',
+      ]
+      const results = await Promise.all(
+        tables.map(t => supabase.from(t).select('*'))
+      )
+      const backup: Record<string, unknown[]> = {}
+      results.forEach((res, i) => { backup[tables[i]] = res.data ?? [] })
+
+      const date = new Date().toISOString().slice(0, 10)
+      const json = JSON.stringify({ exported_at: new Date().toISOString(), tables: backup }, null, 2)
+      const blob = new Blob([json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `backup_planekipe_${date}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
-          Gestion des utilisateurs
-        </h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Modifiez les rôles et les accès. Pour créer un accès, utilisez le bouton "Créer accès" dans la page <strong>Salariés</strong>.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">
+            Gestion des utilisateurs
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Modifiez les rôles et les accès. Pour créer un accès, utilisez le bouton "Créer accès" dans la page <strong>Salariés</strong>.
+          </p>
+        </div>
+        <button
+          onClick={handleExportBackup}
+          disabled={exporting}
+          className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
+          title="Télécharge toutes les tables en JSON"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          {exporting ? 'Export…' : 'Sauvegarder les données'}
+        </button>
       </div>
 
       {/* Success */}
