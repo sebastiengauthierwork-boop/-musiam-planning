@@ -29,7 +29,8 @@
       "Bash(grep *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\MUSIAM-planning\" -Recurse -Force)",
       "Bash(Select-Object FullName, PSIsContainer)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(xargs wc *)"
     ]
   }
 }

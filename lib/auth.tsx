@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
-type Role = 'admin' | 'responsable' | 'manager' | 'salarie' | null
+export type Role = 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie' | null
 
 interface AuthContextValue {
   user: User | null

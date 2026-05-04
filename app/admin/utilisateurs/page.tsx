@@ -25,7 +25,7 @@ interface Site {
 interface AppUser {
   id: string
   email: string
-  role: 'admin' | 'responsable' | 'manager' | 'salarie'
+  role: 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie'
   team_id: string | null
   allowed_teams: string[] | null
   allowed_site_id: string | null
@@ -42,7 +42,7 @@ type ModalMode = 'edit'
 
 const EMPTY_FORM = {
   email: '',
-  role: 'manager' as 'admin' | 'responsable' | 'manager' | 'salarie',
+  role: 'manager' as 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie',
   allowedTeams: [] as string[],
   allowedSiteId: '',
   employeeId: '',
@@ -52,7 +52,14 @@ const EMPTY_FORM = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function RoleBadge({ role }: { role: 'admin' | 'responsable' | 'manager' | 'salarie' }) {
+function RoleBadge({ role }: { role: 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie' }) {
+  if (role === 'superadmin') {
+    return (
+      <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+        Superadmin
+      </span>
+    )
+  }
   if (role === 'admin') {
     return (
       <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
@@ -134,7 +141,7 @@ export default function UtilisateursPage() {
   }
 
   useEffect(() => {
-    if (!authLoading && currentRole === 'admin') {
+    if (!authLoading && (currentRole === 'admin' || currentRole === 'superadmin')) {
       loadData()
     }
   }, [authLoading, currentRole])
@@ -151,7 +158,7 @@ export default function UtilisateursPage() {
     )
   }
 
-  if (currentRole !== 'admin') {
+  if (currentRole !== 'admin' && currentRole !== 'superadmin') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -340,7 +347,7 @@ export default function UtilisateursPage() {
             Modifiez les rôles et les accès. Pour créer un accès, utilisez le bouton "Créer accès" dans la page <strong>Salariés</strong>.
           </p>
         </div>
-        <button
+        {currentRole === 'superadmin' && <button
           onClick={handleExportBackup}
           disabled={exporting}
           className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
@@ -350,7 +357,7 @@ export default function UtilisateursPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
           {exporting ? 'Export…' : 'Sauvegarder les données'}
-        </button>
+        </button>}
       </div>
 
       {/* Success */}
@@ -406,7 +413,7 @@ export default function UtilisateursPage() {
                     <RoleBadge role={user.role} />
                   </td>
                   <td className="px-5 py-3.5">
-                    {user.role === 'admin' ? (
+                    {(user.role === 'admin' || user.role === 'superadmin') ? (
                       <span className="text-slate-400 text-xs italic">
                         Toutes les équipes
                       </span>
@@ -485,10 +492,10 @@ export default function UtilisateursPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="prenom.nom@musiam.fr"
-                  disabled={modalMode === 'edit' && currentRole !== 'admin'}
+                  disabled={modalMode === 'edit' && currentRole !== 'admin' && currentRole !== 'superadmin'}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
                 />
-                {modalMode === 'edit' && currentRole !== 'admin' && (
+                {modalMode === 'edit' && currentRole !== 'admin' && currentRole !== 'superadmin' && (
                   <p className="text-xs text-slate-400 mt-1">Seul l&apos;administrateur peut modifier l&apos;email.</p>
                 )}
               </div>
@@ -503,13 +510,14 @@ export default function UtilisateursPage() {
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      role: e.target.value as 'admin' | 'responsable' | 'manager' | 'salarie',
+                      role: e.target.value as 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie',
                       employeeId: '',
                     })
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
-                  <option value="admin">Administrateur</option>
+                  {currentRole === 'superadmin' && <option value="superadmin">Superadministrateur</option>}
+                  {currentRole === 'superadmin' && <option value="admin">Administrateur</option>}
                   <option value="responsable">Responsable de site</option>
                   <option value="manager">Manager</option>
                   <option value="salarie">Salarié</option>

@@ -1734,12 +1734,24 @@ const PERM_CATS = [
 ]
 
 const PERM_ROLES_LIST = [
+  { key: 'admin', label: 'Administrateur' },
   { key: 'responsable', label: 'Responsable' },
   { key: 'manager', label: 'Manager' },
   { key: 'salarie', label: 'Salarié' },
 ]
 
 const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
+  admin: {
+    create_site: true, edit_teams: true,
+    create_employee: true, delete_employee: false, import_employees: true,
+    edit_shift_codes: true, edit_absence_codes: true,
+    edit_planning: true, apply_cycle: true, print_planning: true, print_emargement: true,
+    view_hours_counter: true, archive_planning: true, unarchive_planning: false,
+    edit_cycles: true, view_cycles: true,
+    edit_staffing: true, edit_calendar: true, edit_functions: true,
+    create_responsable: true, create_manager: true, create_salarie: true,
+    view_own_planning: true, view_team_planning: true,
+  },
   responsable: {
     create_site: false, edit_teams: true,
     create_employee: true, delete_employee: true, import_employees: true,
@@ -1894,7 +1906,7 @@ export default function ParametragePage() {
     )
   }
 
-  if (currentRole !== 'admin' && currentRole !== 'responsable') {
+  if (currentRole !== 'superadmin' && currentRole !== 'admin' && currentRole !== 'responsable') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1921,7 +1933,7 @@ export default function ParametragePage() {
           { id: 'fonctions',  label: 'Fonctions'      },
           { id: 'structures', label: 'Structures'     },
           { id: 'calendrier', label: 'Calendrier'     },
-          ...(currentRole === 'admin' ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
+          ...(currentRole === 'superadmin' ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
         ] as { id: Section; label: string }[]).map(s => (
           <button key={s.id} onClick={() => setSection(s.id)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${

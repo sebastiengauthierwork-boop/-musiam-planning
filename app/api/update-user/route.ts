@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const { data: callerProfile } = await adminClient
     .from('users').select('role').eq('id', caller.id).single()
-  if (!callerProfile || callerProfile.role !== 'admin') {
+  if (!callerProfile || (callerProfile.role !== 'admin' && callerProfile.role !== 'superadmin')) {
     return NextResponse.json({ error: 'Accès refusé — réservé aux administrateurs' }, { status: 403 })
   }
 

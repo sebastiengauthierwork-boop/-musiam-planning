@@ -32,7 +32,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (authLoading) return
-    if (!role || role === 'admin') {
+    if (!role || role === 'admin' || role === 'superadmin') {
       setPermissions({})
       setLoading(false)
       return
@@ -52,7 +52,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   }, [role, authLoading])
 
   function can(permission: Permission): boolean {
-    if (role === 'admin') return true
+    if (role === 'admin' || role === 'superadmin') return true
     if (loading) return true
     return permissions[permission] === true
   }

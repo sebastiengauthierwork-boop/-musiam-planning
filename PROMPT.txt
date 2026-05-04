@@ -1,12 +1,26 @@
-Ajouter un bouton "Exporter la base" dans /admin pour l'administrateur :
+Distinction superadmin et admin :
 
-1. PAGE /admin/utilisateurs ou /parametrage, ajouter un bouton "Sauvegarder les donnees" visible uniquement par l'admin
+1. SUPERADMIN (toi uniquement, sgauthier@musiam-paris.com) :
+- Acces total a TOUT sans exception
+- Seul a pouvoir creer, modifier, supprimer des utilisateurs dans /admin/utilisateurs
+- Seul a pouvoir modifier les permissions (Roles et acces)
+- Seul a pouvoir desarchiver les plannings
 
-2. Quand on clique, exporter TOUTES les tables en un seul fichier JSON telechareable :
-- sites, teams, employees, employee_teams, shift_codes, absence_codes, schedules, cycle_schedules, users, staffing_structures, staffing_structure_positions, annual_calendar, planning_archives, planning_status, job_functions, role_permissions, contacts_utiles, employee_history
+2. ADMIN (ex: controleuse de gestion) :
+- Acces complet a tous les sites et equipes
+- Peut voir et modifier les plannings, salaries, equipes, codes horaires, cycles, parametrage
+- Peut archiver les plannings
+- Peut exporter les donnees
+- Peut imprimer tout
+- NE peut PAS acceder a /admin/utilisateurs (la page est masquee dans la sidebar pour les admins)
+- NE peut PAS creer, modifier ou supprimer des utilisateurs
+- NE peut PAS modifier les permissions (Roles et acces masque)
+- NE peut PAS desarchiver les plannings
 
-3. Le fichier JSON est telecharge automatiquement avec le nom : backup_planekipe_YYYY-MM-DD.json
+3. DANS LE CODE :
+- Partout ou il y a role === 'admin', ajouter role === 'superadmin' pour que le superadmin garde tous les acces
+- La page /admin/utilisateurs : verifier role === 'superadmin' au lieu de role === 'admin'
+- La sidebar masque "Utilisateurs" si role !== 'superadmin'
+- Le bouton "Creer acces" sur la page Salaries : visible uniquement pour le superadmin
 
-4. Ce n'est pas un import automatique, c'est juste une sauvegarde de secours. En cas de probleme on pourra reconstruire les donnees a partir de ce fichier.
-
-git add . && git commit -m "feat: export backup base de donnees" && git push origin main
+git add . && git commit -m "feat: superadmin seul gestionnaire des users" && git push origin main

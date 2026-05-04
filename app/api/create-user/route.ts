@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     .from('users').select('role').eq('id', caller.id).single()
   console.log('[create-user] Profil:', JSON.stringify(callerProfile), '| Erreur profil:', profileError?.message ?? 'aucune')
 
-  if (!callerProfile || !['admin', 'responsable'].includes(callerProfile.role)) {
+  if (!callerProfile || !['superadmin', 'admin', 'responsable'].includes(callerProfile.role)) {
     console.log('[create-user] Accès refusé — rôle reçu:', callerProfile?.role ?? 'null')
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 })
   }

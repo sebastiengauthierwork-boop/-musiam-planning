@@ -201,8 +201,8 @@ export default function Sidebar() {
   if (!mounted) return <aside className="w-60 shrink-0 bg-slate-900" />
 
   const visibleItems = navItems.filter(item => {
-    if (item.adminOnly && role !== 'admin') return false
-    if (role === 'admin') return true
+    if (item.adminOnly && role !== 'admin' && role !== 'superadmin') return false
+    if (role === 'admin' || role === 'superadmin') return true
     if (item.requiredAnyPermission && item.requiredAnyPermission.length > 0) {
       return item.requiredAnyPermission.some(p => can(p))
     }
@@ -266,7 +266,7 @@ export default function Sidebar() {
                 onChange={e => setSelectedSiteId(e.target.value || null)}
                 className="w-full text-xs bg-slate-800 text-slate-100 border border-slate-600 rounded-md px-2 py-1.5 focus:outline-none focus:border-slate-400"
               >
-                {role === 'admin' && <option value="">Tous les sites</option>}
+                {(role === 'admin' || role === 'superadmin') && <option value="">Tous les sites</option>}
                 {visibleSites.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -280,7 +280,7 @@ export default function Sidebar() {
       <nav className="flex-1 py-3" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>
         <ul className="space-y-0.5">
           {/* Mon planning — admins, responsables, managers */}
-          {(role === 'admin' || role === 'responsable' || role === 'manager') && (
+          {(role === 'superadmin' || role === 'admin' || role === 'responsable' || role === 'manager') && (
             <li>
               <Link
                 href="/mon-planning"

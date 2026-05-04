@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite, type Site } from '@/lib/site-context'
+import { useAuth } from '@/lib/auth'
 
 type Team = {
   id: string
@@ -32,6 +33,7 @@ type FormData = {
 const emptyForm: FormData = { name: '', cdpf: '', letter: '', type: 'point_de_vente', description: '', site_id: '' }
 
 export default function EquipesPage() {
+  const { role } = useAuth()
   const { sites, selectedSiteId } = useSite()
   const [teams, setTeams] = useState<TeamWithCount[]>([])
   const [loading, setLoading] = useState(true)
@@ -171,7 +173,7 @@ export default function EquipesPage() {
             <div key={siteName}>
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{siteName}</h2>
               <TeamsTable teams={siteTeams} showSite={false}
-                onEdit={openEdit} onDelete={id => setConfirmDeleteId(id)} />
+                onEdit={openEdit} onDelete={role === 'superadmin' ? id => setConfirmDeleteId(id) : undefined} />
             </div>
           ))}
           {grouped.length === 0 && (
@@ -180,7 +182,7 @@ export default function EquipesPage() {
         </div>
       ) : (
         <TeamsTable teams={teams} showSite={false}
-          onEdit={openEdit} onDelete={id => setConfirmDeleteId(id)} />
+          onEdit={openEdit} onDelete={role === 'superadmin' ? id => setConfirmDeleteId(id) : undefined} />
       )}
 
       {/* Modal */}
@@ -261,7 +263,7 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
   teams: TeamWithCount[]
   showSite: boolean
   onEdit: (t: Team) => void
-  onDelete: (id: string) => void
+  onDelete?: (id: string) => void
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -302,11 +304,13 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
-                  <button onClick={() => onDelete(team.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  {onDelete && (
+                    <button onClick={() => onDelete(team.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>

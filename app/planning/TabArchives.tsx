@@ -320,8 +320,8 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
                             </button>
                           )}
 
-                          {/* Désarchiver — admin uniquement */}
-                          {role === 'admin' && (
+                          {/* Désarchiver — superadmin uniquement */}
+                          {role === 'superadmin' && (
                             <button
                               onClick={() => setUnarchiveTarget(archive)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
