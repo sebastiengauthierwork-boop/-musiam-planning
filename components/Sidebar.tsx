@@ -17,6 +17,7 @@ type NavItem = {
   href: string
   label: string
   adminOnly?: boolean
+  superadminOnly?: boolean
   requiredAnyPermission?: Permission[]
   icon: React.ReactNode
 }
@@ -66,7 +67,7 @@ const navItems: NavItem[] = [
   {
     href: '/admin/utilisateurs',
     label: 'Utilisateurs',
-    adminOnly: true,
+    superadminOnly: true,
     icon: <UserCog className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
 ]
@@ -201,6 +202,7 @@ export default function Sidebar() {
   if (!mounted) return <aside className="w-60 shrink-0 bg-slate-900" />
 
   const visibleItems = navItems.filter(item => {
+    if (item.superadminOnly && role !== 'superadmin') return false
     if (item.adminOnly && role !== 'admin' && role !== 'superadmin') return false
     if (role === 'admin' || role === 'superadmin') return true
     if (item.requiredAnyPermission && item.requiredAnyPermission.length > 0) {

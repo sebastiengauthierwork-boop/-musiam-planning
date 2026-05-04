@@ -141,7 +141,7 @@ export default function UtilisateursPage() {
   }
 
   useEffect(() => {
-    if (!authLoading && (currentRole === 'admin' || currentRole === 'superadmin')) {
+    if (!authLoading && currentRole === 'superadmin') {
       loadData()
     }
   }, [authLoading, currentRole])
@@ -158,7 +158,7 @@ export default function UtilisateursPage() {
     )
   }
 
-  if (currentRole !== 'admin' && currentRole !== 'superadmin') {
+  if (currentRole !== 'superadmin') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -492,12 +492,8 @@ export default function UtilisateursPage() {
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="prenom.nom@musiam.fr"
-                  disabled={modalMode === 'edit' && currentRole !== 'admin' && currentRole !== 'superadmin'}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 />
-                {modalMode === 'edit' && currentRole !== 'admin' && currentRole !== 'superadmin' && (
-                  <p className="text-xs text-slate-400 mt-1">Seul l&apos;administrateur peut modifier l&apos;email.</p>
-                )}
               </div>
 
               {/* Role */}
