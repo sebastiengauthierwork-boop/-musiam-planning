@@ -166,7 +166,9 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
               )}
             <tr style={{ height: rowH }}>
               <td style={{ border: '1px solid #cbd5e1', padding: '1px 3px', fontWeight: 600, color: '#1e293b', background: '#f8fafc', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '7px' }}>
-                {emp.last_name} {emp.first_name.charAt(0)}.
+                {(emp.contract_type ?? '').toUpperCase() === 'INTERIM'
+                  ? emp.last_name ? `${emp.last_name.toUpperCase()} (${emp.first_name})` : emp.first_name
+                  : `${emp.last_name.toUpperCase()} ${emp.first_name}`}
                 {effFonction(emp) && (
                   <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '5.5px', marginLeft: 2 }}>{getFnCode(effFonction(emp)!, jobFunctions)}</span>
                 )}
@@ -382,7 +384,9 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                     )}
                   <tr>
                     <td style={S.tdEmp}>
-                      {emp.last_name} {emp.first_name.charAt(0)}.
+                      {(emp.contract_type ?? '').toUpperCase() === 'INTERIM'
+                        ? emp.last_name ? `${emp.last_name.toUpperCase()} (${emp.first_name})` : emp.first_name
+                        : `${emp.last_name.toUpperCase()} ${emp.first_name}`}
                       {effFonction(emp) && (
                         <span style={{ fontWeight: 400, color: '#94a3b8', fontSize: '5.5px', marginLeft: 3 }}>
                           {getFnCode(effFonction(emp)!, jobFunctions)}

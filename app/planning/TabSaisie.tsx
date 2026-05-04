@@ -293,7 +293,7 @@ function CellInput({
     ...shiftCodes.map(c => c.code),
     ...absenceCodes.map(c => c.code),
   ])
-  const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val)).slice(0, 8)
+  const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val))
 
   function isValidCode(code: string): boolean {
     return code === '' || allValidCodes.has(code)
@@ -374,24 +374,52 @@ function CellInput({
       )}
 
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[240px] overflow-hidden">
-          {suggestions.map(c => (
-            <button
-              key={c.code}
-              onMouseDown={e => {
-                e.preventDefault()
-                if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
-                setVal(c.code); onSave(c.code); setOpen(false)
-              }}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left"
-            >
-              <span className={`font-mono font-bold w-10 shrink-0 ${c.kind === 'shift' ? 'text-blue-600' : 'text-gray-500'}`}>{c.code}</span>
-              <span className="text-gray-600 truncate flex-1">{c.label}</span>
-              {c.kind === 'shift' && c.start_time && (
-                <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>
-              )}
-            </button>
-          ))}
+        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[260px] max-h-[300px] overflow-y-auto">
+          {suggestions.some(c => c.kind === 'shift') && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
+                Codes horaires
+              </div>
+              {suggestions.filter(c => c.kind === 'shift').map(c => (
+                <button
+                  key={c.code}
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+                    setVal(c.code); onSave(c.code); setOpen(false)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left"
+                >
+                  <span className="font-mono font-bold w-10 shrink-0 text-blue-600">{c.code}</span>
+                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
+                  {c.start_time && (
+                    <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>
+                  )}
+                </button>
+              ))}
+            </>
+          )}
+          {suggestions.some(c => c.kind === 'absence') && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
+                Absences
+              </div>
+              {suggestions.filter(c => c.kind === 'absence').map(c => (
+                <button
+                  key={c.code}
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+                    setVal(c.code); onSave(c.code); setOpen(false)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left"
+                >
+                  <span className="font-mono font-bold w-10 shrink-0 text-gray-500">{c.code}</span>
+                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -1247,10 +1275,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               return (
                 <Fragment key={emp.id}>
                   <tr className="group hover:bg-blue-50/20">
-                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 whitespace-nowrap bg-white group-hover:bg-blue-50">
-                      <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
-                      <span className="text-gray-500">{emp.first_name}</span>
-                      {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
+                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 bg-white group-hover:bg-blue-50">
+                      <div className="flex items-center gap-1 overflow-hidden max-w-[200px]">
+                        <span className="font-semibold text-gray-800 shrink-0 whitespace-nowrap">{emp.last_name.toUpperCase()}</span>
+                        <span className="text-gray-500 truncate min-w-0">{emp.first_name}</span>
+                        {emp.fonction && <span className="ml-0.5 text-gray-400 text-[10px] shrink-0 whitespace-nowrap" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
+                      </div>
                     </td>
                     {days.map(d => {
                       const dateStr = toISO(d)
@@ -1371,7 +1401,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                     <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50 group-hover:bg-amber-100">
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-semibold text-amber-800 text-xs">
-                          {isInterim ? (emp.first_name || emp.last_name) : `${emp.last_name} ${emp.first_name}`}
+                          {isInterim
+                            ? emp.last_name ? `${emp.last_name.toUpperCase()} (${emp.first_name})` : emp.first_name
+                            : `${emp.last_name.toUpperCase()} ${emp.first_name}`}
                         </span>
                         {isInterim && !isArchived && (
                           <button onClick={() => handleDeleteInterim(emp.id)}

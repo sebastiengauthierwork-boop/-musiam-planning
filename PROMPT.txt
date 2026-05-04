@@ -1,25 +1,23 @@
-Vue mobile admin - consultation des plannings de toutes les equipes :
+Deux ameliorations sur la grille de saisie :
 
-1. PAGE /mon-planning POUR LES ADMINS :
-Quand un admin accede a /mon-planning (via le choix smartphone ou via la sidebar) :
-- En haut, afficher deux dropdowns :
-  a) "Site" : liste de tous les sites (l'admin voit tout)
-  b) "Equipe" : liste des equipes du site selectionne
-- Quand un site et une equipe sont selectionnes, afficher le planning de cette equipe (meme vue que l'onglet "Mon equipe" des salaries)
-- L'admin peut naviguer entre les mois (mois en cours et mois suivant)
-- Consultation uniquement, pas de modification depuis le smartphone
+1. AFFICHAGE NOM DES INTERIMAIRES :
+Sur la grille de saisie, le nom affiche pour chaque salarie est actuellement le PRENOM + initiale du nom. Pour les interimaires c'est problematique car le prenom est le nom de la societe (CRIT) et le nom est le vrai nom du salarie.
+Corriger l'affichage : afficher NOM Prenom (et pas Prenom NOM). Exemples :
+- "DARMOULI Donia" au lieu de "Donia D."
+- Pour un interim : "DUPONT Jean (CRIT)" : afficher NOM.Prenom en premier puis entre parentheses le prenom qui est le nom de la societe
+- En fait pour TOUT le monde : afficher NOM en majuscule + Prenom. Pas d'initiale.
+- Si c'est trop long pour la colonne, tronquer le prenom mais garder le nom complet
+- Meme logique sur le planning imprimable
 
-2. PLANNING PERSONNEL DE L'ADMIN :
-- Si l'admin a un employee_id dans la table users (il est aussi salarie sur un site), afficher un onglet supplementaire "Mon planning" avec son planning personnel
-- Si l'admin n'a PAS de employee_id, ne pas afficher l'onglet "Mon planning" personnel, uniquement la consultation des equipes
+2. LISTE DEROULANTE DES CODES AU CLIC SUR UNE CELLULE :
+Quand on clique sur une cellule de la grille de saisie :
+- Afficher une liste deroulante avec tous les codes horaires du site + tous les codes d'absence
+- Grouper par categorie :
+  a) "Codes horaires" : tous les shift_codes du site (EOS, MOS, EFS, etc.) avec le label en tooltip
+  b) "Absences" : tous les absence_codes (R, CP, RTT, M, AT, etc.)
+- L'utilisateur peut soit taper directement le code au clavier (comportement actuel), soit cliquer dans la liste
+- La liste se ferme quand on selectionne un code ou quand on clique ailleurs
+- La liste est filtree en temps reel quand l'utilisateur commence a taper (autocompletion)
+- Afficher le code en gras + le label a cote en gris. Exemple : "EOS - Employe Ouverture Salon"
 
-3. POUR LES RESPONSABLES :
-Meme logique mais le dropdown Site est limite a son site. Le dropdown equipe montre toutes les equipes de son site.
-
-4. POUR LES MANAGERS :
-Pas de dropdown site. Le dropdown equipe montre uniquement ses equipes autorisees.
-
-5. POUR LES SALARIES :
-Pas de changement. Pas de dropdown. Ils voient leur planning et celui de leur equipe.
-
-git add . && git commit -m "feat: vue mobile admin consultation equipes" && git push origin main
+git add . && git commit -m "feat: affichage nom + liste codes au clic" && git push origin main

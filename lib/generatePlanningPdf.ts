@@ -40,6 +40,10 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
   const cellPct = ((100 - 12) / days.length).toFixed(2)
 
   const rowsHtml = employees.map(emp => {
+    const isInterim = (emp.contract_type ?? '').toUpperCase() === 'INTERIM'
+    const empName = isInterim
+      ? emp.last_name ? `${emp.last_name.toUpperCase()} (${emp.first_name})` : emp.first_name
+      : `${emp.last_name.toUpperCase()} ${emp.first_name}`
     const cells = days.map(d => {
       const dateStr = toISO(d)
       const isMonday = d.getDay() === 1
@@ -61,7 +65,7 @@ export async function generatePlanningPdf(input: PdfInput): Promise<{ blob: Blob
     }).join('')
     return `<tr>
       <td style="border:1px solid #cbd5e1;padding:3px 5px;font-weight:600;color:#1e293b;background:#f8fafc;overflow:hidden;white-space:nowrap;">
-        ${emp.last_name} ${emp.first_name.charAt(0)}.
+        ${empName}
         ${emp.fonction ? `<span style="font-weight:400;color:#94a3b8;font-size:6px;margin-left:3px;">${emp.fonction}</span>` : ''}
       </td>
       ${cells}
