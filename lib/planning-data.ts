@@ -31,22 +31,13 @@ export async function loadTeamData(teamId: string, month: number, year: number):
   const lastDay = new Date(year, month + 1, 0).getDate()
   const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-  const [etRes, schedRes] = await Promise.all([
-    supabase
-      .from('employee_teams')
-      .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date)')
-      .eq('team_id', teamId),
-    supabase
-      .from('schedules')
-      .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
-      .eq('team_id', teamId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .limit(5000),
-  ])
+  // Load employees first (no role filter — accessible to all authenticated users)
+  const etRes = await supabase
+    .from('employee_teams')
+    .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date)')
+    .eq('team_id', teamId)
 
   if (etRes.error) throw new Error(etRes.error.message)
-  if (schedRes.error) throw new Error(schedRes.error.message)
 
   const empList: Employee[] = []
   const seen = new Set<string>()
@@ -74,6 +65,22 @@ export async function loadTeamData(teamId: string, month: number, year: number):
     if (e.end_date && e.end_date < startDate) return false
     return true
   })
+
+  // Load schedules: filter only by team_id (no allowedTeams restriction)
+  const schedRes = await supabase
+    .from('schedules')
+    .select('id, employee_id, team_id, date, code, start_time, end_time, break_minutes, type, status, notes')
+    .eq('team_id', teamId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .limit(5000)
+
+  if (schedRes.error) {
+    console.error('[loadTeamData] schedules RLS error (vérifier politique Supabase pour superadmin):', schedRes.error.message)
+    throw new Error(schedRes.error.message)
+  }
+
+  console.log('[loadTeamData] team:', teamId, '| employés:', filtered.length, '| schedules:', (schedRes.data ?? []).length)
 
   const { permanents, temporaires } = sortEmployees(filtered)
   return {
