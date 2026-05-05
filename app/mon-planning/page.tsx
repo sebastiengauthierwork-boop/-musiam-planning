@@ -259,7 +259,7 @@ export default function MonPlanningPage() {
         setSelectedSiteId(initSite)
       }
       let teamsQ = supabase.from('teams').select('id, name, cdpf, site_id').order('name')
-      if (role === 'manager' && allowedTeams.length > 0) teamsQ = teamsQ.in('id', allowedTeams)
+      if (!isAdmin(role) && role === 'manager' && allowedTeams.length > 0) teamsQ = teamsQ.in('id', allowedTeams)
       const { data: teamsData } = await teamsQ
       setAllTeams(teamsData ?? [])
     }

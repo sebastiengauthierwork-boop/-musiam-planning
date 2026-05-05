@@ -75,7 +75,7 @@ export default function PlanningPage() {
   const teams = useMemo(() => {
     let t = allTeams
     if (selectedSiteId) t = t.filter(team => team.site_id === selectedSiteId)
-    if (!authLoading && role === 'manager' && allowedTeams.length > 0) {
+    if (!authLoading && !isAdmin(role) && role === 'manager' && allowedTeams.length > 0) {
       t = t.filter(team => allowedTeams.includes(team.id))
     }
     return t
@@ -112,6 +112,7 @@ export default function PlanningPage() {
 
   const loadEmployeesAndSchedules = useCallback(async () => {
     if (!teamId) return
+    console.log('[planning] load — role:', role, '| site:', selectedSiteId, '| team:', teamId, '| allowedTeams:', allowedTeams)
     setLoading(true)
     setError(null)
     setIsArchived(false)
@@ -160,6 +161,7 @@ export default function PlanningPage() {
         setCalendarDays([])
       }
 
+      console.log('[planning] résultat — employés:', planningData.employees.length, '| schedules:', planningData.schedules.length)
       setEmployees(planningData.employees)
       setSchedules(planningData.schedules)
       loadEmployeeHistory(planningData.employees.map(e => e.id)).then(setEmployeeHistory).catch(() => setEmployeeHistory([]))
@@ -168,7 +170,7 @@ export default function PlanningPage() {
     } finally {
       setLoading(false)
     }
-  }, [teamId, month, year])
+  }, [teamId, month, year, role, selectedSiteId, allowedTeams])
 
   // Fetch on team/month/year change
   useEffect(() => { loadEmployeesAndSchedules() }, [loadEmployeesAndSchedules])
