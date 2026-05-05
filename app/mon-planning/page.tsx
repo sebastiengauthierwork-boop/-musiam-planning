@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 import { getCodeColors } from '@/lib/codeColors'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
@@ -193,7 +194,7 @@ export default function MonPlanningPage() {
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
 
-  const isMgmt = role === 'superadmin' || role === 'admin' || role === 'responsable' || role === 'manager'
+  const isMgmt = isAdmin(role) || role === 'responsable' || role === 'manager'
 
   // ── Tab state ──
   // mgmt: 'browser' (équipes) | 'personal' (mon planning, si employeeId)

@@ -9,6 +9,7 @@ import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
 import { sortEmployees, getFnCode } from '@/lib/employeeUtils'
 import { useAuth } from '@/lib/auth'
+import { isAdmin, isSuperAdmin } from '@/lib/utils'
 
 type Employee = {
   id: string
@@ -533,7 +534,7 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
-                    {role === 'superadmin' && (
+                    {isSuperAdmin(role) && (
                       employeeUserIds.has(emp.id) ? (
                         <span title="Accès actif" className="p-1 text-green-500">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -548,7 +549,7 @@ export default function EmployesPage() {
                         </button>
                       )
                     )}
-                    {(role === 'superadmin' || role === 'admin' || role === 'responsable') && (
+                    {(isAdmin(role) || role === 'responsable') && (
                       <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

@@ -13,6 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import TabFeuilleJour from './TabFeuilleJour'
 import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 import { useSite } from '@/lib/site-context'
 import { usePermissions } from '@/lib/permissions'
 import type { Permission } from '@/lib/permissions'
@@ -269,13 +270,13 @@ export default function PlanningPage() {
         }`}>
           {planningStatus === 'publie' ? 'Publié' : 'Brouillon'}
         </span>
-        {planningStatus === 'brouillon' && (role === 'superadmin' || role === 'admin' || role === 'responsable' || role === 'manager') && (
+        {planningStatus === 'brouillon' && (isAdmin(role) || role === 'responsable' || role === 'manager') && (
           <button onClick={handlePublish} disabled={publishLoading}
             className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
             {publishLoading ? '…' : 'Publier'}
           </button>
         )}
-        {planningStatus === 'publie' && (role === 'superadmin' || role === 'admin' || role === 'responsable') && (
+        {planningStatus === 'publie' && (isAdmin(role) || role === 'responsable') && (
           <button onClick={handleUnpublish} disabled={publishLoading}
             className="px-3 py-1.5 text-xs font-semibold border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors">
             {publishLoading ? '…' : 'Dépublier'}

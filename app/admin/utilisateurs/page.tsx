@@ -6,6 +6,7 @@ import { useEffect, useState, Fragment } from 'react'
 import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
+import { isAdmin, isSuperAdmin } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -226,7 +227,7 @@ export default function UtilisateursPage() {
     const emailNorm = form.email.trim().toLowerCase()
     const emailChanged = emailNorm !== editingUser.email.toLowerCase()
 
-    if (emailChanged && (currentRole === 'admin' || currentRole === 'superadmin')) {
+    if (emailChanged && isAdmin(currentRole)) {
       const session = (await supabase.auth.getSession()).data.session
       const res = await fetch('/api/update-user', {
         method: 'POST',
@@ -262,7 +263,7 @@ export default function UtilisateursPage() {
     setSaving(false)
     closeModal()
     setPageSuccess(
-      emailChanged && (currentRole === 'admin' || currentRole === 'superadmin')
+      emailChanged && isAdmin(currentRole)
         ? `Email modifié. Le salarié doit maintenant se connecter avec ${emailNorm}`
         : 'Utilisateur mis à jour avec succès.'
     )
@@ -347,7 +348,7 @@ export default function UtilisateursPage() {
             Modifiez les rôles et les accès. Pour créer un accès, utilisez le bouton "Créer accès" dans la page <strong>Salariés</strong>.
           </p>
         </div>
-        {currentRole === 'superadmin' && <button
+        {isSuperAdmin(currentRole) && <button
           onClick={handleExportBackup}
           disabled={exporting}
           className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 transition-colors"
@@ -413,7 +414,7 @@ export default function UtilisateursPage() {
                     <RoleBadge role={user.role} />
                   </td>
                   <td className="px-5 py-3.5">
-                    {(user.role === 'admin' || user.role === 'superadmin') ? (
+                    {isAdmin(user.role) ? (
                       <span className="text-slate-400 text-xs italic">
                         Toutes les équipes
                       </span>
@@ -512,8 +513,8 @@ export default function UtilisateursPage() {
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
-                  {currentRole === 'superadmin' && <option value="superadmin">Superadministrateur</option>}
-                  {currentRole === 'superadmin' && <option value="admin">Administrateur</option>}
+                  {isSuperAdmin(currentRole) && <option value="superadmin">Superadministrateur</option>}
+                  {isSuperAdmin(currentRole) && <option value="admin">Administrateur</option>}
                   <option value="responsable">Responsable de site</option>
                   <option value="manager">Manager</option>
                   <option value="salarie">Salarié</option>

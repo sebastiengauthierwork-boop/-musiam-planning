@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { TabProps } from './types'
 import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 
 async function resolveSignedUrl(pdfUrl: string): Promise<string | null> {
   if (!pdfUrl) return null
@@ -320,8 +321,8 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
                             </button>
                           )}
 
-                          {/* Désarchiver — superadmin uniquement */}
-                          {role === 'superadmin' && (
+                          {/* Désarchiver — admin uniquement */}
+                          {isAdmin(role) && (
                             <button
                               onClick={() => setUnarchiveTarget(archive)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 border border-red-200 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"

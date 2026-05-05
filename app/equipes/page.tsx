@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite, type Site } from '@/lib/site-context'
 import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 
 type Team = {
   id: string
@@ -173,7 +174,7 @@ export default function EquipesPage() {
             <div key={siteName}>
               <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">{siteName}</h2>
               <TeamsTable teams={siteTeams} showSite={false}
-                onEdit={openEdit} onDelete={role === 'superadmin' ? id => setConfirmDeleteId(id) : undefined} />
+                onEdit={openEdit} onDelete={isAdmin(role) ? id => setConfirmDeleteId(id) : undefined} />
             </div>
           ))}
           {grouped.length === 0 && (
@@ -182,7 +183,7 @@ export default function EquipesPage() {
         </div>
       ) : (
         <TeamsTable teams={teams} showSite={false}
-          onEdit={openEdit} onDelete={role === 'superadmin' ? id => setConfirmDeleteId(id) : undefined} />
+          onEdit={openEdit} onDelete={isAdmin(role) ? id => setConfirmDeleteId(id) : undefined} />
       )}
 
       {/* Modal */}

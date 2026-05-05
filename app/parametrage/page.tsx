@@ -9,6 +9,7 @@ import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
 import { useAuth } from '@/lib/auth'
+import { isAdmin, isSuperAdmin } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1906,7 +1907,7 @@ export default function ParametragePage() {
     )
   }
 
-  if (currentRole !== 'superadmin' && currentRole !== 'admin' && currentRole !== 'responsable') {
+  if (!isAdmin(currentRole) && currentRole !== 'responsable') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1933,7 +1934,7 @@ export default function ParametragePage() {
           { id: 'fonctions',  label: 'Fonctions'      },
           { id: 'structures', label: 'Structures'     },
           { id: 'calendrier', label: 'Calendrier'     },
-          ...(currentRole === 'superadmin' ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
+          ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
         ] as { id: Section; label: string }[]).map(s => (
           <button key={s.id} onClick={() => setSection(s.id)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 
 export type Permission =
   | 'create_site' | 'edit_teams'
@@ -32,7 +33,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if (authLoading) return
-    if (!role || role === 'admin' || role === 'superadmin') {
+    if (!role || isAdmin(role)) {
       setPermissions({})
       setLoading(false)
       return
@@ -52,7 +53,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
   }, [role, authLoading])
 
   function can(permission: Permission): boolean {
-    if (role === 'admin' || role === 'superadmin') return true
+    if (isAdmin(role)) return true
     if (loading) return true
     return permissions[permission] === true
   }
