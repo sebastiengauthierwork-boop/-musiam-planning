@@ -1982,6 +1982,7 @@ const PERM_CATS = [
   { label: 'Consultation mobile', perms: [
     { key: 'view_own_planning', label: 'Voir son planning' },
     { key: 'view_team_planning', label: "Voir le planning de l'équipe" },
+    { key: 'view_dashboard_mobile', label: 'Tableau de bord (effectifs du jour)' },
   ]},
 ]
 
@@ -2002,7 +2003,7 @@ const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
     edit_cycles: true, view_cycles: true,
     edit_staffing: true, edit_calendar: true, edit_functions: true,
     create_responsable: true, create_manager: true, create_salarie: true,
-    view_own_planning: true, view_team_planning: true,
+    view_own_planning: true, view_team_planning: true, view_dashboard_mobile: true,
   },
   responsable: {
     create_site: false, edit_teams: true,
@@ -2013,7 +2014,7 @@ const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
     edit_cycles: true, view_cycles: true,
     edit_staffing: true, edit_calendar: true, edit_functions: false,
     create_responsable: false, create_manager: true, create_salarie: true,
-    view_own_planning: false, view_team_planning: false,
+    view_own_planning: false, view_team_planning: false, view_dashboard_mobile: true,
   },
   manager: {
     create_site: false, edit_teams: false,
@@ -2024,7 +2025,7 @@ const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
     edit_cycles: false, view_cycles: true,
     edit_staffing: false, edit_calendar: false, edit_functions: false,
     create_responsable: false, create_manager: false, create_salarie: false,
-    view_own_planning: false, view_team_planning: false,
+    view_own_planning: false, view_team_planning: false, view_dashboard_mobile: true,
   },
   salarie: {
     create_site: false, edit_teams: false,
@@ -2035,7 +2036,7 @@ const PERM_DEFAULTS: Record<string, Record<string, boolean>> = {
     edit_cycles: false, view_cycles: false,
     edit_staffing: false, edit_calendar: false, edit_functions: false,
     create_responsable: false, create_manager: false, create_salarie: false,
-    view_own_planning: true, view_team_planning: true,
+    view_own_planning: true, view_team_planning: true, view_dashboard_mobile: false,
   },
 }
 
@@ -2056,6 +2057,22 @@ function RolesAcces() {
       }
       setMatrix(m)
       setLoading(false)
+
+      // Insérer les permissions manquantes avec leurs valeurs par défaut
+      const missingRows: { role: string; permission: string; allowed: boolean }[] = []
+      for (const r of PERM_ROLES_LIST) {
+        for (const cat of PERM_CATS) {
+          for (const perm of cat.perms) {
+            const inDb = (data ?? []).some(row => row.role === r.key && row.permission === perm.key)
+            if (!inDb) {
+              missingRows.push({ role: r.key, permission: perm.key, allowed: PERM_DEFAULTS[r.key]?.[perm.key] ?? false })
+            }
+          }
+        }
+      }
+      if (missingRows.length > 0) {
+        supabase.from('role_permissions').upsert(missingRows, { onConflict: 'role,permission' })
+      }
     })
   }, [])
 
