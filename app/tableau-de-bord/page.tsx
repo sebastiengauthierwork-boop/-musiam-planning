@@ -88,7 +88,7 @@ export default function TableauDeBord() {
           .in('team_id', teamIds).eq('date', todayStr).neq('type', 'absence'),
         supabase.from('schedules')
           .select('date, employee_id')
-          .in('team_id', teamIds).in('date', next5Strs).neq('type', 'absence'),
+          .in('team_id', teamIds).in('date', next5Strs).neq('type', 'absence').neq('type', 'repos').neq('type', 'conge'),
         supabase.from('schedules')
           .select('date, code')
           .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth).neq('type', 'absence'),
@@ -226,8 +226,8 @@ export default function TableauDeBord() {
                   {day.planned}
                 </div>
                 {day.theoretical !== null ? (
-                  <div className={`text-[9px] font-bold mt-0.5 ${diff! >= 0 ? 'text-emerald-600' : diff! >= -1 ? 'text-amber-500' : 'text-red-600'}`}>
-                    {diff! > 0 ? `+${diff}` : diff === 0 ? '=' : `${diff}`}/{day.theoretical}
+                  <div className={`text-[9px] font-bold mt-0.5 ${diff === 0 ? 'text-gray-400' : diff! > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {diff! > 0 ? `+${diff}` : diff === 0 ? 'OK' : `${diff}`}/{day.theoretical}
                   </div>
                 ) : (
                   <div className="text-[9px] text-gray-300 mt-0.5">—</div>
@@ -314,7 +314,7 @@ function GanttChart({ entries }: { entries: GanttEntry[] }) {
                 style={{ left: `${left}%`, width: `${width}%`, background: color.bg }}
               >
                 <span className="text-[8px] font-medium whitespace-nowrap overflow-hidden leading-none" style={{ color: color.text }}>
-                  {e.code} {e.start}–{e.end}
+                  {e.code in CADRE_INDICATIVE_DASH ? e.code : `${e.code} ${e.start}–${e.end}`}
                 </span>
               </div>
             </div>
