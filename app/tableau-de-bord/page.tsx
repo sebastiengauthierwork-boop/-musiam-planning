@@ -63,12 +63,21 @@ export default function TableauDeBord() {
 
       if (!teamIds.length) { setLoading(false); return }
 
-      // 2. Shift codes map (code → paid_hours)
-      const { data: scData } = await supabase.from('shift_codes').select('code, paid_hours')
+      // 2. Shift codes map (code → paid_hours + times) + absence codes
+      const [scRes, absRes] = await Promise.all([
+        supabase.from('shift_codes').select('code, start_time, end_time, paid_hours'),
+        supabase.from('absence_codes').select('code'),
+      ])
       const scMap: Record<string, number> = {}
-      for (const sc of scData ?? []) {
-        if (sc.code && !(sc.code in scMap)) scMap[sc.code] = Number(sc.paid_hours ?? 0)
+      const scTimeMap: Record<string, { start: string; end: string }> = {}
+      for (const sc of scRes.data ?? []) {
+        if (!sc.code) continue
+        if (!(sc.code in scMap)) scMap[sc.code] = Number(sc.paid_hours ?? 0)
+        if (sc.start_time && sc.end_time && !(sc.code in scTimeMap)) {
+          scTimeMap[sc.code] = { start: sc.start_time.slice(0, 5), end: sc.end_time.slice(0, 5) }
+        }
       }
+      const absenceSet = new Set<string>((absRes.data ?? []).map((a: any) => a.code).filter(Boolean))
 
       // 3. Dates J+5
       const next5: Date[] = Array.from({ length: 5 }, (_, i) => {
@@ -84,10 +93,10 @@ export default function TableauDeBord() {
       // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
-          .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
+          .select('employee_id, code, employees(first_name, last_name)')
           .in('team_id', teamIds).eq('date', todayStr),
         supabase.from('schedules')
-          .select('date, employee_id, code, start_time')
+          .select('date, employee_id, code')
           .in('team_id', teamIds).in('date', next5Strs),
         supabase.from('schedules')
           .select('date, code, type')
@@ -102,15 +111,13 @@ export default function TableauDeBord() {
 
       setEmployeeCount(empRes.count ?? 0)
 
-      // 6. Effectifs du jour — Gantt
+      // 6. Effectifs du jour — Gantt (horaires depuis shift_codes, jamais depuis schedules)
       const REPOS_CODES = new Set(['R', 'REP', 'FER'])
       console.log('[Dashboard] Schedules chargés aujourd\'hui — total:', todayRes.data?.length ?? 0)
       console.log('[Dashboard] Détail schedules:', (todayRes.data ?? []).map((s: any) => ({
         employee_id: s.employee_id,
         code: s.code,
-        type: s.type ?? '(non défini)',
-        start_time: s.start_time,
-        end_time: s.end_time,
+        start_time_shift_code: scTimeMap[s.code]?.start ?? '(introuvable dans shift_codes)',
         name: s.employees
           ? `${s.employees.last_name ?? ''} ${s.employees.first_name ?? ''}`.trim()
           : '(jointure manquante)',
@@ -121,11 +128,11 @@ export default function TableauDeBord() {
       for (const s of (todayRes.data ?? []) as any[]) {
         if (seenEmp.has(s.employee_id)) continue
         const code = s.code ?? ''
-        if (REPOS_CODES.has(code)) continue
+        if (REPOS_CODES.has(code) || absenceSet.has(code)) continue
         let startStr: string, endStr: string
-        if (s.start_time && s.end_time) {
-          startStr = s.start_time.slice(0, 5)
-          endStr = s.end_time.slice(0, 5)
+        if (scTimeMap[code]) {
+          startStr = scTimeMap[code].start
+          endStr = scTimeMap[code].end
         } else if (code in CADRE_INDICATIVE_DASH) {
           ;[startStr, endStr] = CADRE_INDICATIVE_DASH[code]
         } else {
@@ -157,12 +164,12 @@ export default function TableauDeBord() {
         }
       }
 
-      // 8. Vigilance J+5 — présent = a start_time (shift/manager) ou code cadre, pas repos
+      // 8. Vigilance J+5 — présent = code dans scTimeMap ou cadre, pas repos ni absence
       const plannedByDay: Record<string, Set<string>> = {}
       for (const s of next5Res.data ?? []) {
         const c = s.code ?? ''
-        if (REPOS_CODES.has(c)) continue
-        if (!s.start_time && !(c in CADRE_INDICATIVE_DASH)) continue
+        if (REPOS_CODES.has(c) || absenceSet.has(c)) continue
+        if (!(c in scTimeMap) && !(c in CADRE_INDICATIVE_DASH)) continue
         if (!plannedByDay[s.date]) plannedByDay[s.date] = new Set()
         plannedByDay[s.date].add(s.employee_id)
       }
