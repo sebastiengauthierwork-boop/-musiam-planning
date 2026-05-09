@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { AbsenceCode, Employee, ShiftCode, TabProps } from './types'
 import { decimalToHMin } from '@/lib/timeUtils'
@@ -1017,13 +1017,13 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const temporaireEmployees = employees.filter(e => isTemporaire(e.contract_type))
   const interimEmployees = employees.filter(e => (e.contract_type ?? '').toUpperCase() === 'INTERIM')
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = outerRef.current
     if (!el) return
-    const NAME_W = 160, TOTAL_W = 56, WEEK_W = 48
+    const NAME_W = 160, TOTAL_W = 56, WEEK_W = 40
     const recalc = () => {
       const avail = el.clientWidth - NAME_W - TOTAL_W - weeks.length * WEEK_W
-      setDynDayW(Math.max(30, Math.floor(avail / days.length)))
+      setDynDayW(Math.max(28, Math.floor(avail / days.length)))
     }
     recalc()
     const ro = new ResizeObserver(recalc)
@@ -1206,24 +1206,19 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 return (
                   <th key={toISO(d)}
                     className="border-b border-r border-gray-100 py-0.5 text-center"
-                    style={{ width: dynDayW, minWidth: dynDayW }}
-                    style={{ background: isTo ? '#dbeafe' : isWE ? '#e5e7eb' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
-                    {structName
-                      ? <div className="text-[7px] text-violet-500 leading-none truncate px-0.5 mb-0.5">{structName.slice(0, 5)}</div>
-                      : <div className="text-[10px] leading-none mb-0.5 invisible">·</div>
-                    }
-                    <div className={`text-[9px] ${isWE ? 'text-slate-500' : 'text-gray-400'}`}>{DAY_LETTER[d.getDay()]}</div>
-                    <div className={`font-bold text-[11px] ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
+                    style={{ width: dynDayW, minWidth: dynDayW, background: isTo ? '#dbeafe' : isWE ? '#e5e7eb' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
+                    {structName && <div className="text-[7px] text-violet-500 leading-none truncate px-0.5">{structName.slice(0, 5)}</div>}
+                    <div className={`font-bold text-[11px] leading-none ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
                   </th>
                 )
               })}
               {weeks.map(w => (
-                <th key={w.label} className="w-12 min-w-[48px] border-b border-r border-indigo-200 bg-indigo-50 py-0.5 text-center text-indigo-600 font-bold text-[10px]">
+                <th key={w.label} className="w-10 min-w-[40px] border-b border-r border-indigo-200 bg-indigo-50 py-0.5 text-center text-indigo-600 font-bold text-[10px]">
                   {w.label}
                   <div className="text-[8px] font-normal text-indigo-400">{w.days.length}j</div>
                 </th>
               ))}
-              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-1 py-1 text-center text-gray-500 font-semibold text-[10px] uppercase tracking-wider w-14">
+              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-1 py-0.5 text-center text-gray-500 font-semibold text-[10px] uppercase tracking-wider w-14">
                 Total
               </th>
             </tr>
