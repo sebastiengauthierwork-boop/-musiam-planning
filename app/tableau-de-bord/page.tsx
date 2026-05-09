@@ -113,16 +113,6 @@ export default function TableauDeBord() {
 
       // 6. Effectifs du jour — Gantt (horaires depuis shift_codes, jamais depuis schedules)
       const REPOS_CODES = new Set(['R', 'REP', 'FER'])
-      console.log('[Dashboard] Schedules chargés aujourd\'hui — total:', todayRes.data?.length ?? 0)
-      console.log('[Dashboard] Détail schedules:', (todayRes.data ?? []).map((s: any) => ({
-        employee_id: s.employee_id,
-        code: s.code,
-        start_time_shift_code: scTimeMap[s.code]?.start ?? '(introuvable dans shift_codes)',
-        name: s.employees
-          ? `${s.employees.last_name ?? ''} ${s.employees.first_name ?? ''}`.trim()
-          : '(jointure manquante)',
-      })))
-
       const seenEmp = new Set<string>()
       const gantt: GanttEntry[] = []
       for (const s of (todayRes.data ?? []) as any[]) {
@@ -143,7 +133,6 @@ export default function TableauDeBord() {
         const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
         gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code })
       }
-      console.log('[Dashboard] Gantt final — présents:', gantt.map(e => ({ name: e.name, code: e.code, start: e.start, end: e.end })))
       gantt.sort((a, b) => a.start.localeCompare(b.start))
       if (loadId !== loadIdRef.current) return
       setGanttEntries(gantt)

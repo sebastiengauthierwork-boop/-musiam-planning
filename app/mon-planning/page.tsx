@@ -604,7 +604,10 @@ export default function MonPlanningPage() {
       {/* Header */}
       <div className="bg-slate-900 text-white px-4" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)', paddingBottom: '8px' }}>
         <div className="flex items-center justify-between">
-          <span className="text-base font-bold text-white">Musiam Planning</span>
+          <div>
+            <span className="text-base font-bold text-white">Musiam Planning</span>
+            <p className="text-slate-400 text-xs italic">by Planekipe</p>
+          </div>
           <div className="flex items-center gap-0.5">
             {isMgmt && (
               <a href="/tableau-de-bord" className="text-slate-400 text-xs px-2 py-1 rounded-lg active:bg-slate-700 active:text-white font-medium">← Gestion</a>

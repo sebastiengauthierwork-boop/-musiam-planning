@@ -255,7 +255,7 @@ export default function Sidebar() {
         {!collapsed && (
           <div className="overflow-hidden">
             <div className="text-base font-bold tracking-tight whitespace-nowrap">Musiam Planning</div>
-            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap italic">by Planekipe ©</p>
+            <p className="text-slate-400 text-xs mt-0.5 whitespace-nowrap italic">by Planekipe</p>
           </div>
         )}
         <button
@@ -374,7 +374,7 @@ export default function Sidebar() {
         )}
         {!collapsed && (
           <p className="text-slate-500 mt-2 px-3" style={{ fontSize: '10px', lineHeight: '1.4' }}>
-            Planekipe v1.0 © Sebastien Gauthier
+            Planekipe v1.2 © Sebastien Gauthier
           </p>
         )}
       </div>

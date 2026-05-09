@@ -120,7 +120,7 @@ export default function LoginPage() {
         </form>
       </div>
       <p className="mt-6 text-center text-gray-400" style={{ fontSize: '11px' }}>
-        Planekipe v1.0 © Sebastien Gauthier
+        Musiam Planning fonctionne avec Planekipe v1.2 © Sebastien Gauthier
       </p>
     </div>
   )

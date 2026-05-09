@@ -336,8 +336,6 @@ export default function UtilisateursPage() {
   // Render
   // -------------------------------------------------------------------------
 
-  console.log('[utilisateurs] currentRole:', currentRole, '| isSuperAdmin:', isSuperAdmin(currentRole), '| authLoading:', authLoading)
-
   return (
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
@@ -515,7 +513,6 @@ export default function UtilisateursPage() {
                   }
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
                 >
-                  {console.log('[dropdown] currentRole:', JSON.stringify(currentRole), '| isSuperAdmin:', isSuperAdmin(currentRole)) as any}
                   {isSuperAdmin(currentRole) && <option value="superadmin">Superadministrateur</option>}
                   {isSuperAdmin(currentRole) && <option value="admin">Administrateur</option>}
                   <option value="responsable">Responsable de site</option>

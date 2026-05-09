@@ -80,8 +80,6 @@ export async function loadTeamData(teamId: string, month: number, year: number):
     throw new Error(schedRes.error.message)
   }
 
-  console.log('[loadTeamData] team:', teamId, '| employés:', filtered.length, '| schedules:', (schedRes.data ?? []).length)
-
   const { permanents, temporaires } = sortEmployees(filtered)
   return {
     employees: [...permanents, ...temporaires],

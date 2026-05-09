@@ -112,7 +112,6 @@ export default function PlanningPage() {
 
   const loadEmployeesAndSchedules = useCallback(async () => {
     if (!teamId) return
-    console.log('[planning] load — role:', role, '| site:', selectedSiteId, '| team:', teamId, '| allowedTeams:', allowedTeams)
     setLoading(true)
     setError(null)
     setIsArchived(false)
@@ -161,7 +160,6 @@ export default function PlanningPage() {
         setCalendarDays([])
       }
 
-      console.log('[planning] résultat — employés:', planningData.employees.length, '| schedules:', planningData.schedules.length)
       setEmployees(planningData.employees)
       setSchedules(planningData.schedules)
       loadEmployeeHistory(planningData.employees.map(e => e.id)).then(setEmployeeHistory).catch(() => setEmployeeHistory([]))
