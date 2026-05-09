@@ -29,13 +29,6 @@ export default function CyclePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Apply modal
-  const [applyModal, setApplyModal] = useState(false)
-  const [applyYear, setApplyYear] = useState(now.getFullYear())
-  const [applyMonth, setApplyMonth] = useState(now.getMonth())
-  const [applyLoading, setApplyLoading] = useState(false)
-  const [applyResult, setApplyResult] = useState<string | null>(null)
-
   // Manage employees modal
   const [manageModal, setManageModal] = useState(false)
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null)
@@ -161,67 +154,6 @@ export default function CyclePage() {
     }
   }
 
-  async function applyToMonth() {
-    if (cycleEmployees.length === 0) return
-    setApplyLoading(true)
-    setApplyResult(null)
-    try {
-      const nDays = new Date(applyYear, applyMonth + 1, 0).getDate()
-      const days: Date[] = Array.from({ length: nDays }, (_, i) => new Date(applyYear, applyMonth, i + 1))
-
-      const weekKeyOrder: string[] = []
-      const weekKeyMap = new Map<string, number>()
-      for (const d of days) {
-        const dow = (d.getDay() + 6) % 7
-        const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow)
-        const key = `${mon.getFullYear()}-${mon.getMonth()}-${mon.getDate()}`
-        if (!weekKeyMap.has(key)) { weekKeyMap.set(key, weekKeyOrder.length); weekKeyOrder.push(key) }
-      }
-
-      const upserts: any[] = []
-      for (const emp of cycleEmployees) {
-        for (const d of days) {
-          const dow = (d.getDay() + 6) % 7
-          const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - dow)
-          const key = `${mon.getFullYear()}-${mon.getMonth()}-${mon.getDate()}`
-          const wIdx = weekKeyMap.get(key) ?? 0
-          const cycleWeek = (wIdx % 6) + 1
-          const dayOfWeek = dow + 1
-          const code = entries[`${emp.id}|${cycleWeek}|${dayOfWeek}`]
-          if (!code) continue
-
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-          const sc = shiftCodes.find(c => c.code === code)
-          upserts.push({
-            employee_id: emp.id,
-            team_id: teamId,
-            date: dateStr,
-            code,
-            type: sc ? 'shift' : 'absence',
-            start_time: sc?.start_time ?? null,
-            end_time: sc?.end_time ?? null,
-            break_minutes: 0,
-            status: 'brouillon',
-            notes: null,
-          })
-        }
-      }
-
-      if (upserts.length > 0) {
-        const { error } = await supabase.from('schedules').upsert(upserts, { onConflict: 'employee_id,date' })
-        if (error) throw error
-      }
-
-      setApplyResult(`✓ ${upserts.length} créneau${upserts.length !== 1 ? 'x' : ''} appliqué${upserts.length !== 1 ? 's' : ''} sur ${MONTHS[applyMonth]} ${applyYear}`)
-      setTimeout(() => { setApplyModal(false); setApplyResult(null) }, 2500)
-    } catch (e: any) {
-      setApplyResult(`Erreur : ${e?.message ?? JSON.stringify(e)}`)
-    } finally {
-      setApplyLoading(false)
-    }
-  }
-
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i)
   const cycleIds = new Set(cycleEmployees.map(e => e.id))
   const available = allPermanents.filter(e => !cycleIds.has(e.id))
 
@@ -246,16 +178,6 @@ export default function CyclePage() {
         {saving && <span className="text-xs text-blue-400 animate-pulse">Sauvegarde…</span>}
         <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-gray-400">S1–S6 = semaines du cycle · L=lundi … D=dimanche</span>
-          <button
-            onClick={() => setApplyModal(true)}
-            disabled={cycleEmployees.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-40"
-          >
-            Appliquer au mois
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -453,46 +375,6 @@ export default function CyclePage() {
         </div>
       )}
 
-      {/* Apply modal */}
-      {applyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !applyLoading && setApplyModal(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">Appliquer le cycle au mois</h2>
-            <p className="text-xs text-gray-400 mb-4">
-              S1 du cycle = 1re semaine du mois, puis rotation S1→S6.
-            </p>
-            <div className="flex gap-3 mb-4">
-              <select value={applyMonth} onChange={e => setApplyMonth(Number(e.target.value))}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
-                {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
-              <select value={applyYear} onChange={e => setApplyYear(Number(e.target.value))}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
-                {years.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <p className="text-sm text-gray-500 mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              Les cellules déjà remplies dans le planning seront <strong>écrasées</strong>.
-            </p>
-            {applyResult && (
-              <div className={`mb-4 rounded-lg px-3 py-2 text-sm font-medium ${applyResult.startsWith('Erreur') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
-                {applyResult}
-              </div>
-            )}
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setApplyModal(false)} disabled={applyLoading}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
-                Annuler
-              </button>
-              <button onClick={applyToMonth} disabled={applyLoading}
-                className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
-                {applyLoading ? 'Application…' : 'Confirmer et appliquer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

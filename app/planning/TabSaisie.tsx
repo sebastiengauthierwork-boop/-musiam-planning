@@ -470,6 +470,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [cycleOverwrite, setCycleOverwrite] = useState(false)
   const [cycleApplying, setCycleApplying] = useState(false)
   const [cycleResult, setCycleResult] = useState<{ filled: number; emps: number; kept: number; noData: number } | null>(null)
+  const [cycleSuggestion, setCycleSuggestion] = useState<{ week: number; monthLabel: string } | null>(null)
 
   // ── Intérimaires ──
   const [showInterimModal, setShowInterimModal] = useState(false)
@@ -678,6 +679,84 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       setShowCycleModal(false)
     } finally {
       setCycleApplying(false)
+    }
+  }
+
+  async function computeCycleSuggestion(): Promise<{ week: number; monthLabel: string } | null> {
+    try {
+      const prevLastDay = new Date(year, month, 0)
+      const prevYear = prevLastDay.getFullYear()
+      const prevMonth = prevLastDay.getMonth()
+
+      const last7Days: Date[] = []
+      for (let i = 6; i >= 0; i--) {
+        last7Days.push(new Date(prevYear, prevMonth, prevLastDay.getDate() - i))
+      }
+      const last7Strs = last7Days.map(d => toISO(d))
+
+      const [{ data: prevSchedules }, { data: cycleData }] = await Promise.all([
+        supabase.from('schedules').select('employee_id, date, code').eq('team_id', teamId).in('date', last7Strs),
+        supabase.from('cycle_schedules').select('employee_id, week_number, day_of_week, code').eq('team_id', teamId),
+      ])
+
+      if (!prevSchedules?.length || !cycleData?.length) return null
+
+      const actualRepos: Record<string, Record<number, boolean>> = {}
+      for (const s of prevSchedules) {
+        if (!actualRepos[s.employee_id]) actualRepos[s.employee_id] = {}
+        const d = last7Days.find(dd => toISO(dd) === s.date)
+        if (!d) continue
+        const dow = (d.getDay() + 6) % 7 + 1
+        actualRepos[s.employee_id][dow] = s.code === 'R' || s.code === 'REP' || s.code === 'FER'
+      }
+
+      const cycleRepos: Record<string, Record<number, Record<number, boolean>>> = {}
+      for (const c of cycleData) {
+        const empKey = c.employee_id ?? 'ALL'
+        if (!cycleRepos[empKey]) cycleRepos[empKey] = {}
+        if (!cycleRepos[empKey][c.week_number]) cycleRepos[empKey][c.week_number] = {}
+        cycleRepos[empKey][c.week_number][c.day_of_week] = c.code === 'R' || c.code === 'REP' || c.code === 'FER'
+      }
+
+      const last7Dows = last7Days.map(d => (d.getDay() + 6) % 7 + 1)
+      const scores = [0, 0, 0, 0, 0, 0, 0]
+
+      for (const emp of employees) {
+        const empActual = actualRepos[emp.id] ?? {}
+        for (let w = 1; w <= 6; w++) {
+          const cycleWeek = cycleRepos[emp.id]?.[w] ?? cycleRepos['ALL']?.[w] ?? {}
+          let score = 0
+          for (const dow of last7Dows) {
+            if ((empActual[dow] ?? false) === (cycleWeek[dow] ?? false)) score++
+          }
+          scores[w] += score
+        }
+      }
+
+      let bestWeek = 1, bestScore = -1
+      for (let w = 1; w <= 6; w++) {
+        if (scores[w] > bestScore) { bestScore = scores[w]; bestWeek = w }
+      }
+
+      return { week: (bestWeek % 6) + 1, monthLabel: `${MONTHS_FR[prevMonth]} ${prevYear}` }
+    } catch {
+      return null
+    }
+  }
+
+  async function openCycleModal() {
+    setCycleResult(null)
+    setCycleOverwrite(false)
+    setCycleSuggestion(null)
+    setCycleStartDate(`${year}-${String(month + 1).padStart(2, '0')}-01`)
+    setCycleEndDate(toISO(new Date(year, month + 1, 0)))
+    setShowCycleModal(true)
+    const suggestion = await computeCycleSuggestion()
+    if (suggestion) {
+      setCycleStartWeek(suggestion.week)
+      setCycleSuggestion(suggestion)
+    } else {
+      setCycleStartWeek(1)
     }
   }
 
@@ -1005,6 +1084,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   {[1,2,3,4,5,6].map(w => <option key={w} value={w}>Semaine {w}</option>)}
                 </select>
               </div>
+              {cycleSuggestion && !cycleResult && (
+                <p className="text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2">
+                  Suggestion : Semaine {cycleSuggestion.week} (basée sur le planning de {cycleSuggestion.monthLabel})
+                </p>
+              )}
               <label className="flex items-center gap-2.5 cursor-pointer select-none">
                 <input type="checkbox" checked={cycleOverwrite} onChange={e => setCycleOverwrite(e.target.checked)}
                   disabled={cycleApplying || !!cycleResult}
@@ -1065,7 +1149,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       {/* Action bar: cycle + conformité + archive */}
       {!isArchived && (
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
-          <button onClick={() => { setCycleResult(null); setCycleStartWeek(1); setCycleOverwrite(false); setCycleStartDate(`${year}-${String(month + 1).padStart(2, '0')}-01`); setCycleEndDate(toISO(new Date(year, month + 1, 0))); setShowCycleModal(true) }}
+          <button onClick={openCycleModal}
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
