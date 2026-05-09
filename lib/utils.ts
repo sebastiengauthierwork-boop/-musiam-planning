@@ -6,9 +6,22 @@ export function isSuperAdmin(role: string | null | undefined): boolean {
   return role === 'superadmin'
 }
 
-export function getCodeColor(code: string): { bg: string; text: string } {
+function autoTextColor(hex: string): string {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!m) return '#000000'
+  const lum = (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255
+  return lum > 0.5 ? '#000000' : '#ffffff'
+}
+
+export function getCodeColor(
+  code: string,
+  shiftCodes?: { code: string; color?: string | null }[],
+  absenceCodes?: { code: string; color?: string | null }[]
+): { bg: string; text: string } {
   if (!code) return { bg: '#f3f4f6', text: '#374151' }
   const c = code.trim()
+  const custom = shiftCodes?.find(s => s.code === c)?.color || absenceCodes?.find(a => a.code === c)?.color
+  if (custom) return { bg: custom, text: autoTextColor(custom) }
   const first = c[0]?.toUpperCase() ?? ''
   const last  = c[c.length - 1]?.toUpperCase() ?? ''
 

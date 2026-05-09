@@ -187,7 +187,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
                 const cell = blocked ? null : cellData(emp.id, dateStr)
                 const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
-                const c = code ? getCodeColor(code) : null
+                const c = code ? getCodeColor(code, shiftCodes, absenceCodes) : null
                 const bg = blocked ? '#e5e7eb' : c ? c.bg : (isWE ? '#f8fafc' : '#ffffff')
                 return (
                   <td key={dateStr} style={{
@@ -407,7 +407,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                       const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
                       const cell = blocked ? null : cellData(emp.id, dateStr)
                       const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
-                      const c = code ? getCodeColor(code) : null
+                      const c = code ? getCodeColor(code, shiftCodes, absenceCodes) : null
                       const bg = blocked ? '#e5e7eb' : c ? c.bg : S.bgEmpty
                       return (
                         <td key={dateStr} style={{

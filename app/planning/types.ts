@@ -22,15 +22,16 @@ export type ShiftCode = {
   id: string
   code: string
   label: string
-  site_id: string | null     // FK vers sites — le code appartient à un site
-  team_id: string | null     // conservé pour rétrocompatibilité, non utilisé pour le filtrage
+  site_id: string | null
+  team_id: string | null
   team_prefix: string | null
   location_prefix: string | null
-  start_time: string | null  // "HH:MM:SS"
+  start_time: string | null
   end_time: string | null
   break_minutes: number
   net_hours: number | null
   paid_hours: number | null
+  color?: string | null
 }
 
 export type AbsenceCode = {
@@ -38,6 +39,7 @@ export type AbsenceCode = {
   code: string
   label: string
   is_paid: boolean
+  color?: string | null
 }
 
 export type Schedule = {

@@ -45,8 +45,8 @@ export default function CyclePage() {
   useEffect(() => {
     Promise.all([
       supabase.from('teams').select('id, name, cdpf').order('name'),
-      supabase.from('shift_codes').select('id, code, label, start_time, end_time, net_hours').order('code'),
-      supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
+      supabase.from('shift_codes').select('id, code, label, start_time, end_time, net_hours, color').order('code'),
+      supabase.from('absence_codes').select('id, code, label, is_paid, color').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
       const t = tRes.data ?? []
       setTeams(t)

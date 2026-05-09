@@ -93,8 +93,8 @@ export default function PlanningPage() {
   useEffect(() => {
     Promise.all([
       supabase.from('teams').select('id, name, cdpf, type, site_id').order('name'),
-      supabase.from('shift_codes').select('id, code, label, site_id, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours').order('code'),
-      supabase.from('absence_codes').select('id, code, label, is_paid').order('code'),
+      supabase.from('shift_codes').select('id, code, label, site_id, team_id, team_prefix, location_prefix, start_time, end_time, break_minutes, net_hours, paid_hours, color').order('code'),
+      supabase.from('absence_codes').select('id, code, label, is_paid, color').order('code'),
       supabase.from('job_functions').select('id, name, code').order('name'),
     ]).then(([tRes, scRes, acRes, jfRes]) => {
       setAllTeams(tRes.data ?? [])

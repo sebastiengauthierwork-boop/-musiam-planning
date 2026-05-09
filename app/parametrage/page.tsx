@@ -34,6 +34,7 @@ type ShiftForm = {
   dressing_minutes: string
   meal_included: boolean
   end_time: string; arrival_time: string; departure_time: string
+  color: string
   // nomenclature auto-générée
   nomenStatut: '' | 'E' | 'M' | 'C'
   nomenEquipeId: string
@@ -42,7 +43,7 @@ type ShiftForm = {
 }
 
 type NomenTeam = { id: string; name: string; letter: string | null; site_id: string | null }
-type AbsenceForm = { code: string; label: string; is_paid: boolean }
+type AbsenceForm = { code: string; label: string; is_paid: boolean; color: string }
 type Structure = { id: string; name: string; site_id?: string | null }
 type StructurePosition = { id: string; structure_id: string; position_name: string; required_count: number }
 type CalendarEntry = { date: string; team_id: string | null; structure_id: string | null }
@@ -53,9 +54,10 @@ const emptyShiftForm: ShiftForm = {
   break_minutes: '0', dressing_minutes: '0',
   meal_included: false,
   end_time: '', arrival_time: '', departure_time: '',
+  color: '',
   nomenStatut: '', nomenEquipeId: '', nomenHoraire: '', nomenSuffixe: '',
 }
-const emptyAbsenceForm: AbsenceForm = { code: '', label: '', is_paid: true }
+const emptyAbsenceForm: AbsenceForm = { code: '', label: '', is_paid: true, color: '' }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -150,6 +152,7 @@ function CodesHoraires() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [ignoreColorConflict, setIgnoreColorConflict] = useState(false)
 
   async function load() {
     let q = supabase.from('shift_codes').select('*').order('code')
@@ -166,7 +169,7 @@ function CodesHoraires() {
   useEffect(() => { load() }, [selectedSiteId])
 
   function openAdd() {
-    setEditing(null); setForm(emptyShiftForm); setSaveError(null); setModal('add')
+    setEditing(null); setForm(emptyShiftForm); setSaveError(null); setIgnoreColorConflict(false); setModal('add')
   }
 
   function shiftToForm(c: ShiftCode): ShiftForm {
@@ -181,17 +184,18 @@ function CodesHoraires() {
       end_time: c.end_time?.slice(0, 5) ?? '',
       arrival_time: c.arrival_time?.slice(0, 5) ?? '',
       departure_time: c.departure_time?.slice(0, 5) ?? '',
+      color: (c as any).color ?? '',
       nomenStatut: '', nomenEquipeId: '', nomenHoraire: '', nomenSuffixe: '',
     }
     return { ...base, ...recalcShiftTimes(base) }
   }
 
   function openEdit(c: ShiftCode) {
-    setEditing(c); setForm(shiftToForm(c)); setSaveError(null); setModal('edit')
+    setEditing(c); setForm(shiftToForm(c)); setSaveError(null); setIgnoreColorConflict(false); setModal('edit')
   }
 
   function openDuplicate(c: ShiftCode) {
-    setEditing(null); setForm({ ...shiftToForm(c), code: '' }); setSaveError(null); setModal('add')
+    setEditing(null); setForm({ ...shiftToForm(c), code: '', color: '' }); setSaveError(null); setIgnoreColorConflict(false); setModal('add')
   }
 
   const STATUT_LABELS: Record<string, string> = { E: 'Employé', M: 'Manager', C: 'Cadre' }
@@ -226,6 +230,10 @@ function CodesHoraires() {
     ? codes.some(c => c.code === form.code.trim().toUpperCase() && (!editing || c.id !== editing.id))
     : false
 
+  const colorConflictCode = form.color && !ignoreColorConflict
+    ? (codes.find(c => (c as any).color === form.color && (!editing || c.id !== editing.id)) ?? null)
+    : null
+
   const isCadre = form.nomenStatut === 'C'
 
   async function handleSave() {
@@ -254,6 +262,7 @@ function CodesHoraires() {
       dressing_minutes: dressMin,
       pause_minutes: 0,
       meal_included: form.meal_included,
+      color: form.color || null,
     }
     try {
       if (editing) {
@@ -438,6 +447,37 @@ function CodesHoraires() {
               </Field>
             </div>
 
+            {/* Couleur personnalisée */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Couleur de fond (optionnel)</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={form.color || '#4A90C4'}
+                  onChange={e => { updateForm({ color: e.target.value }); setIgnoreColorConflict(false) }}
+                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5" />
+                {form.color && (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-md font-mono font-bold text-sm"
+                    style={{ background: form.color, color: (() => { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(form.color); if (!m) return '#000'; const lum = (0.299*parseInt(m[1],16)+0.587*parseInt(m[2],16)+0.114*parseInt(m[3],16))/255; return lum>0.5?'#000000':'#ffffff' })() }}>
+                    {form.code || 'CODE'}
+                  </span>
+                )}
+                {form.color && (
+                  <button type="button" onClick={() => { updateForm({ color: '' }); setIgnoreColorConflict(false) }}
+                    className="text-xs text-gray-400 hover:text-red-500 underline">Supprimer</button>
+                )}
+              </div>
+              {colorConflictCode && (
+                <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  <p>Cette couleur est déjà utilisée par le code <strong>{colorConflictCode.code}</strong> ({colorConflictCode.label}). Voulez-vous quand même l'utiliser ?</p>
+                  <div className="flex gap-2 mt-2">
+                    <button type="button" onClick={() => updateForm({ color: '' })}
+                      className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Changer de couleur</button>
+                    <button type="button" onClick={() => setIgnoreColorConflict(true)}
+                      className="px-3 py-1 text-xs font-medium text-amber-800 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200">Utiliser quand même</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* d) Heures nettes + e) Prise de poste — champs principaux */}
             <div className="grid grid-cols-2 gap-4">
               <Field
@@ -547,6 +587,7 @@ function CodesAbsence() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [ignoreColorConflictAbs, setIgnoreColorConflictAbs] = useState(false)
 
   async function load() {
     const { data } = await supabase.from('absence_codes').select('*').order('code')
@@ -554,13 +595,21 @@ function CodesAbsence() {
   }
   useEffect(() => { load() }, [])
 
-  function openAdd() { setEditing(null); setForm(emptyAbsenceForm); setSaveError(null); setModal('add') }
-  function openEdit(c: AbsenceCode) { setEditing(c); setForm({ code: c.code, label: c.label, is_paid: c.is_paid }); setSaveError(null); setModal('edit') }
+  const colorConflictAbs = form.color && !ignoreColorConflictAbs
+    ? (codes.find(c => (c as any).color === form.color && (!editing || c.id !== editing.id)) ?? null)
+    : null
+
+  function openAdd() { setEditing(null); setForm(emptyAbsenceForm); setSaveError(null); setIgnoreColorConflictAbs(false); setModal('add') }
+  function openEdit(c: AbsenceCode) {
+    setEditing(c)
+    setForm({ code: c.code, label: c.label, is_paid: c.is_paid, color: (c as any).color ?? '' })
+    setSaveError(null); setIgnoreColorConflictAbs(false); setModal('edit')
+  }
 
   async function handleSave() {
     if (!form.code || !form.label) return
     setSaving(true); setSaveError(null)
-    const payload = { code: form.code.trim().toUpperCase(), label: form.label.trim(), is_paid: form.is_paid }
+    const payload = { code: form.code.trim().toUpperCase(), label: form.label.trim(), is_paid: form.is_paid, color: form.color || null }
     try {
       if (editing) {
         const { error } = await supabase.from('absence_codes').update(payload).eq('id', editing.id)
@@ -674,6 +723,35 @@ function CodesAbsence() {
                 ))}
               </div>
             </Field>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Couleur de fond (optionnel)</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={form.color || '#888888'}
+                  onChange={e => { setForm(f => ({ ...f, color: e.target.value })); setIgnoreColorConflictAbs(false) }}
+                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5" />
+                {form.color && (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-md font-mono font-bold text-sm"
+                    style={{ background: form.color, color: (() => { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(form.color); if (!m) return '#000'; const lum = (0.299*parseInt(m[1],16)+0.587*parseInt(m[2],16)+0.114*parseInt(m[3],16))/255; return lum>0.5?'#000000':'#ffffff' })() }}>
+                    {form.code || 'CODE'}
+                  </span>
+                )}
+                {form.color && (
+                  <button type="button" onClick={() => { setForm(f => ({ ...f, color: '' })); setIgnoreColorConflictAbs(false) }}
+                    className="text-xs text-gray-400 hover:text-red-500 underline">Supprimer</button>
+                )}
+              </div>
+              {colorConflictAbs && (
+                <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+                  <p>Cette couleur est déjà utilisée par le code <strong>{colorConflictAbs.code}</strong> ({colorConflictAbs.label}). Voulez-vous quand même l'utiliser ?</p>
+                  <div className="flex gap-2 mt-2">
+                    <button type="button" onClick={() => setForm(f => ({ ...f, color: '' }))}
+                      className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Changer de couleur</button>
+                    <button type="button" onClick={() => setIgnoreColorConflictAbs(true)}
+                      className="px-3 py-1 text-xs font-medium text-amber-800 bg-amber-100 border border-amber-300 rounded-lg hover:bg-amber-200">Utiliser quand même</button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           {saveError && (
             <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">{saveError}</div>

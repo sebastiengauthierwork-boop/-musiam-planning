@@ -159,7 +159,7 @@ function TeamGrid({ employees, schedules, dates, todayKey, highlightId, shiftCod
                   </td>
                   {dates.map(({ ds }) => {
                     const code = schedMap[emp.id]?.[ds] ?? ''
-                    const colors = code ? getCodeColor(code) : null
+                    const colors = code ? getCodeColor(code, shiftCodes, absenceCodes) : null
                     return (
                       <td key={ds} className={`px-0.5 py-1 ${isMe ? 'bg-blue-50/40' : ''}`}>
                         {code ? (
@@ -263,8 +263,8 @@ export default function MonPlanningPage() {
   useEffect(() => {
     if (authLoading) return
     Promise.all([
-      supabase.from('shift_codes').select('id, code, label, start_time, end_time').order('code'),
-      supabase.from('absence_codes').select('id, code, label').order('code'),
+      supabase.from('shift_codes').select('id, code, label, start_time, end_time, color').order('code'),
+      supabase.from('absence_codes').select('id, code, label, color').order('code'),
     ]).then(([scRes, acRes]) => {
       setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
@@ -447,7 +447,7 @@ export default function MonPlanningPage() {
     const ds = dateStr(year, month, i + 1)
     const sched = schedules.find(s => s.date === ds)
     const code = sched?.code ?? null
-    const colors = code ? getCodeColor(code) : null
+    const colors = code ? getCodeColor(code, shiftCodes, absenceCodes) : null
     const sc = code ? shiftCodes.find(c => c.code === code) : null
     return { d, ds, code, colors, sc, isToday: ds === todayKey, isWE: d.getDay() === 0 || d.getDay() === 6 }
   })
