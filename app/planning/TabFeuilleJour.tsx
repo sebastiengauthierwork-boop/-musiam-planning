@@ -260,15 +260,16 @@ export default function TabFeuilleJour({
                 const barText = isCadre ? '#4B5563' : (colors?.text ?? '#fff')
 
                 // Pause repas
-                const pStart    = pauseStarts[emp.id] ?? ''
-                const breakMin  = sc?.break_minutes ?? 0
-                const pEnd      = pStart && breakMin > 0 ? addMinutes(pStart, breakMin) : ''
-                const pStartMin = pStart ? timeToMin(pStart) : -1
-                const pEndMin   = pEnd   ? timeToMin(pEnd)   : -1
-                const hasPause  = !isCadre && hasBar && pStartMin >= 0 && pEndMin > pStartMin
-                const pauseLeft = hasPause ? Math.max(0, ((pStartMin - ganttStart) / ganttDuration) * 100) : 0
-                const pauseRight= hasPause ? Math.max(0, ((ganttEnd - pEndMin)   / ganttDuration) * 100) : 100
-                const pDisplay  = pStart ? (pEnd ? `${pStart}–${pEnd}` : pStart) : ''
+                const pStart      = pauseStarts[emp.id] ?? ''
+                const breakMin    = sc?.break_minutes ?? 0
+                const pStartValid = /^\d{1,2}:\d{2}$/.test(pStart)
+                const pEnd        = pStartValid && breakMin > 0 ? addMinutes(pStart, breakMin) : ''
+                const pStartMin   = pStartValid ? timeToMin(pStart) : -1
+                const pEndMin     = pEnd ? timeToMin(pEnd) : -1
+                const hasPause    = !isCadre && hasBar && pStartMin >= 0 && pEndMin > pStartMin
+                const pauseLeft   = hasPause ? Math.max(0, ((pStartMin - ganttStart) / ganttDuration) * 100) : 0
+                const pauseRight  = hasPause ? Math.max(0, ((ganttEnd - pEndMin)   / ganttDuration) * 100) : 100
+                const pDisplay    = pStartValid ? (pEnd ? `${pStart}–${pEnd}` : pStart) : ''
 
                 const isEven  = idx % 2 === 0
                 const prevEmp = presentEmployees[idx - 1]
@@ -334,20 +335,45 @@ export default function TabFeuilleJour({
                       <td style={{ borderBottom: '1px solid #e2e8f0', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #e2e8f0', textAlign: 'center', padding: '2px 4px', verticalAlign: 'middle' }}>
                         {!isCadre && (
                           <>
-                            <input
-                              type="time"
-                              value={pStart}
-                              onChange={e => {
-                                const val = e.target.value
-                                setPauseStarts(prev => {
-                                  const next = { ...prev, [emp.id]: val }
-                                  saveToStorage(storageKey, next, poste1, poste2)
-                                  return next
-                                })
-                              }}
-                              className="fj-input"
-                              style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 4, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none' }}
-                            />
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                              <input
+                                type="text"
+                                maxLength={2}
+                                value={pStart ? (pStart.split(':')[0] ?? '') : ''}
+                                onChange={e => {
+                                  const hh = e.target.value.replace(/\D/g, '')
+                                  const mm = pStart ? (pStart.split(':')[1] ?? '') : ''
+                                  const newVal = hh || mm ? `${hh}:${mm}` : ''
+                                  setPauseStarts(prev => {
+                                    const next = { ...prev, [emp.id]: newVal }
+                                    saveToStorage(storageKey, next, poste1, poste2)
+                                    return next
+                                  })
+                                }}
+                                placeholder="HH"
+                                className="fj-input"
+                                style={{ width: 28, border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
+                              />
+                              <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>:</span>
+                              <input
+                                type="text"
+                                maxLength={2}
+                                value={pStart ? (pStart.split(':')[1] ?? '') : ''}
+                                onChange={e => {
+                                  const mm = e.target.value.replace(/\D/g, '')
+                                  const hh = pStart ? (pStart.split(':')[0] ?? '') : ''
+                                  const newVal = hh || mm ? `${hh}:${mm}` : ''
+                                  setPauseStarts(prev => {
+                                    const next = { ...prev, [emp.id]: newVal }
+                                    saveToStorage(storageKey, next, poste1, poste2)
+                                    return next
+                                  })
+                                }}
+                                placeholder="MM"
+                                className="fj-input"
+                                style={{ width: 28, border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
+                              />
+                            </div>
                             {pDisplay && (
                               <div className="no-print" style={{ fontSize: '7px', color: '#475569', marginTop: 1, fontWeight: 600 }}>
                                 {pDisplay}

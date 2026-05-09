@@ -24,6 +24,12 @@ type GanttEntry = { employee_id: string; name: string; start: string; end: strin
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
 type BudgetData = { realized: number; forecast: number; budget: number }
 
+const CADRE_INDICATIVE_DASH: Record<string, [string, string]> = {
+  'P/O': ['05:00', '14:00'],
+  'P/F': ['13:30', '22:30'],
+  'P':   ['11:30', '20:30'],
+}
+
 export default function TableauDeBord() {
   const { selectedSiteId } = useSite()
   const now = new Date()
@@ -79,13 +85,13 @@ export default function TableauDeBord() {
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
           .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
-          .in('team_id', teamIds).eq('date', todayStr).eq('type', 'shift'),
+          .in('team_id', teamIds).eq('date', todayStr).neq('type', 'absence'),
         supabase.from('schedules')
           .select('date, employee_id')
-          .in('team_id', teamIds).in('date', next5Strs).eq('type', 'shift'),
+          .in('team_id', teamIds).in('date', next5Strs).neq('type', 'absence'),
         supabase.from('schedules')
           .select('date, code')
-          .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth).eq('type', 'shift'),
+          .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth).neq('type', 'absence'),
         supabase.from('annual_calendar')
           .select('date, structure_id')
           .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth),
@@ -100,11 +106,21 @@ export default function TableauDeBord() {
       const seenEmp = new Set<string>()
       const gantt: GanttEntry[] = []
       for (const s of (todayRes.data ?? []) as any[]) {
-        if (!s.start_time || !s.end_time || seenEmp.has(s.employee_id)) continue
+        if (seenEmp.has(s.employee_id)) continue
+        const code = s.code ?? ''
+        let startStr: string, endStr: string
+        if (s.start_time && s.end_time) {
+          startStr = s.start_time.slice(0, 5)
+          endStr = s.end_time.slice(0, 5)
+        } else if (code in CADRE_INDICATIVE_DASH) {
+          ;[startStr, endStr] = CADRE_INDICATIVE_DASH[code]
+        } else {
+          continue
+        }
         seenEmp.add(s.employee_id)
         const emp = s.employees
         const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
-        gantt.push({ employee_id: s.employee_id, name, start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5), code: s.code ?? '' })
+        gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code })
       }
       gantt.sort((a, b) => a.start.localeCompare(b.start))
       if (loadId !== loadIdRef.current) return
@@ -200,24 +216,21 @@ export default function TableauDeBord() {
 
       {/* Vigilance J+5 */}
       <Card title="Vigilance effectifs" badge="5 prochains jours">
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-1.5">
           {vigilance.map(day => {
             const diff = day.theoretical !== null ? day.planned - day.theoretical : null
             return (
-              <div key={day.date} className="border border-gray-100 rounded-xl p-3 text-center">
-                <div className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">{day.label}</div>
-                <div className={`text-2xl font-bold ${diff !== null && diff < -1 ? 'text-red-600' : 'text-gray-900'}`}>
+              <div key={day.date} className="border border-gray-100 rounded-lg p-2 text-center">
+                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{day.label}</div>
+                <div className={`text-lg font-bold mt-1 ${diff !== null && diff < -1 ? 'text-red-600' : 'text-gray-900'}`}>
                   {day.planned}
                 </div>
                 {day.theoretical !== null ? (
-                  <>
-                    <div className="text-xs text-gray-400 mt-0.5">{day.theoretical} requis</div>
-                    <div className={`text-xs font-bold mt-1 ${diff! >= 0 ? 'text-emerald-600' : diff! >= -1 ? 'text-amber-500' : 'text-red-600'}`}>
-                      {diff! > 0 ? `+${diff}` : diff === 0 ? '=' : `${diff}`}
-                    </div>
-                  </>
+                  <div className={`text-[9px] font-bold mt-0.5 ${diff! >= 0 ? 'text-emerald-600' : diff! >= -1 ? 'text-amber-500' : 'text-red-600'}`}>
+                    {diff! > 0 ? `+${diff}` : diff === 0 ? '=' : `${diff}`}/{day.theoretical}
+                  </div>
                 ) : (
-                  <div className="text-xs text-gray-300 mt-0.5">— requis</div>
+                  <div className="text-[9px] text-gray-300 mt-0.5">—</div>
                 )}
               </div>
             )
@@ -227,39 +240,28 @@ export default function TableauDeBord() {
 
       {/* Pilotage budgétaire */}
       <Card title="Pilotage budgétaire" badge={monthLabel}>
-        <div className="space-y-4">
-          <div className="flex items-end gap-8 flex-wrap">
-            <BudgetStat label="Réalisé" value={budget.realized} />
-            <BudgetStat label="Prévisionnel" value={budget.forecast} />
-            <div className="h-8 w-px bg-gray-100" />
-            <BudgetStat label="Total planifié" value={planned} accent />
-            {budget.budget > 0 && <BudgetStat label="Budget structure" value={budget.budget} />}
-            {pct !== null && (
-              <span className={`ml-auto text-3xl font-bold tabular-nums ${pctColor}`}>
-                {pct}%
-              </span>
+        <div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-xs text-gray-400">Réalisé <span className="font-semibold text-gray-700">{fmtH(budget.realized)}</span></span>
+            <span className="text-xs text-gray-300">+</span>
+            <span className="text-xs text-gray-400">Prévu <span className="font-semibold text-gray-700">{fmtH(budget.forecast)}</span></span>
+            <span className="text-xs text-gray-300">=</span>
+            <span className="text-xs text-gray-400">Total <span className="text-base font-bold text-gray-900">{fmtH(planned)}</span></span>
+            {budget.budget > 0 && (
+              <>
+                <span className="text-xs text-gray-300">/</span>
+                <span className="text-xs text-gray-400">Budget <span className="font-semibold text-gray-700">{fmtH(budget.budget)}</span></span>
+                {pct !== null && <span className={`text-lg font-bold tabular-nums ${pctColor}`}>{pct}%</span>}
+                {ecartH !== 0 && <span className={`text-xs font-semibold ${ecartColor}`}>{ecartH > 0 ? '+' : ''}{fmtH(ecartH)} {ecartH > 0 ? 'dépassement' : 'économie'}</span>}
+              </>
             )}
           </div>
-
           {budget.budget > 0 ? (
-            <>
-              <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${barColor}`}
-                  style={{ width: `${Math.min(pct!, 100)}%` }}
-                />
-              </div>
-              <div className={`text-sm font-semibold ${ecartColor}`}>
-                Écart : {ecartH > 0 ? '+' : ''}{fmtH(ecartH)}
-                <span className="font-normal text-xs ml-1.5 opacity-70">
-                  {ecartH > 0 ? 'dépassement' : ecartH < 0 ? 'économie' : 'équilibré'}
-                </span>
-              </div>
-            </>
+            <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(pct!, 100)}%` }} />
+            </div>
           ) : (
-            <p className="text-xs text-gray-400 italic">
-              Aucune structure configurée dans le calendrier annuel pour ce mois.
-            </p>
+            <p className="text-xs text-gray-400 italic mt-1">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
           )}
         </div>
       </Card>
@@ -278,7 +280,7 @@ export default function TableauDeBord() {
 function Card({ title, badge, children }: { title: string; badge?: string; children: React.ReactNode }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl p-5">
-      <div className="flex items-baseline gap-2 mb-4">
+      <div className="flex items-baseline gap-2 mb-3">
         <h2 className="text-sm font-bold text-gray-900">{title}</h2>
         {badge && <span className="text-xs text-gray-400">{badge}</span>}
       </div>
@@ -297,7 +299,7 @@ function GanttChart({ entries }: { entries: GanttEntry[] }) {
   const maxH = Math.max(...allMins)
   const span = maxH - minH || 1
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {entries.map(e => {
         const s = toMin(e.start), en = toMin(e.end)
         const left = ((s - minH) / span) * 100
@@ -305,14 +307,14 @@ function GanttChart({ entries }: { entries: GanttEntry[] }) {
         const color = getCodeColor(e.code)
         return (
           <div key={e.employee_id} className="flex items-center gap-2">
-            <span className="text-[11px] text-gray-500 w-28 shrink-0 truncate">{e.name}</span>
-            <div className="flex-1 relative h-5 bg-gray-100 rounded">
+            <span className="text-[10px] text-gray-500 w-24 shrink-0 truncate">{e.name}</span>
+            <div className="flex-1 relative h-4 bg-gray-100 rounded">
               <div
                 className="absolute top-0.5 bottom-0.5 rounded flex items-center px-1"
                 style={{ left: `${left}%`, width: `${width}%`, background: color.bg }}
               >
-                <span className="text-[9px] font-medium whitespace-nowrap overflow-hidden leading-none" style={{ color: color.text }}>
-                  {e.start}–{e.end}
+                <span className="text-[8px] font-medium whitespace-nowrap overflow-hidden leading-none" style={{ color: color.text }}>
+                  {e.code} {e.start}–{e.end}
                 </span>
               </div>
             </div>
