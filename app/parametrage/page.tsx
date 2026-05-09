@@ -139,6 +139,13 @@ function ConfirmDelete({ onConfirm, onCancel }: { onConfirm: () => void; onCance
   )
 }
 
+function autoText(hex: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!m) return '#000000'
+  const lum = (0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16)) / 255
+  return lum > 0.5 ? '#000000' : '#ffffff'
+}
+
 // ─── Codes Horaires ───────────────────────────────────────────────────────────
 
 function CodesHoraires() {
@@ -153,6 +160,11 @@ function CodesHoraires() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [ignoreColorConflict, setIgnoreColorConflict] = useState(false)
+  const [showBulkColor, setShowBulkColor] = useState(false)
+  const [bulkColor, setBulkColor] = useState('#4A90C4')
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set())
+  const [bulkApplying, setBulkApplying] = useState(false)
+  const [bulkResult, setBulkResult] = useState<string | null>(null)
 
   async function load() {
     let q = supabase.from('shift_codes').select('*').order('code')
@@ -196,6 +208,16 @@ function CodesHoraires() {
 
   function openDuplicate(c: ShiftCode) {
     setEditing(null); setForm({ ...shiftToForm(c), code: '', color: '' }); setSaveError(null); setIgnoreColorConflict(false); setModal('add')
+  }
+
+  async function handleBulkColor() {
+    if (bulkSelected.size === 0 || !bulkColor) return
+    setBulkApplying(true); setBulkResult(null)
+    const ids = codes.filter(c => bulkSelected.has(c.code)).map(c => c.id)
+    await supabase.from('shift_codes').update({ color: bulkColor }).in('id', ids)
+    await load()
+    setBulkResult(`Couleur appliquée à ${ids.length} code${ids.length > 1 ? 's' : ''}`)
+    setBulkApplying(false)
   }
 
   const STATUT_LABELS: Record<string, string> = { E: 'Employé', M: 'Manager', C: 'Cadre' }
@@ -325,6 +347,11 @@ function CodesHoraires() {
               await load()
             }}
           />
+          <button onClick={() => { setShowBulkColor(true); setBulkSelected(new Set()); setBulkResult(null) }}
+            className="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+            Appliquer une couleur
+          </button>
           <button onClick={openAdd} className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             Ajouter
@@ -574,6 +601,69 @@ function CodesHoraires() {
         </Modal>
       )}
       {deletingId && <ConfirmDelete onConfirm={() => handleDelete(deletingId)} onCancel={() => setDeletingId(null)} />}
+
+      {showBulkColor && (
+        <Modal title="Appliquer une couleur en masse" onClose={() => setShowBulkColor(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Couleur à appliquer</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={bulkColor} onChange={e => setBulkColor(e.target.value)}
+                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <span className="inline-flex items-center px-3 py-1 rounded-md font-mono font-bold text-sm"
+                  style={{ background: bulkColor, color: autoText(bulkColor) }}>
+                  Aperçu
+                </span>
+                <span className="text-xs text-gray-400 font-mono">{bulkColor}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {['M', 'E', 'C'].map(prefix => (
+                <button key={prefix} type="button"
+                  onClick={() => setBulkSelected(new Set(codes.filter(c => c.code.startsWith(prefix)).map(c => c.code)))}
+                  className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                  Codes {prefix}…
+                </button>
+              ))}
+              <button type="button"
+                onClick={() => setBulkSelected(new Set(codes.map(c => c.code)))}
+                className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Tous
+              </button>
+              <button type="button"
+                onClick={() => setBulkSelected(new Set())}
+                className="px-2.5 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                Aucun
+              </button>
+              <span className="ml-auto text-xs text-gray-500 font-medium">{bulkSelected.size} code{bulkSelected.size !== 1 ? 's' : ''} sélectionné{bulkSelected.size !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-64">
+              {codes.map(c => (
+                <label key={c.code} className="flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+                  <input type="checkbox" checked={bulkSelected.has(c.code)}
+                    onChange={e => setBulkSelected(prev => { const next = new Set(prev); e.target.checked ? next.add(c.code) : next.delete(c.code); return next })}
+                    className="rounded border-gray-300 text-slate-900" />
+                  <span className="font-mono font-bold px-2 py-0.5 rounded text-xs"
+                    style={{ background: (c as any).color || '#e5e7eb', color: autoText((c as any).color || '#e5e7eb') }}>
+                    {c.code}
+                  </span>
+                  <span className="text-xs text-gray-600 truncate">{c.label}</span>
+                </label>
+              ))}
+            </div>
+            {bulkResult && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{bulkResult}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <button onClick={() => setShowBulkColor(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Fermer</button>
+            <button onClick={handleBulkColor} disabled={bulkApplying || bulkSelected.size === 0}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+              {bulkApplying ? 'Application…' : `Appliquer la couleur aux ${bulkSelected.size} code${bulkSelected.size !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -590,6 +680,11 @@ function CodesAbsence() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [ignoreColorConflictAbs, setIgnoreColorConflictAbs] = useState(false)
+  const [showBulkColorAbs, setShowBulkColorAbs] = useState(false)
+  const [bulkColorAbs, setBulkColorAbs] = useState('#888888')
+  const [bulkSelectedAbs, setBulkSelectedAbs] = useState<Set<string>>(new Set())
+  const [bulkApplyingAbs, setBulkApplyingAbs] = useState(false)
+  const [bulkResultAbs, setBulkResultAbs] = useState<string | null>(null)
 
   async function load() {
     const { data } = await supabase.from('absence_codes').select('*').order('code')
@@ -606,6 +701,16 @@ function CodesAbsence() {
     setEditing(c)
     setForm({ code: c.code, label: c.label, is_paid: c.is_paid, color: (c as any).color ?? '' })
     setSaveError(null); setIgnoreColorConflictAbs(false); setModal('edit')
+  }
+
+  async function handleBulkColorAbs() {
+    if (bulkSelectedAbs.size === 0 || !bulkColorAbs) return
+    setBulkApplyingAbs(true); setBulkResultAbs(null)
+    const ids = codes.filter(c => bulkSelectedAbs.has(c.code)).map(c => c.id)
+    await supabase.from('absence_codes').update({ color: bulkColorAbs }).in('id', ids)
+    await load()
+    setBulkResultAbs(`Couleur appliquée à ${ids.length} code${ids.length > 1 ? 's' : ''}`)
+    setBulkApplyingAbs(false)
   }
 
   async function handleSave() {
@@ -638,6 +743,11 @@ function CodesAbsence() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">Codes absence <span className="text-gray-400 font-normal text-sm">({codes.length})</span></h2>
         <div className="flex items-center gap-2">
+          <button onClick={() => { setShowBulkColorAbs(true); setBulkSelectedAbs(new Set()); setBulkResultAbs(null) }}
+            className="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+            Appliquer une couleur
+          </button>
           <ImportExcel
             label="codes absence"
             templateFilename="modele_codes_absence.xlsx"
@@ -772,6 +882,62 @@ function CodesAbsence() {
         </Modal>
       )}
       {deletingId && <ConfirmDelete onConfirm={() => handleDelete(deletingId)} onCancel={() => setDeletingId(null)} />}
+
+      {showBulkColorAbs && (
+        <Modal title="Appliquer une couleur en masse" onClose={() => setShowBulkColorAbs(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Couleur à appliquer</label>
+              <div className="flex items-center gap-3">
+                <input type="color" value={bulkColorAbs} onChange={e => setBulkColorAbs(e.target.value)}
+                  className="h-9 w-14 rounded border border-gray-300 cursor-pointer p-0.5" />
+                <span className="inline-flex items-center px-3 py-1 rounded-md font-mono font-bold text-sm"
+                  style={{ background: bulkColorAbs, color: autoText(bulkColorAbs) }}>
+                  Aperçu
+                </span>
+                <span className="text-xs text-gray-400 font-mono">{bulkColorAbs}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="button"
+                onClick={() => setBulkSelectedAbs(new Set(codes.map(c => c.code)))}
+                className="px-2.5 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Tous
+              </button>
+              <button type="button"
+                onClick={() => setBulkSelectedAbs(new Set())}
+                className="px-2.5 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                Aucun
+              </button>
+              <span className="ml-auto text-xs text-gray-500 font-medium">{bulkSelectedAbs.size} code{bulkSelectedAbs.size !== 1 ? 's' : ''} sélectionné{bulkSelectedAbs.size !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-64">
+              {codes.map(c => (
+                <label key={c.code} className="flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0">
+                  <input type="checkbox" checked={bulkSelectedAbs.has(c.code)}
+                    onChange={e => setBulkSelectedAbs(prev => { const next = new Set(prev); e.target.checked ? next.add(c.code) : next.delete(c.code); return next })}
+                    className="rounded border-gray-300 text-slate-900" />
+                  <span className="font-mono font-bold px-2 py-0.5 rounded text-sm"
+                    style={{ background: (c as any).color || '#e5e7eb', color: autoText((c as any).color || '#e5e7eb') }}>
+                    {c.code}
+                  </span>
+                  <span className="text-xs text-gray-600 truncate">{c.label}</span>
+                </label>
+              ))}
+            </div>
+            {bulkResultAbs && (
+              <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{bulkResultAbs}</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-3 mt-4">
+            <button onClick={() => setShowBulkColorAbs(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Fermer</button>
+            <button onClick={handleBulkColorAbs} disabled={bulkApplyingAbs || bulkSelectedAbs.size === 0}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+              {bulkApplyingAbs ? 'Application…' : `Appliquer la couleur aux ${bulkSelectedAbs.size} code${bulkSelectedAbs.size !== 1 ? 's' : ''}`}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
