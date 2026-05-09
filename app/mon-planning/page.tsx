@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState, useCallback, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
+import { usePermissions } from '@/lib/permissions'
 import { isAdmin } from '@/lib/utils'
 import { getCodeColor } from '@/lib/utils'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
@@ -15,6 +16,7 @@ interface Team { id: string; name: string; cdpf: string | null; site_id: string 
 interface Schedule { employee_id: string; date: string; code: string; start_time: string | null; end_time: string | null }
 interface ShiftCode { id: string; code: string; label: string; start_time: string | null; end_time: string | null }
 interface AbsenceCode { id: string; code: string; label: string }
+interface DashboardEntry { employee_id: string; name: string; code: string; start: string; end: string }
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
@@ -205,10 +207,92 @@ function MonthSelector({ offset, setOffset, year, month, loading }: {
   )
 }
 
+// ── Gantt mobile du tableau de bord ──────────────────────────────────────────
+
+function MobileGantt({ entries, shiftCodes, absenceCodes }: {
+  entries: DashboardEntry[]
+  shiftCodes: ShiftCode[]
+  absenceCodes: AbsenceCode[]
+}) {
+  const START_MIN = 4 * 60
+  const END_MIN = 23 * 60
+  const SPAN = END_MIN - START_MIN
+  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+  const ticks = [4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+  const NAME_W = 80
+  const BAR_H = 28
+
+  if (entries.length === 0) {
+    return <p className="text-sm text-gray-400 italic text-center py-10">Aucun salarié planifié aujourd'hui.</p>
+  }
+
+  return (
+    <div>
+      {/* Axe horaire */}
+      <div className="flex items-center bg-gray-50 border-b border-gray-200" style={{ height: 22 }}>
+        <div style={{ width: NAME_W, flexShrink: 0 }} />
+        <div className="flex-1 relative" style={{ height: 22 }}>
+          {ticks.map(h => {
+            const pct = ((h * 60 - START_MIN) / SPAN) * 100
+            return (
+              <span key={h} className="absolute text-gray-400 -translate-x-1/2" style={{ left: `${pct}%`, top: 4, fontSize: 9 }}>
+                {h}h
+              </span>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Barres */}
+      <div className="pt-1">
+        {entries.map(e => {
+          const hasTimes = !!e.start && !!e.end
+          let leftPct = 0, widthPct = 100
+          if (hasTimes) {
+            const s = Math.max(toMin(e.start), START_MIN)
+            const en = Math.min(toMin(e.end), END_MIN)
+            leftPct = ((s - START_MIN) / SPAN) * 100
+            widthPct = Math.max(((en - s) / SPAN) * 100, 2)
+          }
+          const color = getCodeColor(e.code, shiftCodes, absenceCodes)
+          const barLabel = hasTimes ? `${e.code} ${e.start}-${e.end}` : e.code
+
+          return (
+            <div key={e.employee_id} className="flex items-center" style={{ marginBottom: 4 }}>
+              <div style={{ width: NAME_W, flexShrink: 0, paddingRight: 4, fontSize: 11, textAlign: 'right' }}
+                className="text-gray-700 font-semibold truncate">
+                {e.name}
+              </div>
+              <div className="flex-1 relative" style={{ height: BAR_H, background: '#f3f4f6', borderRadius: 4, overflow: 'hidden' }}>
+                {ticks.map(h => {
+                  const pct = ((h * 60 - START_MIN) / SPAN) * 100
+                  return <div key={h} style={{ position: 'absolute', left: `${pct}%`, top: 0, bottom: 0, width: 1, background: '#e5e7eb' }} />
+                })}
+                <div style={{
+                  position: 'absolute', top: 2, bottom: 2,
+                  left: `${leftPct}%`, width: `${widthPct}%`,
+                  background: color.bg, borderRadius: 3,
+                  display: 'flex', alignItems: 'center',
+                  paddingLeft: 3, paddingRight: 3, overflow: 'hidden',
+                }}>
+                  <span style={{ fontSize: 9, color: color.text, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {barLabel}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Page principale ───────────────────────────────────────────────────────────
 
 export default function MonPlanningPage() {
   const { role, allowedTeams, allowedSiteId: authSiteId, employeeId, loading: authLoading, signOut } = useAuth()
+  const { can } = usePermissions()
 
   const now = new Date()
   const todayKey = dateStr(now.getFullYear(), now.getMonth(), now.getDate())
@@ -254,6 +338,10 @@ export default function MonPlanningPage() {
 
   const [error, setError] = useState<string | null>(null)
 
+  // ── Tableau de bord mobile ──
+  const [dashboardEntries, setDashboardEntries] = useState<DashboardEntry[]>([])
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
+
   // PWA
   useEffect(() => {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {})
@@ -270,6 +358,51 @@ export default function MonPlanningPage() {
       setAbsenceCodes(acRes.data ?? [])
     })
   }, [authLoading])
+
+  // ── Tableau de bord mobile : chargement données du jour ──
+  useEffect(() => {
+    if (authLoading) return
+    const resolvedTeamId = (team as any)?.id ?? null
+    const teamIds: string[] = []
+    if (isMgmt) {
+      if (allTeams.length === 0) return
+      teamIds.push(...allTeams.map(t => t.id))
+    } else {
+      if (!resolvedTeamId) return
+      teamIds.push(resolvedTeamId)
+    }
+    setLoadingDashboard(true)
+    Promise.all([
+      supabase.from('schedules')
+        .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
+        .in('team_id', teamIds).eq('date', todayKey),
+      supabase.from('shift_codes').select('code, start_time, end_time'),
+    ]).then(([schedRes, scRes]) => {
+      const scTimeMap: Record<string, { start: string; end: string }> = {}
+      for (const sc of scRes.data ?? []) {
+        if (sc.code && sc.start_time && sc.end_time && !(sc.code in scTimeMap)) {
+          scTimeMap[sc.code] = { start: sc.start_time.slice(0, 5), end: sc.end_time.slice(0, 5) }
+        }
+      }
+      const seen = new Set<string>()
+      const entries: DashboardEntry[] = []
+      for (const s of (schedRes.data ?? []) as any[]) {
+        if (seen.has(s.employee_id)) continue
+        seen.add(s.employee_id)
+        const emp = s.employees
+        if (!emp) continue
+        const start = s.start_time?.slice(0, 5) || scTimeMap[s.code]?.start || ''
+        const end = s.end_time?.slice(0, 5) || scTimeMap[s.code]?.end || ''
+        entries.push({ employee_id: s.employee_id, name: `${emp.last_name} ${emp.first_name.charAt(0)}.`, code: s.code, start, end })
+      }
+      entries.sort((a, b) =>
+        (a.start && b.start ? a.start.localeCompare(b.start) : a.start ? -1 : b.start ? 1 : 0) ||
+        a.name.localeCompare(b.name)
+      )
+      setDashboardEntries(entries)
+      setLoadingDashboard(false)
+    }).catch(() => setLoadingDashboard(false))
+  }, [authLoading, isMgmt, allTeams.map(t => t.id).join(','), (team as any)?.id, todayKey])
 
   // ── Management : chargement sites + équipes ──
   useEffect(() => {
@@ -461,6 +594,7 @@ export default function MonPlanningPage() {
     ...(isMgmt && employeeId && employee ? [{ id: 'personal', label: 'Mon planning' }] : []),
     ...(!isMgmt ? [{ id: 'planning', label: 'Mon planning' }] : []),
     ...(!isMgmt ? [{ id: 'equipe', label: 'Mon équipe' }] : []),
+    ...(can('view_dashboard_mobile') ? [{ id: 'dashboard', label: 'Tableau de bord' }] : []),
   ]
 
   return (
@@ -598,6 +732,28 @@ export default function MonPlanningPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Onglet Tableau de bord mobile ── */}
+      {tab === 'dashboard' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="bg-white border-b border-gray-100 px-4 py-3 shrink-0">
+            <p className="text-sm font-bold text-gray-900">Effectifs du jour</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {DAYS[now.getDay()]} {now.getDate()} {MONTHS[now.getMonth()]} {now.getFullYear()}
+              {!loadingDashboard && (
+                <span className="ml-2">· {dashboardEntries.length} présent{dashboardEntries.length > 1 ? 's' : ''}</span>
+              )}
+            </p>
+          </div>
+          {loadingDashboard ? (
+            <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Chargement…</div>
+          ) : (
+            <div className="px-3 pt-2 pb-10">
+              <MobileGantt entries={dashboardEntries} shiftCodes={shiftCodes} absenceCodes={absenceCodes} />
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
