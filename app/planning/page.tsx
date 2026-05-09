@@ -237,24 +237,24 @@ export default function PlanningPage() {
   return (
     <div className="flex flex-col h-full">
       {/* ── Top bar ── */}
-      <div className="shrink-0 bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 flex-wrap">
-        <h1 className="text-lg font-bold text-gray-900 mr-2">Planning</h1>
+      <div className="shrink-0 bg-white border-b border-gray-200 px-4 py-1 flex items-center gap-3 flex-wrap">
+        <h1 className="text-sm font-bold text-gray-900 mr-1">Planning</h1>
 
         {/* Team */}
         <select value={teamId} onChange={e => setTeamId(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+          className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
           {teams.map(t => <option key={t.id} value={t.id}>{teamLabel(t)}</option>)}
         </select>
 
         {/* Month */}
         <select value={month} onChange={e => setMonth(Number(e.target.value))}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+          className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
           {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
         </select>
 
         {/* Year */}
         <select value={year} onChange={e => setYear(Number(e.target.value))}
-          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+          className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
@@ -291,10 +291,10 @@ export default function PlanningPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="shrink-0 bg-white border-b border-gray-200 px-6 flex gap-0">
+      <div className="shrink-0 bg-white border-b border-gray-200 px-4 flex gap-0">
         {visibleTabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
               tab === t.id
                 ? 'border-slate-900 text-slate-900'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'

@@ -362,7 +362,7 @@ function CellInput({
           }
           if (e.key === 'Tab') commit(val)
         }}
-        className="w-full h-6 text-center text-xs font-mono bg-transparent focus:outline-none uppercase rounded"
+        className="w-full h-full text-center text-[10px] font-mono bg-transparent focus:outline-none uppercase rounded"
         maxLength={5}
       />
 
@@ -458,6 +458,8 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [cellStatus, setCellStatus] = useState<Record<string, CellStatus>>({})
   const [cellErrors, setCellErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
+  const outerRef = useRef<HTMLDivElement>(null)
+  const [dynDayW, setDynDayW] = useState(36)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [archiveStep, setArchiveStep] = useState<'pdf' | 'saving' | null>(null)
@@ -1015,8 +1017,22 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const temporaireEmployees = employees.filter(e => isTemporaire(e.contract_type))
   const interimEmployees = employees.filter(e => (e.contract_type ?? '').toUpperCase() === 'INTERIM')
 
+  useEffect(() => {
+    const el = outerRef.current
+    if (!el) return
+    const NAME_W = 160, TOTAL_W = 56, WEEK_W = 48
+    const recalc = () => {
+      const avail = el.clientWidth - NAME_W - TOTAL_W - weeks.length * WEEK_W
+      setDynDayW(Math.max(30, Math.floor(avail / days.length)))
+    }
+    recalc()
+    const ro = new ResizeObserver(recalc)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [days.length, weeks.length])
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div ref={outerRef} className="flex flex-col h-full overflow-hidden">
 
       {/* Archive banner */}
       {isArchived && (
@@ -1148,16 +1164,16 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
       {/* Action bar: cycle + conformité + archive */}
       {!isArchived && (
-        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-gray-50/60">
+        <div className="shrink-0 flex items-center gap-2 px-3 py-0.5 border-b border-gray-100 bg-gray-50/60">
           <button onClick={openCycleModal}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+            className="inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-indigo-700 border border-indigo-200 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
             Appliquer le cycle
           </button>
           <button onClick={runConformite}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors">
+            className="inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
@@ -1165,7 +1181,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           </button>
           {year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
             <button onClick={() => setShowArchiveModal(true)}
-              className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+              className="ml-auto inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
               </svg>
@@ -1179,7 +1195,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         <table ref={tableRef} className="border-collapse text-xs w-max min-w-full">
           <thead className="sticky top-0 z-20 bg-white">
             <tr>
-              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 w-40 min-w-[160px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
+              <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 w-40 min-w-[160px] px-2 py-1 text-left text-gray-500 font-semibold text-[10px] uppercase tracking-wider">
                 Employé
               </th>
               {days.map(d => {
@@ -1189,34 +1205,35 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const structName = calStructureMap[toISO(d)]
                 return (
                   <th key={toISO(d)}
-                    className="w-10 min-w-[40px] border-b border-r border-gray-100 py-1 text-center"
+                    className="border-b border-r border-gray-100 py-0.5 text-center"
+                    style={{ width: dynDayW, minWidth: dynDayW }}
                     style={{ background: isTo ? '#dbeafe' : isWE ? '#e5e7eb' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
                     {structName
                       ? <div className="text-[7px] text-violet-500 leading-none truncate px-0.5 mb-0.5">{structName.slice(0, 5)}</div>
                       : <div className="text-[10px] leading-none mb-0.5 invisible">·</div>
                     }
-                    <div className={`text-[10px] ${isWE ? 'text-slate-500' : 'text-gray-400'}`}>{DAY_LETTER[d.getDay()]}</div>
-                    <div className={`font-bold text-sm ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
+                    <div className={`text-[9px] ${isWE ? 'text-slate-500' : 'text-gray-400'}`}>{DAY_LETTER[d.getDay()]}</div>
+                    <div className={`font-bold text-[11px] ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
                   </th>
                 )
               })}
               {weeks.map(w => (
-                <th key={w.label} className="w-14 min-w-[56px] border-b border-r border-indigo-200 bg-indigo-50 py-1.5 text-center text-indigo-600 font-bold text-xs">
+                <th key={w.label} className="w-12 min-w-[48px] border-b border-r border-indigo-200 bg-indigo-50 py-0.5 text-center text-indigo-600 font-bold text-[10px]">
                   {w.label}
-                  <div className="text-[9px] font-normal text-indigo-400">{w.days.length}j</div>
+                  <div className="text-[8px] font-normal text-indigo-400">{w.days.length}j</div>
                 </th>
               ))}
-              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-2 py-2 text-center text-gray-500 font-semibold text-xs uppercase tracking-wider w-16">
+              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-1 py-1 text-center text-gray-500 font-semibold text-[10px] uppercase tracking-wider w-14">
                 Total
               </th>
             </tr>
             {/* ── Bandeau effectifs ── */}
             {/* Ligne résumée (toujours visible) */}
             <tr className={`border-b ${bandeauOpen ? 'border-indigo-100' : 'border-gray-100'}`}>
-              <td className="sticky left-0 z-30 bg-white border-r border-gray-100 px-2 py-0.5 whitespace-nowrap">
+              <td className="sticky left-0 z-30 bg-white border-r border-gray-100 px-2 py-0 whitespace-nowrap">
                 <button
                   onClick={() => setBandeauOpen(v => !v)}
-                  className="flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-900 transition-colors"
+                  className="flex items-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-gray-900 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 transition-transform duration-150 shrink-0"
                     style={{ transform: bandeauOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
@@ -1359,11 +1376,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               return (
                 <Fragment key={emp.id}>
                   <tr className="group hover:bg-blue-50/20">
-                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-0 h-6 bg-white group-hover:bg-blue-50">
-                      <div className="flex items-center gap-1 overflow-hidden max-w-[200px]">
-                        <span className="font-semibold text-gray-800 shrink-0 whitespace-nowrap">{emp.last_name.toUpperCase()}</span>
-                        <span className="text-gray-500 truncate min-w-0">{emp.first_name}</span>
-                        {emp.fonction && <span className="ml-0.5 text-gray-400 text-[10px] shrink-0 whitespace-nowrap" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
+                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-2 py-0 h-6 bg-white group-hover:bg-blue-50">
+                      <div className="flex items-center gap-1 overflow-hidden max-w-[160px]">
+                        <span className="font-semibold text-[11px] text-gray-800 shrink-0 whitespace-nowrap">{emp.last_name.toUpperCase()}</span>
+                        <span className="text-[11px] text-gray-500 truncate min-w-0">{emp.first_name}</span>
+                        {emp.fonction && <span className="ml-0.5 text-gray-400 text-[9px] shrink-0 whitespace-nowrap" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
                       </div>
                     </td>
                     {days.map(d => {
@@ -1422,7 +1439,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                           return s + (isCadreWorkedDay(code, shiftCodes, absenceCodes) ? 1 : 0)
                         }, 0)
                         return (
-                          <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-6 text-center text-xs font-semibold ${
+                          <td key={w.label} className={`border-b border-r border-indigo-100 px-0.5 h-6 text-center text-[10px] font-semibold ${
                             workedDays > 0 ? 'text-indigo-700 bg-indigo-50/50' : 'text-gray-200 bg-indigo-50/20'
                           }`}>
                             {workedDays > 0 ? `${workedDays}j` : ''}
@@ -1436,7 +1453,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       }, 0)
                       const over35 = wh > 35.5
                       return (
-                        <td key={w.label} className={`border-b border-r border-indigo-100 px-1 h-6 text-center text-xs font-semibold ${
+                        <td key={w.label} className={`border-b border-r border-indigo-100 px-0.5 h-6 text-center text-[10px] font-semibold ${
                           over35 ? 'text-red-600 bg-red-50' : wh > 0 ? 'text-indigo-700 bg-indigo-50/50' : 'text-gray-200 bg-indigo-50/20'
                         }`}>
                           {wh > 0 ? fmtH(wh) : ''}
@@ -1444,13 +1461,13 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {isCadre ? (
-                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50 text-indigo-700">
+                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 text-indigo-700">
                         {cadreMonthDays > 0 ? `${cadreMonthDays}j` : '—'}
                       </td>
                     ) : (
-                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-2 h-6 text-center font-semibold bg-white group-hover:bg-blue-50 ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 ${over ? 'text-red-600' : 'text-gray-700'}`}>
                         {fmtH(monthH)}
-                        {over && <span className="block text-[9px] font-normal text-red-400">/{fmtH(limit)}</span>}
+                        {over && <span className="block text-[8px] font-normal text-red-400">/{fmtH(limit)}</span>}
                       </td>
                     )}
                   </tr>
@@ -1463,7 +1480,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               <tr>
                 <td
                   colSpan={days.length + weeks.length + 2}
-                  className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"
+                  className="bg-gray-100 border-t border-b border-gray-200 px-3 py-0 text-[10px] font-semibold text-gray-500 uppercase tracking-widest"
                 >
                   <div className="flex items-center justify-between">
                     <span>Temporaires{temporaireEmployees.length > 0 ? ` · ${temporaireEmployees.length}` : ''}</span>
@@ -1482,9 +1499,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const monthH = empMonthlyTotals[emp.id] ?? 0
                 return (
                   <tr key={emp.id} className="group bg-amber-50/20 hover:bg-amber-50/50">
-                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-3 py-0 h-6 whitespace-nowrap bg-amber-50 group-hover:bg-amber-100">
+                    <td className="sticky left-0 z-10 border-b border-r border-amber-100 px-2 py-0 h-6 whitespace-nowrap bg-amber-50 group-hover:bg-amber-100">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="font-semibold text-amber-800 text-xs">
+                        <span className="font-semibold text-amber-800 text-[11px]">
                           {isInterim
                             ? emp.last_name ? `${emp.last_name.toUpperCase()} (${emp.first_name})` : emp.first_name
                             : `${emp.last_name.toUpperCase()} ${emp.first_name}`}
@@ -1549,7 +1566,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         return s + getPaidHours(cellValues[`${emp.id}|${dateStr}`], shiftCodes, teamId)
                       }, 0)
                       return (
-                        <td key={w.label} className={`border-b border-r border-amber-100 px-1 h-6 text-center text-xs font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
+                        <td key={w.label} className={`border-b border-r border-amber-100 px-0.5 h-6 text-center text-[10px] font-semibold ${wh > 0 ? 'text-amber-700 bg-amber-50/50' : 'text-gray-200 bg-amber-50/20'}`}>
                           {wh > 0 ? fmtH(wh) : ''}
                         </td>
                       )
@@ -1567,7 +1584,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
           <tfoot className="sticky bottom-0 z-20 bg-gray-50">
             <tr>
-              <td className="sticky left-0 z-30 bg-gray-50 border-t border-r border-gray-100 px-3 py-1.5 font-semibold text-gray-500 text-xs">
+              <td className="sticky left-0 z-30 bg-gray-50 border-t border-r border-gray-100 px-2 py-0.5 font-semibold text-gray-500 text-[10px]">
                 Total équipe
               </td>
               {days.map(d => {
@@ -1577,7 +1594,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const isMonday = d.getDay() === 1
                 return (
                   <td key={dateStr}
-                    className={`border-t border-r border-gray-100 text-center font-semibold py-1.5 ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}
+                    className={`border-t border-r border-gray-100 text-center font-semibold py-0.5 text-[10px] ${isWE ? 'bg-slate-100 text-slate-400' : h > 0 ? 'text-gray-700' : 'text-gray-300'}`}
                     style={isMonday ? { borderLeft: '2px solid #6b7280' } : undefined}>
                     {h > 0 ? fmtH(h) : ''}
                   </td>
@@ -1587,12 +1604,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const wh = employees.reduce((s, e) =>
                   s + w.days.reduce((ss, d) => ss + getPaidHours(cellValues[`${e.id}|${toISO(d)}`], shiftCodes, teamId), 0), 0)
                 return (
-                  <td key={w.label} className={`border-t border-r border-indigo-200 text-center py-1.5 text-xs font-bold bg-indigo-50 ${wh > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
+                  <td key={w.label} className={`border-t border-r border-indigo-200 text-center py-0.5 text-[10px] font-bold bg-indigo-50 ${wh > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
                     {wh > 0 ? fmtH(wh) : ''}
                   </td>
                 )
               })}
-              <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-100 px-2 py-1.5 text-center font-bold text-gray-700">
+              <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-100 px-1 py-0.5 text-center text-[10px] font-bold text-gray-700">
                 {fmtH(Object.values(dayTotals).reduce((s, h) => s + h, 0))}
               </td>
             </tr>
@@ -1601,7 +1618,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       </div>
 
       {/* Legend */}
-      <div className="shrink-0 flex items-center gap-5 px-4 py-2 border-t border-gray-100 bg-white text-xs text-gray-400">
+      <div className="shrink-0 flex items-center gap-4 px-4 py-1 border-t border-gray-100 bg-white text-[10px] text-gray-400">
         <span className="inline-flex items-center gap-1">
           {SHIFT_PALETTE.slice(0, 4).map(c => (
             <span key={c.bg} className="w-3 h-3 rounded" style={{ background: c.bg, border: '1px solid #cbd5e1' }} />
