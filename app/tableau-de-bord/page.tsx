@@ -19,7 +19,7 @@ function fmtH(h: number): string {
   return h < 0 ? `−${str}` : str
 }
 
-type EffectifsJour = { matin: number; aprem: number; soir: number }
+type GanttEntry = { employee_id: string; name: string; start: string; end: string }
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
 type BudgetData = { realized: number; forecast: number; budget: number }
 
@@ -30,7 +30,7 @@ export default function TableauDeBord() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [effectifs, setEffectifs] = useState<EffectifsJour>({ matin: 0, aprem: 0, soir: 0 })
+  const [ganttEntries, setGanttEntries] = useState<GanttEntry[]>([])
   const [vigilance, setVigilance] = useState<DayVigilance[]>([])
   const [budget, setBudget] = useState<BudgetData>({ realized: 0, forecast: 0, budget: 0 })
   const [teamCount, setTeamCount] = useState(0)
@@ -75,7 +75,7 @@ export default function TableauDeBord() {
       // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
-          .select('employee_id, start_time')
+          .select('employee_id, start_time, end_time, employees(first_name, last_name)')
           .in('team_id', teamIds).eq('date', todayStr).eq('type', 'shift'),
         supabase.from('schedules')
           .select('date, employee_id')
@@ -93,16 +93,18 @@ export default function TableauDeBord() {
 
       setEmployeeCount(empRes.count ?? 0)
 
-      // 6. Effectifs du jour — par tranche horaire
-      const buckets = { matin: new Set<string>(), aprem: new Set<string>(), soir: new Set<string>() }
-      for (const s of todayRes.data ?? []) {
-        if (!s.start_time) continue
-        const h = parseInt(s.start_time.split(':')[0], 10)
-        if (h < 12) buckets.matin.add(s.employee_id)
-        else if (h < 18) buckets.aprem.add(s.employee_id)
-        else buckets.soir.add(s.employee_id)
+      // 6. Effectifs du jour — Gantt
+      const seenEmp = new Set<string>()
+      const gantt: GanttEntry[] = []
+      for (const s of (todayRes.data ?? []) as any[]) {
+        if (!s.start_time || !s.end_time || seenEmp.has(s.employee_id)) continue
+        seenEmp.add(s.employee_id)
+        const emp = s.employees
+        const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
+        gantt.push({ employee_id: s.employee_id, name, start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) })
       }
-      setEffectifs({ matin: buckets.matin.size, aprem: buckets.aprem.size, soir: buckets.soir.size })
+      gantt.sort((a, b) => a.start.localeCompare(b.start))
+      setGanttEntries(gantt)
 
       // 7. Structure positions (vigilance + budget, une seule requête)
       const allStructureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
@@ -182,12 +184,11 @@ export default function TableauDeBord() {
         </p>
       </div>
 
-      {/* Effectifs du jour */}
-      <Card title="Effectifs du jour" badge={`${effectifs.matin + effectifs.aprem + effectifs.soir} présents`}>
-        <div className="flex gap-3">
-          <Pill label="Matin"      sublabel="avant 12h"  count={effectifs.matin} colorClass="bg-blue-50 border-blue-100 text-blue-700" />
-          <Pill label="Après-midi" sublabel="12h – 18h"  count={effectifs.aprem} colorClass="bg-amber-50 border-amber-100 text-amber-700" />
-          <Pill label="Soir"       sublabel="après 18h"  count={effectifs.soir}  colorClass="bg-violet-50 border-violet-100 text-violet-700" />
+      {/* Effectifs du jour — Gantt */}
+      <Card title="Effectifs du jour" badge={`${ganttEntries.length} présent${ganttEntries.length !== 1 ? 's' : ''}`}>
+        <GanttChart entries={ganttEntries} />
+        <div className="mt-3 text-right">
+          <a href="/planning" className="text-xs text-blue-600 hover:underline">Voir détails →</a>
         </div>
       </Card>
 
@@ -280,12 +281,37 @@ function Card({ title, badge, children }: { title: string; badge?: string; child
   )
 }
 
-function Pill({ label, sublabel, count, colorClass }: { label: string; sublabel: string; count: number; colorClass: string }) {
+function GanttChart({ entries }: { entries: GanttEntry[] }) {
+  if (entries.length === 0) {
+    return <p className="text-xs text-gray-400 italic">Aucun salarié planifié aujourd'hui.</p>
+  }
+  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
+  const allMins = entries.flatMap(e => [toMin(e.start), toMin(e.end)])
+  const minH = Math.min(...allMins)
+  const maxH = Math.max(...allMins)
+  const span = maxH - minH || 1
   return (
-    <div className={`border rounded-xl px-5 py-3 flex flex-col items-center min-w-[110px] ${colorClass}`}>
-      <span className="text-3xl font-bold tabular-nums">{count}</span>
-      <span className="text-xs font-semibold mt-1">{label}</span>
-      <span className="text-xs opacity-60">{sublabel}</span>
+    <div className="space-y-1">
+      {entries.map(e => {
+        const s = toMin(e.start), en = toMin(e.end)
+        const left = ((s - minH) / span) * 100
+        const width = Math.max(((en - s) / span) * 100, 2)
+        return (
+          <div key={e.employee_id} className="flex items-center gap-2">
+            <span className="text-[11px] text-gray-500 w-28 shrink-0 truncate">{e.name}</span>
+            <div className="flex-1 relative h-5 bg-gray-100 rounded">
+              <div
+                className="absolute top-0.5 bottom-0.5 rounded bg-blue-500 flex items-center px-1"
+                style={{ left: `${left}%`, width: `${width}%` }}
+              >
+                <span className="text-[9px] text-white font-medium whitespace-nowrap overflow-hidden leading-none">
+                  {e.start}–{e.end}
+                </span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

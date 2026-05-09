@@ -1,27 +1,80 @@
-URGENT : le superadmin a MOINS de droits qu'avant car partout le code verifie role === 'admin' mais mon role est 'superadmin'.
+Corrections V1 - Liste complete :
 
-Faire un remplacement GLOBAL dans TOUT le code :
+1. MANAGERS ET PARAMETRAGE :
+Les managers peuvent acceder a la page /parametrage MAIS ne voient que les onglets pour lesquels ils ont la permission :
+- Si permission view_cycles = true : onglet Cycles visible (lecture seule)
+- Si permission edit_staffing = true ou view_staffing = true : onglet Structures visible (lecture seule pour view, edition pour edit)
+- Si permission edit_calendar = true : onglet Calendrier visible
+- Les autres onglets (Codes horaires, Codes absence, Fonctions, Roles et acces) restent masques pour les managers
+- La sidebar affiche "Parametrage" pour les managers s'ils ont au moins une permission sur un des onglets
+- En lecture seule : masquer les boutons Ajouter, Modifier, Supprimer
 
-1. Chercher dans TOUS les fichiers .tsx et .ts du projet TOUTES les occurrences de :
-   - role === 'admin'
-   - role == 'admin'
-   - role !== 'admin'
-   - role != 'admin'
-   - role === "admin"
-   - role == "admin"
-   - .includes('admin')
-   - IN ('admin'
+2. PLANNING IMPRIMABLE - HORAIRES PLUS GRANDS :
+Sur le planning imprimable (tous formats), augmenter la taille de police des heures d'arrivee et de depart (ex: 9px au lieu de 7px). Reduire la taille du code horaire si necessaire (ex: 7px) pour laisser plus de place aux horaires. L'horaire doit etre plus lisible que le code.
 
-2. Pour CHAQUE occurrence, ajouter 'superadmin' :
-   - role === 'admin' -> role === 'admin' || role === 'superadmin'
-   - role === "admin" -> role === "admin" || role === "superadmin"
-   - ['admin'].includes(role) -> ['admin', 'superadmin'].includes(role)
-   - role IN ('admin', ...) -> role IN ('admin', 'superadmin', ...)
+3. TABLEAU DE BORD - REMPLACER EFFECTIFS PAR GANTT :
+Supprimer les 3 pastilles Matin/Apres-midi/Soir du tableau de bord. Les remplacer par le meme diagramme de Gantt que celui de la feuille du jour (barres horizontales par salarie avec heures arrivee/depart). Afficher uniquement les presents du jour. Le Gantt doit etre compact (petites barres). Ajouter un lien "Voir details" qui renvoie vers l'onglet Feuille du jour du planning.
 
-3. La regle : PARTOUT ou un admin a un droit, le superadmin a le MEME droit PLUS les droits exclusifs du superadmin.
+4. COULEURS PAR CODE HORAIRE - PAR STATUT ET HORAIRE :
+Les couleurs sont determinees par la nomenclature du code (1ere lettre = statut, derniere lettre = type horaire) :
 
-4. Verifier aussi les politiques RLS dans le code qui generent du SQL avec 'admin'
+MANAGERS (codes commencant par M) :
+- Ouverture (finit par O) : Bleu moyen (#4A90C4), texte blanc
+- Milieu (finit par M) : Bleu clair (#6BAED6), texte noir
+- Fermeture (finit par F ou S) : Bleu fonce (#2C5F8A), texte blanc
 
-5. Utiliser grep -r "admin" pour trouver toutes les occurrences
+EMPLOYES (codes commencant par E) :
+- Ouverture (finit par O) : Vert moyen (#5BA55B), texte blanc
+- Milieu (finit par M) : Vert clair (#7BC47B), texte noir
+- Fermeture (finit par F ou S) : Vert fonce (#3A7A3A), texte blanc
+- Livraison (contient L) : Orange brique (#C47A4A), texte blanc
 
-git add . && git commit -m "fix: superadmin tous droits admin" && git push origin main
+CADRES (codes commencant par C ou codes P, P/O, P/F) :
+- P : Gris bleu (#8899AA), texte blanc
+- P/O : Gris bleu clair (#A0B0C0), texte noir
+- P/F : Gris bleu fonce (#667788), texte blanc
+
+ABSENCES ET REPOS :
+- R (Repos) : fond NOIR (#000000), texte blanc
+- CP, JF, RTT, RSD : fond GRIS moyen (#888888), texte blanc
+- M (Maladie), AT, CSS et toutes les autres absences : fond ROUGE BRIQUE (#A83232), texte blanc
+
+LOGIQUE :
+- Creer une fonction getCodeColor(code) dans lib/utils.ts
+- Analyser la premiere lettre pour le statut (M, E, C)
+- Analyser la derniere lettre pour le type (O ouverture, F/S fermeture, M milieu)
+- Si le code ne correspond a aucune regle, utiliser une couleur neutre gris clair
+- Appliquer cette fonction sur TOUTES les pages : saisie, planning imprimable, feuille emargement, compteur, feuille du jour, mon-planning
+
+5. MENTIONS PLANEKIPE - VERIFIER PARTOUT :
+Sur toutes les pages verifier que le texte est coherent :
+- Sidebar en bas : "Planekipe v1.0 (c) Sebastien Gauthier"
+- Page login : "Musiam Planning" en grand, "by Planekipe" en petit dessous
+- JAMAIS "Musiam Planning Sebastien Gauthier" seuls sans Planekipe
+- Verifier : login, sidebar, mon-planning, feuille du jour, planning imprimable, feuille emargement
+
+6. OEIL DE REVELATION MOT DE PASSE :
+Sur TOUS les champs mot de passe de l'application (login, creation utilisateur, modification mot de passe, creer acces), ajouter une icone oeil a droite du champ qui permet d'afficher/masquer le mot de passe en clair. Toggle entre type="password" et type="text".
+
+7. FEUILLE EMARGEMENT - PAS DE CADRES NI INTERIMAIRES :
+Les cadres (statut = 'cadre') et les interimaires (contract_type = 'INTERIM') ne doivent PAS apparaitre dans la selection ni dans l'impression des feuilles d'emargement. Les filtrer completement.
+
+8. FEUILLE EMARGEMENT - SCROLL :
+La visualisation des feuilles d'emargement a l'ecran ne scrolle pas correctement. S'assurer que le conteneur a un overflow-y: auto et une hauteur max pour permettre le scroll vertical. Le conteneur ne doit pas depasser la hauteur de l'ecran.
+
+9. FEUILLE EMARGEMENT - HORAIRES PLUS GROS :
+Augmenter la taille de police des heures arrivee/depart sur la feuille d'emargement (12px minimum au lieu de 10px ou 9px).
+
+10. FEUILLE EMARGEMENT - SUPPRIMER TOTAL HEURES MOIS :
+Supprimer la ligne ou le bloc qui affiche le total heures du mois sur la feuille d'emargement. Ne garder que les totaux par jour.
+
+11. COMPTEUR D'HEURES - DEUX VUES SEPAREES :
+Actuellement les deux tableaux (resume par jour ET detail par employe) s'affichent l'un en dessous de l'autre. Je ne veux plus ca.
+Ajouter deux sous-onglets en haut du compteur d'heures :
+- Sous-onglet "Resume par jour" : affiche UNIQUEMENT le tableau resume par jour (total heures, nb personnes, moyenne). PAS de liste d'employes.
+- Sous-onglet "Detail par employe" : affiche UNIQUEMENT le tableau avec les employes en ligne et les jours en colonnes avec leurs heures.
+On ne voit qu'un seul tableau a la fois, jamais les deux.
+Petits onglets discrets pour basculer entre les deux vues.
+L'export Excel ne change PAS.
+
+git add . && git commit -m "fix: corrections V1 completes" && git push origin main

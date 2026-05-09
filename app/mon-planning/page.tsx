@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { isAdmin } from '@/lib/utils'
-import { getCodeColors } from '@/lib/codeColors'
+import { getCodeColor } from '@/lib/utils'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
 interface Employee { id: string; first_name: string; last_name: string; contract_type: string | null; statut: string | null }
@@ -22,10 +22,26 @@ const DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
 function pad(n: number) { return String(n).padStart(2, '0') }
 function dateStr(y: number, m: number, d: number) { return `${y}-${pad(m + 1)}-${pad(d)}` }
 
+function EyeIcon({ show }: { show: boolean }) {
+  return show ? (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  ) : (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  )
+}
+
 function PasswordModal({ onClose }: { onClose: () => void }) {
   const [oldPwd, setOldPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
+  const [showOld, setShowOld] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -63,18 +79,27 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
             {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Ancien mot de passe</label>
-              <input type="password" value={oldPwd} onChange={e => setOldPwd(e.target.value)} required disabled={saving}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+              <div className="relative">
+                <input type={showOld ? 'text' : 'password'} value={oldPwd} onChange={e => setOldPwd(e.target.value)} required disabled={saving}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+                <button type="button" onClick={() => setShowOld(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showOld} /></button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Nouveau mot de passe</label>
-              <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} required disabled={saving}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+              <div className="relative">
+                <input type={showNew ? 'text' : 'password'} value={newPwd} onChange={e => setNewPwd(e.target.value)} required disabled={saving}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+                <button type="button" onClick={() => setShowNew(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showNew} /></button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-700 mb-1">Confirmer le nouveau mot de passe</label>
-              <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required disabled={saving}
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+              <div className="relative">
+                <input type={showConfirm ? 'text' : 'password'} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required disabled={saving}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
+                <button type="button" onClick={() => setShowConfirm(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showConfirm} /></button>
+              </div>
             </div>
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={onClose} disabled={saving}
@@ -134,7 +159,7 @@ function TeamGrid({ employees, schedules, dates, todayKey, highlightId, shiftCod
                   </td>
                   {dates.map(({ ds }) => {
                     const code = schedMap[emp.id]?.[ds] ?? ''
-                    const colors = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                    const colors = code ? getCodeColor(code) : null
                     return (
                       <td key={ds} className={`px-0.5 py-1 ${isMe ? 'bg-blue-50/40' : ''}`}>
                         {code ? (
@@ -422,7 +447,7 @@ export default function MonPlanningPage() {
     const ds = dateStr(year, month, i + 1)
     const sched = schedules.find(s => s.date === ds)
     const code = sched?.code ?? null
-    const colors = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+    const colors = code ? getCodeColor(code) : null
     const sc = code ? shiftCodes.find(c => c.code === code) : null
     return { d, ds, code, colors, sc, isToday: ds === todayKey, isWE: d.getDay() === 0 || d.getDay() === 6 }
   })

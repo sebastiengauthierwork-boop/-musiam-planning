@@ -36,6 +36,7 @@ type TeamData = { employees: Employee[]; schedules: Schedule[] }
 export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [] }: TabProps) {
   const days = getDays(year, month)
 
+  const [subTab, setSubTab] = useState<'resume' | 'detail'>('resume')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([teamId])
   const [teamDataMap, setTeamDataMap] = useState<Record<string, TeamData>>({})
   const [structureBudgetMap, setStructureBudgetMap] = useState<Record<string, Record<string, number>>>({})
@@ -308,6 +309,21 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
           </label>
         ))}
 
+        <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setSubTab('resume')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'resume' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Résumé par jour
+          </button>
+          <button
+            onClick={() => setSubTab('detail')}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'detail' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            Détail par employé
+          </button>
+        </div>
+
         <div className="ml-auto">
           <button
             onClick={handleExportExcel}
@@ -341,8 +357,8 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
         ) : (
           <div className="p-6 space-y-10">
 
-            {/* ══════════════════ PARTIE HAUTE ══════════════════ */}
-            <section>
+            {/* ══════════════════ RÉSUMÉ PAR JOUR ══════════════════ */}
+            {subTab === 'resume' && <section>
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
                 <span className="inline-block h-px flex-1 bg-slate-200" />
                 Résumé par jour
@@ -431,10 +447,10 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                   )
                 })}
               </div>
-            </section>
+            </section>}
 
-            {/* ══════════════════ PARTIE BASSE ══════════════════ */}
-            <section>
+            {/* ══════════════════ DÉTAIL PAR EMPLOYÉ ══════════════════ */}
+            {subTab === 'detail' && <section>
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
                 <span className="inline-block h-px flex-1 bg-slate-200" />
                 Détail par salarié
@@ -542,7 +558,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                   )
                 })}
               </div>
-            </section>
+            </section>}
 
           </div>
         )}

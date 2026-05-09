@@ -5,7 +5,8 @@ import type { Employee, EmployeeHistory, TabProps } from './types'
 import { isTemporaire, getFnCode } from '@/lib/employeeUtils'
 import { getEffectiveValue } from '@/lib/planning-data'
 import { generatePlanningPdf, downloadPdf } from '@/lib/generatePlanningPdf'
-import { getCodeColors, SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
+import { SHIFT_PALETTE, ABSENCE_COLOR } from '@/lib/codeColors'
+import { getCodeColor } from '@/lib/utils'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -31,9 +32,9 @@ const S = {
   tdBase: { border: '1px solid #cbd5e1', textAlign: 'center' as const, verticalAlign: 'middle' as const, padding: '3px 1px' },
   bgWE:   '#f1f5f9',
   bgEmpty:'#ffffff',
-  shiftCode: { fontWeight: 700, lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
-  shiftTime: { lineHeight: 1.1, fontSize: '5px',   display: 'block' as const },
-  absCode:   { fontWeight: 700, lineHeight: 1.2, fontSize: '6.5px', display: 'block' as const },
+  shiftCode: { fontWeight: 700, lineHeight: 1.2, fontSize: '7px',   display: 'block' as const },
+  shiftTime: { lineHeight: 1.1, fontSize: '9px',   display: 'block' as const },
+  absCode:   { fontWeight: 700, lineHeight: 1.2, fontSize: '7px',   display: 'block' as const },
 }
 
 export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [] }: TabProps) {
@@ -186,7 +187,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
                 const cell = blocked ? null : cellData(emp.id, dateStr)
                 const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
-                const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                const c = code ? getCodeColor(code) : null
                 const bg = blocked ? '#e5e7eb' : c ? c.bg : (isWE ? '#f8fafc' : '#ffffff')
                 return (
                   <td key={dateStr} style={{
@@ -200,7 +201,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                     {!blocked && cell?.kind === 'shift' && (
                       <>
                         <span style={{ fontWeight: 700, fontSize: '7px', display: 'block', lineHeight: 1.1, color: c?.text ?? '#1e3a5f' }}>{cell.line1}</span>
-                        {cell.line2 && <span style={{ fontSize: '5.5px', display: 'block', lineHeight: 1, color: c?.text ?? '#475569', opacity: 0.85 }}>{cell.line2}</span>}
+                        {cell.line2 && <span style={{ fontSize: '9px', display: 'block', lineHeight: 1, color: c?.text ?? '#475569', opacity: 0.85 }}>{cell.line2}</span>}
                       </>
                     )}
                     {!blocked && cell?.kind === 'absence' && (
@@ -406,7 +407,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                       const blocked = (emp.start_date && dateStr < emp.start_date) || (emp.end_date && dateStr > emp.end_date)
                       const cell = blocked ? null : cellData(emp.id, dateStr)
                       const code = cell?.kind === 'shift' ? cell.line1 : cell?.kind === 'absence' ? cell.code : null
-                      const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                      const c = code ? getCodeColor(code) : null
                       const bg = blocked ? '#e5e7eb' : c ? c.bg : S.bgEmpty
                       return (
                         <td key={dateStr} style={{

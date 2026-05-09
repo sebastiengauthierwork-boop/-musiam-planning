@@ -10,6 +10,7 @@ import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
 import { useAuth } from '@/lib/auth'
 import { isAdmin, isSuperAdmin } from '@/lib/utils'
+import { usePermissions } from '@/lib/permissions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1897,9 +1898,31 @@ function RolesAcces() {
 
 export default function ParametragePage() {
   const { role: currentRole, loading: authLoading } = useAuth()
+  const { can, loading: permsLoading } = usePermissions()
   const [section, setSection] = useState<Section>('horaires')
 
-  if (authLoading) {
+  const isManagerRole = currentRole === 'responsable' || currentRole === 'manager'
+  const waitingPerms = isManagerRole && permsLoading
+
+  const tabs: { id: Section; label: string }[] = [
+    ...(isAdmin(currentRole) ? [
+      { id: 'horaires' as Section,   label: 'Codes horaires' },
+      { id: 'absence' as Section,    label: 'Codes absence'  },
+      { id: 'fonctions' as Section,  label: 'Fonctions'      },
+    ] : []),
+    ...(isAdmin(currentRole) || can('edit_staffing') ? [{ id: 'structures' as Section, label: 'Structures' }] : []),
+    ...(isAdmin(currentRole) || can('edit_calendar') ? [{ id: 'calendrier' as Section, label: 'Calendrier' }] : []),
+    ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
+  ]
+
+  // Corriger la section active si elle n'est plus visible (ex: changement de rôle)
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some(t => t.id === section)) {
+      setSection(tabs[0].id)
+    }
+  }, [tabs.map(t => t.id).join(',')])
+
+  if (authLoading || waitingPerms) {
     return (
       <div className="flex items-center justify-center h-64">
         <p className="text-slate-500 text-sm">Chargement…</p>
@@ -1907,14 +1930,23 @@ export default function ParametragePage() {
     )
   }
 
-  if (!isAdmin(currentRole) && currentRole !== 'responsable') {
+  if (!isAdmin(currentRole) && !isManagerRole) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-lg font-semibold text-slate-800">Accès refusé</p>
-          <p className="text-sm text-slate-500 mt-1">
-            Cette page est réservée aux administrateurs.
-          </p>
+          <p className="text-sm text-slate-500 mt-1">Cette page est réservée aux administrateurs.</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (isManagerRole && tabs.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-lg font-semibold text-slate-800">Accès refusé</p>
+          <p className="text-sm text-slate-500 mt-1">Vous n'avez pas de permission pour le paramétrage.</p>
         </div>
       </div>
     )
@@ -1928,14 +1960,7 @@ export default function ParametragePage() {
       </div>
 
       <div className="flex gap-0 border-b border-gray-200 mb-8 flex-wrap">
-        {([
-          { id: 'horaires',   label: 'Codes horaires' },
-          { id: 'absence',    label: 'Codes absence'  },
-          { id: 'fonctions',  label: 'Fonctions'      },
-          { id: 'structures', label: 'Structures'     },
-          { id: 'calendrier', label: 'Calendrier'     },
-          ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
-        ] as { id: Section; label: string }[]).map(s => (
+        {tabs.map(s => (
           <button key={s.id} onClick={() => setSection(s.id)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               section === s.id

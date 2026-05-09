@@ -28,7 +28,7 @@ function fmtNet(net: number | null | undefined): string {
 
 export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [] }: TabProps) {
   const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
-  const nonCadreEmployees = employees.filter(e => e.statut !== 'cadre')
+  const nonCadreEmployees = employees.filter(e => e.statut !== 'cadre' && e.contract_type !== 'INTERIM')
 
   const [selectedEmpIds, setSelectedEmpIds] = useState<Set<string>>(
     () => new Set(nonCadreEmployees.map(e => e.id))
@@ -136,17 +136,14 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
             {[
               { label: 'Signature du salarié', value: null },
               { label: 'Visa du responsable', value: null },
-              { label: 'Total heures planifiées', value: totalLabel },
             ].map(block => (
               <div key={block.label} style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '5px 8px', minHeight: 38 }}>
-                <div style={{ fontSize: '7px', color: '#6b7280', marginBottom: block.value ? 2 : 18 }}>{block.label}</div>
-                {block.value
-                  ? <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>{block.value}</div>
-                  : <div style={{ borderBottom: '1px solid #d1d5db' }} />}
+                <div style={{ fontSize: '7px', color: '#6b7280', marginBottom: 18 }}>{block.label}</div>
+                <div style={{ borderBottom: '1px solid #d1d5db' }} />
               </div>
             ))}
           </div>
@@ -193,8 +190,8 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                   <td style={td({ background: rowBg, fontFamily: 'monospace', fontWeight: 700, color: info?.isShift ? '#1d4ed8' : info?.code ? '#15803d' : '#9ca3af' })}>
                     {info?.code ?? '—'}
                   </td>
-                  <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8' })}>{info?.start || '—'}</td>
-                  <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8' })}>{info?.end || '—'}</td>
+                  <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8', fontSize: '12px' })}>{info?.start || '—'}</td>
+                  <td style={td({ background: rowBg, fontFamily: 'monospace', color: '#1d4ed8', fontSize: '12px' })}>{info?.end || '—'}</td>
                   <td style={td({ background: rowBg, fontWeight: 600 })}>{info?.paid || '—'}</td>
                   <td style={tdSaisie(isWE ? '#fafafa' : '#fffbeb')} />
                   <td style={tdSaisie(isWE ? '#fafafa' : '#fffbeb')} />
@@ -314,7 +311,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
         </div>
 
         {/* Zone aperçu + feuilles d'impression */}
-        <div className="print-planning-area flex-1 overflow-auto bg-white">
+        <div className="print-planning-area flex-1 bg-white" style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 130px)' }}>
 
           {/* Aperçu écran (masqué à l'impression) */}
           {previewEmp ? (
