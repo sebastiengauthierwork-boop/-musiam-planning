@@ -85,13 +85,13 @@ export default function TableauDeBord() {
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
           .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
-          .in('team_id', teamIds).eq('date', todayStr).neq('type', 'absence'),
+          .in('team_id', teamIds).eq('date', todayStr),
         supabase.from('schedules')
-          .select('date, employee_id')
-          .in('team_id', teamIds).in('date', next5Strs).neq('type', 'absence').neq('type', 'repos').neq('type', 'conge'),
+          .select('date, employee_id, code, start_time')
+          .in('team_id', teamIds).in('date', next5Strs),
         supabase.from('schedules')
-          .select('date, code')
-          .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth).neq('type', 'absence'),
+          .select('date, code, type')
+          .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth),
         supabase.from('annual_calendar')
           .select('date, structure_id')
           .in('team_id', teamIds).gte('date', firstOfMonth).lte('date', lastOfMonth),
@@ -103,11 +103,25 @@ export default function TableauDeBord() {
       setEmployeeCount(empRes.count ?? 0)
 
       // 6. Effectifs du jour — Gantt
+      const REPOS_CODES = new Set(['R', 'REP', 'FER'])
+      console.log('[Dashboard] Schedules chargés aujourd\'hui — total:', todayRes.data?.length ?? 0)
+      console.log('[Dashboard] Détail schedules:', (todayRes.data ?? []).map((s: any) => ({
+        employee_id: s.employee_id,
+        code: s.code,
+        type: s.type ?? '(non défini)',
+        start_time: s.start_time,
+        end_time: s.end_time,
+        name: s.employees
+          ? `${s.employees.last_name ?? ''} ${s.employees.first_name ?? ''}`.trim()
+          : '(jointure manquante)',
+      })))
+
       const seenEmp = new Set<string>()
       const gantt: GanttEntry[] = []
       for (const s of (todayRes.data ?? []) as any[]) {
         if (seenEmp.has(s.employee_id)) continue
         const code = s.code ?? ''
+        if (REPOS_CODES.has(code)) continue
         let startStr: string, endStr: string
         if (s.start_time && s.end_time) {
           startStr = s.start_time.slice(0, 5)
@@ -122,6 +136,7 @@ export default function TableauDeBord() {
         const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
         gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code })
       }
+      console.log('[Dashboard] Gantt final — présents:', gantt.map(e => ({ name: e.name, code: e.code, start: e.start, end: e.end })))
       gantt.sort((a, b) => a.start.localeCompare(b.start))
       if (loadId !== loadIdRef.current) return
       setGanttEntries(gantt)
@@ -142,9 +157,12 @@ export default function TableauDeBord() {
         }
       }
 
-      // 8. Vigilance J+5
+      // 8. Vigilance J+5 — présent = a start_time (shift/manager) ou code cadre, pas repos
       const plannedByDay: Record<string, Set<string>> = {}
       for (const s of next5Res.data ?? []) {
+        const c = s.code ?? ''
+        if (REPOS_CODES.has(c)) continue
+        if (!s.start_time && !(c in CADRE_INDICATIVE_DASH)) continue
         if (!plannedByDay[s.date]) plannedByDay[s.date] = new Set()
         plannedByDay[s.date].add(s.employee_id)
       }
@@ -168,10 +186,11 @@ export default function TableauDeBord() {
         if (c.structure_id) structBudget += structHoursMap[c.structure_id] ?? 0
       }
 
-      // 10. Heures planifiées (schedules du mois)
+      // 10. Heures planifiées (schedules du mois) — uniquement les codes avec paid_hours
       let realized = 0, forecast = 0
       for (const s of monthRes.data ?? []) {
         const h = scMap[s.code] ?? 0
+        if (h <= 0) continue
         if (s.date <= todayStr) realized += h
         else forecast += h
       }
