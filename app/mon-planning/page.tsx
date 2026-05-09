@@ -16,10 +16,17 @@ interface Team { id: string; name: string; cdpf: string | null; site_id: string 
 interface Schedule { employee_id: string; date: string; code: string; start_time: string | null; end_time: string | null }
 interface ShiftCode { id: string; code: string; label: string; start_time: string | null; end_time: string | null }
 interface AbsenceCode { id: string; code: string; label: string }
-interface DashboardEntry { employee_id: string; name: string; code: string; start: string; end: string }
+interface DashboardEntry { employee_id: string; name: string; code: string; start: string; end: string; statut: string }
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi']
+
+const CADRE_TIMES: Record<string, { start: string; end: string }> = {
+  'P/O': { start: '05:00', end: '14:00' },
+  'P/F': { start: '13:30', end: '22:30' },
+  'P':   { start: '11:30', end: '20:30' },
+}
+const DASHBOARD_STATUT_ORD: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
 
 function pad(n: number) { return String(n).padStart(2, '0') }
 function dateStr(y: number, m: number, d: number) { return `${y}-${pad(m + 1)}-${pad(d)}` }
@@ -255,7 +262,8 @@ function MobileGantt({ entries, shiftCodes, absenceCodes }: {
             widthPct = Math.max(((en - s) / SPAN) * 100, 2)
           }
           const color = getCodeColor(e.code, shiftCodes, absenceCodes)
-          const barLabel = hasTimes ? `${e.code} ${e.start}-${e.end}` : e.code
+          const isCadreCode = e.code in CADRE_TIMES
+          const barLabel = isCadreCode ? e.code : (hasTimes ? `${e.code} ${e.start}-${e.end}` : e.code)
 
           return (
             <div key={e.employee_id} className="flex items-center" style={{ marginBottom: 4 }}>
@@ -341,6 +349,8 @@ export default function MonPlanningPage() {
   // ── Tableau de bord mobile ──
   const [dashboardEntries, setDashboardEntries] = useState<DashboardEntry[]>([])
   const [loadingDashboard, setLoadingDashboard] = useState(false)
+  const [dashboardSiteId, setDashboardSiteId] = useState<string>('')
+  const [dashboardTeamId, setDashboardTeamId] = useState<string>('')
 
   // PWA
   useEffect(() => {
@@ -359,14 +369,27 @@ export default function MonPlanningPage() {
     })
   }, [authLoading])
 
+  // ── Tableau de bord mobile : init sélecteur site ──
+  useEffect(() => {
+    if (!isMgmt || sites.length === 0) return
+    setDashboardSiteId(prev => prev || (role === 'responsable' && authSiteId ? authSiteId : (sites[0]?.id ?? '')))
+  }, [isMgmt, sites.map(s => s.id).join(',')])
+
+  // ── Tableau de bord mobile : init sélecteur équipe ──
+  useEffect(() => {
+    if (!isMgmt || allTeams.length === 0) return
+    const filtered = role === 'manager' ? allTeams : allTeams.filter(t => t.site_id === dashboardSiteId)
+    setDashboardTeamId(prev => (prev && filtered.find(t => t.id === prev)) ? prev : (filtered[0]?.id ?? ''))
+  }, [dashboardSiteId, allTeams.map(t => t.id).join(','), isMgmt, role])
+
   // ── Tableau de bord mobile : chargement données du jour ──
   useEffect(() => {
     if (authLoading) return
     const resolvedTeamId = (team as any)?.id ?? null
     const teamIds: string[] = []
     if (isMgmt) {
-      if (allTeams.length === 0) return
-      teamIds.push(...allTeams.map(t => t.id))
+      if (allTeams.length === 0 || !dashboardTeamId) return
+      teamIds.push(dashboardTeamId)
     } else {
       if (!resolvedTeamId) return
       teamIds.push(resolvedTeamId)
@@ -374,35 +397,50 @@ export default function MonPlanningPage() {
     setLoadingDashboard(true)
     Promise.all([
       supabase.from('schedules')
-        .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
+        .select('employee_id, code, start_time, end_time, employees(first_name, last_name, statut)')
         .in('team_id', teamIds).eq('date', todayKey),
       supabase.from('shift_codes').select('code, start_time, end_time'),
-    ]).then(([schedRes, scRes]) => {
+      supabase.from('absence_codes').select('code'),
+    ]).then(([schedRes, scRes, absRes]) => {
       const scTimeMap: Record<string, { start: string; end: string }> = {}
       for (const sc of scRes.data ?? []) {
         if (sc.code && sc.start_time && sc.end_time && !(sc.code in scTimeMap)) {
           scTimeMap[sc.code] = { start: sc.start_time.slice(0, 5), end: sc.end_time.slice(0, 5) }
         }
       }
+      const absenceSet = new Set<string>((absRes.data ?? []).map((a: any) => a.code).filter(Boolean))
+      const REPOS_CODES = new Set(['R', 'REP', 'FER'])
       const seen = new Set<string>()
       const entries: DashboardEntry[] = []
       for (const s of (schedRes.data ?? []) as any[]) {
         if (seen.has(s.employee_id)) continue
+        const code = s.code ?? ''
+        if (REPOS_CODES.has(code) || absenceSet.has(code)) continue
+        let start: string, end: string
+        if (s.start_time && s.end_time) {
+          start = s.start_time.slice(0, 5); end = s.end_time.slice(0, 5)
+        } else if (scTimeMap[code]) {
+          start = scTimeMap[code].start; end = scTimeMap[code].end
+        } else if (code in CADRE_TIMES) {
+          start = CADRE_TIMES[code].start; end = CADRE_TIMES[code].end
+        } else {
+          continue
+        }
         seen.add(s.employee_id)
         const emp = s.employees
         if (!emp) continue
-        const start = s.start_time?.slice(0, 5) || scTimeMap[s.code]?.start || ''
-        const end = s.end_time?.slice(0, 5) || scTimeMap[s.code]?.end || ''
-        entries.push({ employee_id: s.employee_id, name: `${emp.last_name} ${emp.first_name.charAt(0)}.`, code: s.code, start, end })
+        entries.push({ employee_id: s.employee_id, name: `${emp.last_name} ${emp.first_name.charAt(0)}.`, code, start, end, statut: emp.statut ?? '' })
       }
-      entries.sort((a, b) =>
-        (a.start && b.start ? a.start.localeCompare(b.start) : a.start ? -1 : b.start ? 1 : 0) ||
-        a.name.localeCompare(b.name)
-      )
+      entries.sort((a, b) => {
+        const oa = DASHBOARD_STATUT_ORD[a.statut] ?? 3
+        const ob = DASHBOARD_STATUT_ORD[b.statut] ?? 3
+        if (oa !== ob) return oa - ob
+        return a.name.localeCompare(b.name)
+      })
       setDashboardEntries(entries)
       setLoadingDashboard(false)
     }).catch(() => setLoadingDashboard(false))
-  }, [authLoading, isMgmt, allTeams.map(t => t.id).join(','), (team as any)?.id, todayKey])
+  }, [authLoading, isMgmt, allTeams.map(t => t.id).join(','), (team as any)?.id, dashboardTeamId, todayKey])
 
   // ── Management : chargement sites + équipes ──
   useEffect(() => {
@@ -585,8 +623,10 @@ export default function MonPlanningPage() {
     return { d, ds, code, colors, sc, isToday: ds === todayKey, isWE: d.getDay() === 0 || d.getDay() === 6 }
   })
 
-  // Équipes filtrées par site courant (pour le dropdown)
+  // Équipes filtrées par site courant (pour le dropdown de l'onglet Équipes)
   const teamsForSite = role === 'manager' ? allTeams : allTeams.filter(t => t.site_id === selectedSiteId)
+  // Équipes filtrées pour le sélecteur du tableau de bord mobile
+  const dashboardTeamsForSite = role === 'manager' ? allTeams : allTeams.filter(t => t.site_id === dashboardSiteId)
 
   // Onglets disponibles
   const tabs = [
@@ -740,6 +780,29 @@ export default function MonPlanningPage() {
       {/* ── Onglet Tableau de bord mobile ── */}
       {tab === 'dashboard' && (
         <div className="flex-1 overflow-y-auto">
+          {/* Sélecteurs site/équipe (gestionnaires uniquement) */}
+          {isMgmt && (role !== 'manager' && sites.length > 1 || dashboardTeamsForSite.length > 1) && (
+            <div className="bg-white border-b border-gray-100 px-3 py-2 space-y-1.5 shrink-0">
+              {role !== 'manager' && sites.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 w-10 shrink-0">Site</span>
+                  <select value={dashboardSiteId} onChange={e => setDashboardSiteId(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none">
+                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
+              {dashboardTeamsForSite.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 w-10 shrink-0">Équipe</span>
+                  <select value={dashboardTeamId} onChange={e => setDashboardTeamId(e.target.value)}
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none">
+                    {dashboardTeamsForSite.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` · ${t.cdpf}` : ''}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
           <div className="bg-white border-b border-gray-100 px-4 py-3 shrink-0">
             <p className="text-sm font-bold text-gray-900">Effectifs du jour</p>
             <p className="text-xs text-gray-400 mt-0.5">

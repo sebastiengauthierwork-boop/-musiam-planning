@@ -20,7 +20,7 @@ function fmtH(h: number): string {
   return h < 0 ? `−${str}` : str
 }
 
-type GanttEntry = { employee_id: string; name: string; start: string; end: string; code: string }
+type GanttEntry = { employee_id: string; name: string; start: string; end: string; code: string; statut: string; team_id: string }
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
 type BudgetData = { realized: number; forecast: number; budget: number }
 
@@ -29,6 +29,7 @@ const CADRE_INDICATIVE_DASH: Record<string, [string, string]> = {
   'P/F': ['13:30', '22:30'],
   'P':   ['11:30', '20:30'],
 }
+const STATUT_ORD: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, employe: 3 }
 
 export default function TableauDeBord() {
   const { selectedSiteId } = useSite()
@@ -43,6 +44,8 @@ export default function TableauDeBord() {
   const [budget, setBudget] = useState<BudgetData>({ realized: 0, forecast: 0, budget: 0 })
   const [teamCount, setTeamCount] = useState(0)
   const [employeeCount, setEmployeeCount] = useState(0)
+  const [ganttTeams, setGanttTeams] = useState<{ id: string; name: string; cdpf: string | null }[]>([])
+  const [ganttTeamId, setGanttTeamId] = useState<string>('')
 
   useEffect(() => { load() }, [selectedSiteId])
 
@@ -52,7 +55,7 @@ export default function TableauDeBord() {
     setError(null)
     try {
       // 1. Teams
-      let teamsQ = supabase.from('teams').select('id')
+      let teamsQ = supabase.from('teams').select('id, name, cdpf')
       if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
       const teamsRes = await teamsQ
       if (teamsRes.error) throw teamsRes.error
@@ -60,6 +63,8 @@ export default function TableauDeBord() {
       const teams = teamsRes.data ?? []
       const teamIds = teams.map((t: any) => t.id)
       setTeamCount(teams.length)
+      setGanttTeams(teams.map((t: any) => ({ id: t.id, name: t.name ?? '', cdpf: t.cdpf ?? null })))
+      setGanttTeamId('')
 
       if (!teamIds.length) { setLoading(false); return }
 
@@ -93,7 +98,7 @@ export default function TableauDeBord() {
       // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
-          .select('employee_id, code, employees(first_name, last_name)')
+          .select('employee_id, code, team_id, employees(first_name, last_name, statut)')
           .in('team_id', teamIds).eq('date', todayStr),
         supabase.from('schedules')
           .select('date, employee_id, code')
@@ -131,9 +136,14 @@ export default function TableauDeBord() {
         seenEmp.add(s.employee_id)
         const emp = s.employees
         const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
-        gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code })
+        gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code, statut: emp?.statut ?? '', team_id: s.team_id ?? '' })
       }
-      gantt.sort((a, b) => a.start.localeCompare(b.start))
+      gantt.sort((a, b) => {
+        const oa = STATUT_ORD[a.statut] ?? 3
+        const ob = STATUT_ORD[b.statut] ?? 3
+        if (oa !== ob) return oa - ob
+        return a.name.localeCompare(b.name)
+      })
       if (loadId !== loadIdRef.current) return
       setGanttEntries(gantt)
 
@@ -210,6 +220,7 @@ export default function TableauDeBord() {
   const barColor = pct === null ? 'bg-gray-300' : pct > 105 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-400' : 'bg-emerald-500'
   const pctColor = pct === null ? 'text-gray-400' : pct > 105 ? 'text-red-600' : pct >= 90 ? 'text-amber-500' : 'text-emerald-600'
   const ecartColor = ecartH > 0 ? 'text-red-600' : ecartH < 0 ? 'text-emerald-600' : 'text-gray-500'
+  const displayedGantt = ganttTeamId ? ganttEntries.filter(e => e.team_id === ganttTeamId) : ganttEntries
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
@@ -222,8 +233,17 @@ export default function TableauDeBord() {
       </div>
 
       {/* Effectifs du jour — Gantt */}
-      <Card title="Effectifs du jour" badge={`${ganttEntries.length} présent${ganttEntries.length !== 1 ? 's' : ''}`}>
-        <GanttChart entries={ganttEntries} />
+      <Card title="Effectifs du jour" badge={`${displayedGantt.length} présent${displayedGantt.length !== 1 ? 's' : ''}`}>
+        {ganttTeams.length > 1 && (
+          <div className="mb-3">
+            <select value={ganttTeamId} onChange={e => setGanttTeamId(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-200">
+              <option value="">Toutes les équipes</option>
+              {ganttTeams.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` · ${t.cdpf}` : ''}</option>)}
+            </select>
+          </div>
+        )}
+        <GanttChart entries={displayedGantt} />
         <div className="mt-3 text-right">
           <a href="/planning" className="text-xs text-blue-600 hover:underline">Voir détails →</a>
         </div>
