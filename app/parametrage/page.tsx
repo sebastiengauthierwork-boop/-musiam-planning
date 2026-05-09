@@ -9,7 +9,7 @@ import ImportExcel from '@/components/ImportExcel'
 import { teamLabel } from '@/lib/teamUtils'
 import { useSite } from '@/lib/site-context'
 import { useAuth } from '@/lib/auth'
-import { isAdmin, isSuperAdmin } from '@/lib/utils'
+import { isAdmin, isSuperAdmin, getCodeColor } from '@/lib/utils'
 import { usePermissions } from '@/lib/permissions'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,9 +20,9 @@ type ShiftCode = {
   arrival_time: string | null; start_time: string | null; end_time: string | null; departure_time: string | null
   break_minutes: number; pause_minutes: number; dressing_minutes: number
   net_hours: number | null; target_hours: number | null; paid_hours: number | null
-  meal_included: boolean
+  meal_included: boolean; color?: string | null
 }
-type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
+type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean; color?: string | null }
 type TeamOption = { id: string; name: string; cdpf: string | null }
 type JobFunction = { id: string; name: string; code: string | null; is_active: boolean }
 
@@ -350,9 +350,11 @@ function CodesHoraires() {
               return (
                 <tr key={c.id} className="hover:bg-gray-50">
                   <td className="px-3 py-2.5">
-                    <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-xs">
-                      {c.code}
-                    </span>
+                    {(() => { const clr = getCodeColor(c.code, [c]); return (
+                      <span className="font-mono font-bold px-2 py-0.5 rounded text-xs" style={{ background: clr.bg, color: clr.text }}>
+                        {c.code}
+                      </span>
+                    )})()}
                   </td>
                   <td className="px-3 py-2.5 text-gray-700 max-w-[180px] truncate">{c.label}</td>
                   <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{c.arrival_time?.slice(0, 5) ?? '—'}</td>
@@ -679,7 +681,11 @@ function CodesAbsence() {
             {codes.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Aucun code absence</td></tr>}
             {codes.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2.5"><span className={`font-mono font-bold px-2 py-0.5 rounded text-sm ${c.is_paid ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{c.code}</span></td>
+                <td className="px-4 py-2.5">
+                  {(() => { const clr = getCodeColor(c.code, [], [c]); return (
+                    <span className="font-mono font-bold px-2 py-0.5 rounded text-sm" style={{ background: clr.bg, color: clr.text }}>{c.code}</span>
+                  )})()}
+                </td>
                 <td className="px-4 py-2.5 text-gray-700">{c.label}</td>
                 <td className="px-4 py-2.5">
                   {c.is_paid

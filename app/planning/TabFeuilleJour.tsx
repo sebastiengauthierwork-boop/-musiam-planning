@@ -98,7 +98,7 @@ export default function TabFeuilleJour({
         if (emp.end_date && selectedDate > emp.end_date) return false
         const code = schedMap[`${emp.id}|${selectedDate}`]
         if (!code) return false
-        return shiftCodes.some(sc => sc.code === code)
+        return shiftCodes.some(sc => sc.code === code) || (code in CADRE_INDICATIVE)
       })
       .sort((a, b) => {
         const oa = STATUT_ORDER[a.statut ?? ''] ?? 3

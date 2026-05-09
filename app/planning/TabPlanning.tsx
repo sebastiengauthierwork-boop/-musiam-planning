@@ -337,7 +337,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
       </div>
 
       {/* ── Zone imprimable ── */}
-      <div className={`print-planning-area overflow-auto flex-1 bg-white p-5${a4Mode !== 'off' ? ' print-a4-layout' : ''}`}>
+      <div className={`print-planning-area overflow-auto h-full bg-white p-5${a4Mode !== 'off' ? ' print-a4-layout' : ''}`}>
 
         {a4Mode === 'off' ? (
 

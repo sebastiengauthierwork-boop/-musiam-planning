@@ -2,9 +2,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
+import { getCodeColor } from '@/lib/utils'
 
 const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
 const DAYS_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam']
@@ -19,7 +20,7 @@ function fmtH(h: number): string {
   return h < 0 ? `−${str}` : str
 }
 
-type GanttEntry = { employee_id: string; name: string; start: string; end: string }
+type GanttEntry = { employee_id: string; name: string; start: string; end: string; code: string }
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
 type BudgetData = { realized: number; forecast: number; budget: number }
 
@@ -28,6 +29,7 @@ export default function TableauDeBord() {
   const now = new Date()
   const todayStr = toISO(now)
 
+  const loadIdRef = useRef(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [ganttEntries, setGanttEntries] = useState<GanttEntry[]>([])
@@ -39,6 +41,7 @@ export default function TableauDeBord() {
   useEffect(() => { load() }, [selectedSiteId])
 
   async function load() {
+    const loadId = ++loadIdRef.current
     setLoading(true)
     setError(null)
     try {
@@ -75,7 +78,7 @@ export default function TableauDeBord() {
       // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
       const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
         supabase.from('schedules')
-          .select('employee_id, start_time, end_time, employees(first_name, last_name)')
+          .select('employee_id, code, start_time, end_time, employees(first_name, last_name)')
           .in('team_id', teamIds).eq('date', todayStr).eq('type', 'shift'),
         supabase.from('schedules')
           .select('date, employee_id')
@@ -101,9 +104,10 @@ export default function TableauDeBord() {
         seenEmp.add(s.employee_id)
         const emp = s.employees
         const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
-        gantt.push({ employee_id: s.employee_id, name, start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5) })
+        gantt.push({ employee_id: s.employee_id, name, start: s.start_time.slice(0, 5), end: s.end_time.slice(0, 5), code: s.code ?? '' })
       }
       gantt.sort((a, b) => a.start.localeCompare(b.start))
+      if (loadId !== loadIdRef.current) return
       setGanttEntries(gantt)
 
       // 7. Structure positions (vigilance + budget, une seule requête)
@@ -136,6 +140,7 @@ export default function TableauDeBord() {
         theoreticalByDate[ds] = entries.reduce((s: number, c: any) => s + (structureReq[c.structure_id] ?? 0), 0)
       }
 
+      if (loadId !== loadIdRef.current) return
       setVigilance(next5.map(d => {
         const ds = toISO(d)
         return { date: ds, label: `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`, planned: plannedByDay[ds]?.size ?? 0, theoretical: theoreticalByDate[ds] ?? null }
@@ -154,6 +159,7 @@ export default function TableauDeBord() {
         if (s.date <= todayStr) realized += h
         else forecast += h
       }
+      if (loadId !== loadIdRef.current) return
       setBudget({ realized, forecast, budget: structBudget })
 
     } catch (err: any) {
@@ -296,15 +302,16 @@ function GanttChart({ entries }: { entries: GanttEntry[] }) {
         const s = toMin(e.start), en = toMin(e.end)
         const left = ((s - minH) / span) * 100
         const width = Math.max(((en - s) / span) * 100, 2)
+        const color = getCodeColor(e.code)
         return (
           <div key={e.employee_id} className="flex items-center gap-2">
             <span className="text-[11px] text-gray-500 w-28 shrink-0 truncate">{e.name}</span>
             <div className="flex-1 relative h-5 bg-gray-100 rounded">
               <div
-                className="absolute top-0.5 bottom-0.5 rounded bg-blue-500 flex items-center px-1"
-                style={{ left: `${left}%`, width: `${width}%` }}
+                className="absolute top-0.5 bottom-0.5 rounded flex items-center px-1"
+                style={{ left: `${left}%`, width: `${width}%`, background: color.bg }}
               >
-                <span className="text-[9px] text-white font-medium whitespace-nowrap overflow-hidden leading-none">
+                <span className="text-[9px] font-medium whitespace-nowrap overflow-hidden leading-none" style={{ color: color.text }}>
                   {e.start}–{e.end}
                 </span>
               </div>
