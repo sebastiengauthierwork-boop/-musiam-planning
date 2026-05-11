@@ -7,6 +7,7 @@ import { decimalToHMin } from '@/lib/timeUtils'
 import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 import { isTemporaire, getFnCode } from '@/lib/employeeUtils'
+import { usePermissions } from '@/lib/permissions'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -447,6 +448,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     }
   }
 
+  const { can } = usePermissions()
+  const canEditPast = can('edit_past_planning')
+
   const [cellValues, setCellValues] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
     for (const s of schedules) { if (s.code) m[`${s.employee_id}|${s.date}`] = s.code }
@@ -460,6 +464,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [globalError, setGlobalError] = useState<string | null>(null)
   const outerRef = useRef<HTMLDivElement>(null)
   const [dynDayW, setDynDayW] = useState(36)
+
+  // ── Confirmation modification passé ──
+  const [pastConfirm, setPastConfirm] = useState<{ empId: string; dateStr: string; code: string; cellKey: string } | null>(null)
+  const [cellResetVersions, setCellResetVersions] = useState<Record<string, number>>({})
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [archiveStep, setArchiveStep] = useState<'pdf' | 'saving' | null>(null)
@@ -546,6 +554,29 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       }), 6000)
     }
   }, [shiftCodes, absenceCodes, teamId])
+
+  // ── Modification passé : wrapper de saveCell ──────────────────────────────
+  function handleSaveCell(empId: string, dateStr: string, code: string) {
+    const cellKey = `${empId}|${dateStr}`
+    if (dateStr < today) {
+      const label = new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      setPastConfirm({ empId, dateStr, code, cellKey })
+      return
+    }
+    saveCell(empId, dateStr, code)
+  }
+
+  function confirmPastSave() {
+    if (!pastConfirm) return
+    saveCell(pastConfirm.empId, pastConfirm.dateStr, pastConfirm.code)
+    setPastConfirm(null)
+  }
+
+  function cancelPastSave() {
+    if (!pastConfirm) return
+    setCellResetVersions(v => ({ ...v, [pastConfirm.cellKey]: (v[pastConfirm.cellKey] ?? 0) + 1 }))
+    setPastConfirm(null)
+  }
 
   // ── Archivage ─────────────────────────────────────────────────────────────
   async function archivePlanning() {
@@ -1076,6 +1107,31 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </div>
       )}
 
+      {/* Modal confirmation modification passé */}
+      {pastConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={cancelPastSave} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Modification dans le passé</h2>
+            <p className="text-sm text-gray-600 mb-5">
+              Vous modifiez le planning du{' '}
+              <strong>{new Date(pastConfirm.dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>{' '}
+              qui est dans le passé. Êtes-vous certain de vouloir effectuer cette modification ?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={cancelPastSave}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={confirmPastSave}
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700">
+                Confirmer la modification
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Archive confirmation modal */}
       {showArchiveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1435,34 +1491,38 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const isWE = d.getDay() === 0 || d.getDay() === 6
                       const isMonday = d.getDay() === 1
                       const isTo = dateStr === today
+                      const isPast = dateStr < today
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
                       const blocked = isDateBlocked(emp, dateStr)
+                      const pastDisabled = isPast && !canEditPast
                       return (
                         <td key={dateStr} className="border-b border-r border-gray-100 p-0 h-6 relative"
-                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : {}) }}>
+                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : isPast ? { background: '#f9fafb' } : {}) }}>
                           {blocked ? (
                             <div className="w-full h-full" style={{ background: '#e5e7eb' }}
                               title={emp.start_date && dateStr < emp.start_date ? `Entrée le ${emp.start_date}` : `Sortie le ${emp.end_date}`} />
-                          ) : isArchived ? (
+                          ) : isArchived || pastDisabled ? (
                             <div
                               className="w-full h-full flex items-center justify-center text-xs font-mono"
                               style={(() => {
                                 const c = cellValues[key] ? getCodeColors(cellValues[key], shiftCodes, absenceCodes) : null
-                                return c ? { background: c.bg, color: c.text } : { background: '#f8fafc' }
+                                return c ? { background: c.bg, color: c.text } : { background: pastDisabled ? '#f3f4f6' : '#f8fafc' }
                               })()}
+                              title={pastDisabled ? 'Modification du passé non autorisée' : undefined}
                             >
                               {cellValues[key] || ''}
                             </div>
                           ) : (
                             <CellInput
+                              key={`${key}|${cellResetVersions[key] ?? 0}`}
                               saved={cellValues[key] ?? ''}
                               status={cellStatus[key] ?? 'idle'}
                               errorMsg={cellErrors[key]}
                               shiftCodes={shiftCodes}
                               teamShiftCodes={teamShiftCodes}
                               absenceCodes={absenceCodes}
-                              onSave={code => saveCell(emp.id, dateStr, code)}
+                              onSave={code => handleSaveCell(emp.id, dateStr, code)}
                               isWeekend={isWE}
                               isSelected={isSel}
                               onNormalClick={() => selectSingle(emp.id, dateStr)}
@@ -1568,30 +1628,34 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       const isWE = d.getDay() === 0 || d.getDay() === 6
                       const isMonday = d.getDay() === 1
                       const isTo = dateStr === today
+                      const isPast = dateStr < today
                       const key = `${emp.id}|${dateStr}`
                       const isSel = selected.has(key)
+                      const pastDisabled = isPast && !canEditPast
                       return (
                         <td key={dateStr} className="border-b border-r border-amber-100 p-0 h-6 relative"
-                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : {}) }}>
-                          {isArchived ? (
+                          style={{ ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}), ...(isTo ? { background: '#eff6ff' } : isPast ? { background: '#f9fafb' } : {}) }}>
+                          {isArchived || pastDisabled ? (
                             <div
                               className="w-full h-full flex items-center justify-center text-xs font-mono"
                               style={(() => {
                                 const c = cellValues[key] ? getCodeColors(cellValues[key], shiftCodes, absenceCodes) : null
-                                return c ? { background: c.bg, color: c.text } : {}
+                                return c ? { background: c.bg, color: c.text } : { background: pastDisabled ? '#f3f4f6' : 'transparent' }
                               })()}
+                              title={pastDisabled ? 'Modification du passé non autorisée' : undefined}
                             >
                               {cellValues[key] || ''}
                             </div>
                           ) : (
                             <CellInput
+                              key={`${key}|${cellResetVersions[key] ?? 0}`}
                               saved={cellValues[key] ?? ''}
                               status={cellStatus[key] ?? 'idle'}
                               errorMsg={cellErrors[key]}
                               shiftCodes={shiftCodes}
                               teamShiftCodes={teamShiftCodes}
                               absenceCodes={absenceCodes}
-                              onSave={code => saveCell(emp.id, dateStr, code)}
+                              onSave={code => handleSaveCell(emp.id, dateStr, code)}
                               isWeekend={isWE}
                               isSelected={isSel}
                               onNormalClick={() => selectSingle(emp.id, dateStr)}

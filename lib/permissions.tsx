@@ -16,6 +16,7 @@ export type Permission =
   | 'create_responsable' | 'create_manager' | 'create_salarie'
   | 'view_own_planning' | 'view_team_planning'
   | 'view_dashboard_mobile'
+  | 'edit_past_planning'
 
 interface PermissionsContextValue {
   can: (permission: Permission) => boolean
