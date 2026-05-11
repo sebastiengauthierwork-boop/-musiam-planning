@@ -127,7 +127,7 @@ export default function UtilisateursPage() {
     setDataLoading(true)
     setError(null)
     const [usersRes, teamsRes, sitesRes] = await Promise.all([
-      supabase.from('users').select('*').order('email'),
+      supabase.from('users').select('id, email, role, team_id, allowed_teams, allowed_site_id, employee_id').order('email'),
       supabase.from('teams').select('id, name, cdpf').order('name'),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
     ])

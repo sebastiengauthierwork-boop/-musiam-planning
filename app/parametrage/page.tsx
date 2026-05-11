@@ -167,7 +167,7 @@ function CodesHoraires() {
   const [bulkResult, setBulkResult] = useState<string | null>(null)
 
   async function load() {
-    let q = supabase.from('shift_codes').select('*').order('code')
+    let q = supabase.from('shift_codes').select('id, code, label, team_id, team_prefix, location_prefix, arrival_time, start_time, end_time, departure_time, break_minutes, pause_minutes, dressing_minutes, net_hours, target_hours, paid_hours, meal_included, color').order('code')
     if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
     const [codesRes, teamsRes] = await Promise.all([
       q,
@@ -687,7 +687,7 @@ function CodesAbsence() {
   const [bulkResultAbs, setBulkResultAbs] = useState<string | null>(null)
 
   async function load() {
-    const { data } = await supabase.from('absence_codes').select('*').order('code')
+    const { data } = await supabase.from('absence_codes').select('id, code, label, is_paid, color').order('code')
     setCodes(data ?? []); setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -1234,13 +1234,13 @@ function Structures() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function load() {
-    let sQ = supabase.from('staffing_structures').select('*').order('name')
+    let sQ = supabase.from('staffing_structures').select('id, name, site_id').order('name')
     if (selectedSiteId) sQ = sQ.eq('site_id', selectedSiteId)
     let scQ = supabase.from('shift_codes').select('id, code, label, paid_hours, net_hours, start_time, end_time, break_minutes').order('code')
     if (selectedSiteId) scQ = scQ.eq('site_id', selectedSiteId)
     const [sRes, pRes, scRes] = await Promise.all([
       sQ,
-      supabase.from('staffing_structure_positions').select('*').order('position_name'),
+      supabase.from('staffing_structure_positions').select('id, structure_id, position_name, required_count').order('position_name'),
       scQ,
     ])
     setStructures(sRes.data ?? [])
@@ -1540,7 +1540,7 @@ function Fonctions() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   async function load() {
-    const { data } = await supabase.from('job_functions').select('*').order('name')
+    const { data } = await supabase.from('job_functions').select('id, name, code, is_active').order('name')
     setFunctions(data ?? []); setLoading(false)
   }
   useEffect(() => { load() }, [])

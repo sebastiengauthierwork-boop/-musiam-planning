@@ -74,7 +74,7 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
       try {
         const { data } = await supabase
           .from('planning_archives')
-          .select('*')
+          .select('id, team_id, month, year, archived_at, archived_by, status, pdf_url')
           .eq('team_id', teamId)
           .order('year', { ascending: false })
           .order('month', { ascending: false })
