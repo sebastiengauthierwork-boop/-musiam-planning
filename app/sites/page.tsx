@@ -14,6 +14,7 @@ type Site = {
   address: string | null
   is_active: boolean
   created_at: string
+  dressing_minutes_per_day: number | null
 }
 
 type FormData = {
@@ -21,9 +22,10 @@ type FormData = {
   cdpf_prefix: string
   address: string
   is_active: boolean
+  dressing_minutes_per_day: number
 }
 
-const emptyForm: FormData = { name: '', cdpf_prefix: '', address: '', is_active: true }
+const emptyForm: FormData = { name: '', cdpf_prefix: '', address: '', is_active: true, dressing_minutes_per_day: 10 }
 
 export default function SitesPage() {
   const { role } = useAuth()
@@ -38,7 +40,7 @@ export default function SitesPage() {
 
   async function loadSites() {
     const { data, error } = await supabase
-      .from('sites').select('id, name, cdpf_prefix, address, is_active, created_at').order('name')
+      .from('sites').select('id, name, cdpf_prefix, address, is_active, created_at, dressing_minutes_per_day').order('name')
     if (error) { setError(error.message); return }
     setSites(data ?? [])
   }
@@ -49,7 +51,7 @@ export default function SitesPage() {
 
   function openEdit(site: Site) {
     setEditingSite(site)
-    setFormData({ name: site.name, cdpf_prefix: site.cdpf_prefix ?? '', address: site.address ?? '', is_active: site.is_active })
+    setFormData({ name: site.name, cdpf_prefix: site.cdpf_prefix ?? '', address: site.address ?? '', is_active: site.is_active, dressing_minutes_per_day: site.dressing_minutes_per_day ?? 10 })
     setShowModal(true)
   }
 
@@ -62,6 +64,7 @@ export default function SitesPage() {
         cdpf_prefix: formData.cdpf_prefix.trim() || null,
         address: formData.address.trim() || null,
         is_active: formData.is_active,
+        dressing_minutes_per_day: formData.dressing_minutes_per_day,
       }
       if (editingSite) {
         const { error } = await supabase.from('sites').update(payload).eq('id', editingSite.id)
@@ -173,6 +176,12 @@ export default function SitesPage() {
                   className="rounded border-gray-300 text-slate-900" />
                 <span className="text-sm text-gray-700">Site actif</span>
               </label>
+            </Field>
+            <Field label="Temps d'habillage (minutes/jour)">
+              <input type="number" min={0} max={60} value={formData.dressing_minutes_per_day}
+                onChange={e => setFormData({ ...formData, dressing_minutes_per_day: Math.max(0, parseInt(e.target.value) || 0) })}
+                className="input" placeholder="10" />
+              <p className="text-xs text-gray-400 mt-1">Mettre 0 pour ne pas afficher la mention sur les plannings.</p>
             </Field>
           </div>
           <div className="flex justify-end gap-3 mt-6">

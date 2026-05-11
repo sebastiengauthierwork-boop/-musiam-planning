@@ -48,7 +48,7 @@ function saveToStorage(key: string, pauses: Record<string, string>, p1: Record<s
 }
 
 export default function TabFeuilleJour({
-  employees, schedules, shiftCodes, absenceCodes, teamName, year, month, teamId,
+  employees, schedules, shiftCodes, absenceCodes, teamName, year, month, teamId, dressingMinutes = 10,
 }: TabProps) {
   const today = new Date()
   const todayISO = toISO(today)
@@ -440,9 +440,11 @@ export default function TabFeuilleJour({
         )}
 
         {/* Mention bas de page */}
-        <div style={{ marginTop: 14, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
-          Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de 10 minutes par jour est comptabilisé en sus des horaires affichés.
-        </div>
+        {dressingMinutes > 0 && (
+          <div style={{ marginTop: 14, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
+            Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
+          </div>
+        )}
       </div>
     </>
   )

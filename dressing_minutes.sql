@@ -1,0 +1,1 @@
+ALTER TABLE sites ADD COLUMN IF NOT EXISTS dressing_minutes_per_day INTEGER DEFAULT 10;

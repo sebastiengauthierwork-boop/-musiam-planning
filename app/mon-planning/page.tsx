@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
 import { usePermissions } from '@/lib/permissions'
+import { useSite } from '@/lib/site-context'
 import { isAdmin } from '@/lib/utils'
 import { getCodeColor } from '@/lib/utils'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
@@ -301,6 +302,8 @@ function MobileGantt({ entries, shiftCodes, absenceCodes }: {
 export default function MonPlanningPage() {
   const { role, allowedTeams, allowedSiteId: authSiteId, employeeId, loading: authLoading, signOut } = useAuth()
   const { can } = usePermissions()
+  const { selectedSite } = useSite()
+  const dressingMinutes = selectedSite?.dressing_minutes_per_day ?? 10
 
   const now = new Date()
   const todayKey = dateStr(now.getFullYear(), now.getMonth(), now.getDate())
@@ -753,6 +756,11 @@ export default function MonPlanningPage() {
                     {isToday && <span className="flex-shrink-0 text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full">Auj.</span>}
                   </div>
                 ))}
+                {dressingMinutes > 0 && (
+                  <p className="text-xs text-gray-400 text-center pt-2 px-2">
+                    Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
+                  </p>
+                )}
               </div>
             )}
           </div>

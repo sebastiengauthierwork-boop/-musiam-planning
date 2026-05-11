@@ -26,7 +26,7 @@ function fmtNet(net: number | null | undefined): string {
   return decimalToHMin(h)
 }
 
-export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [] }: TabProps) {
+export default function TabEmargement({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [], dressingMinutes = 10 }: TabProps) {
   const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
   const nonCadreEmployees = employees.filter(e => e.statut !== 'cadre' && e.contract_type !== 'INTERIM')
 
@@ -206,6 +206,11 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
         </table>
 
         {/* FOOTER */}
+        {dressingMinutes > 0 && (
+          <div style={{ marginTop: 8, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
+            Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
+          </div>
+        )}
         <div style={{ marginTop: 10, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
           <div style={{ flex: 1, border: '1px solid #fbbf24', borderRadius: 4, padding: '6px 10px', background: '#fffbeb' }}>
             <div style={{ fontSize: '7.5px', color: '#92400e', fontWeight: 700 }}>

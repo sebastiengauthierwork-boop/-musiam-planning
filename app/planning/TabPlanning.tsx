@@ -37,7 +37,7 @@ const S = {
   absCode:   { fontWeight: 700, lineHeight: 1.2, fontSize: '7px',   display: 'block' as const },
 }
 
-export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [] }: TabProps) {
+export default function TabPlanning({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamName, employeeHistory = [], dressingMinutes = 10 }: TabProps) {
   const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
   function effFonction(emp: Employee): string | null {
     return getEffectiveValue(emp.id, 'fonction', emp.fonction, monthStart, employeeHistory)
@@ -269,9 +269,11 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
             : new Date().toLocaleDateString('fr-FR')}
         </div>
       </div>
-      <div style={{ marginTop: 6, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
-        Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de 10 minutes par jour est comptabilisé en sus des horaires affichés.
-      </div>
+      {dressingMinutes > 0 && (
+        <div style={{ marginTop: 6, fontSize: '9px', color: '#9ca3af', textAlign: 'left' }}>
+          Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
+        </div>
+      )}
     </>
   )
 

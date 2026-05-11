@@ -85,4 +85,5 @@ export type TabProps = {
   onArchived?: () => void     // callback après archivage réussi
   onRefresh?: () => void      // callback pour recharger employees + schedules
   employeeHistory?: EmployeeHistory[]
+  dressingMinutes?: number
 }

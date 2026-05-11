@@ -41,7 +41,7 @@ const TAB_PERMISSIONS: Partial<Record<TabId, Permission>> = {
 export default function PlanningPage() {
   const now = new Date()
   const { role, allowedTeams, loading: authLoading, user } = useAuth()
-  const { selectedSiteId } = useSite()
+  const { selectedSiteId, selectedSite } = useSite()
   const { can } = usePermissions()
   const [teamId, setTeamId]     = useState<string>('')
   const [month, setMonth]       = useState(now.getMonth())
@@ -202,6 +202,7 @@ export default function PlanningPage() {
     onArchived: () => { setIsArchived(true); loadEmployeesAndSchedules() },
     onRefresh: loadEmployeesAndSchedules,
     employeeHistory,
+    dressingMinutes: selectedSite?.dressing_minutes_per_day ?? 10,
   }
 
   async function handlePublish() {

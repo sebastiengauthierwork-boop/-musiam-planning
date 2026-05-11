@@ -11,6 +11,7 @@ export type Site = {
   cdpf_prefix: string | null
   address: string | null
   is_active: boolean
+  dressing_minutes_per_day?: number | null
 }
 
 interface SiteContextValue {
@@ -34,7 +35,7 @@ export function SiteProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase
       .from('sites')
-      .select('id, name, cdpf_prefix, address, is_active')
+      .select('id, name, cdpf_prefix, address, is_active, dressing_minutes_per_day')
       .eq('is_active', true)
       .order('name')
       .then(({ data, error }: { data: any; error: any }) => {
