@@ -992,24 +992,26 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     const positions = structId ? (structurePositions[structId] ?? []) : []
     const required = positions.reduce((s, p) => s + p.required_count, 0)
 
-    // C) Présents = TOUS les codes non-repos non-absence, quel que soit le code
+    // C) Présents = TOUS les codes non-repos non-absence, hors salariés date-bloqués
     const presents = employees.filter(e => {
+      if (isDateBlocked(e, dateStr)) return false
       const code = cellValues[`${e.id}|${dateStr}`]
       return code ? !REPOS_CODES_SET.has(code) && !absenceCodeSet.has(code) : false
     }).length
 
-    // B) byCode.actual = uniquement depuis les schedules de la grille, filtre strict team+date+code
+    // B) byCode.actual = uniquement depuis les schedules de la grille, hors salariés date-bloqués
     const byCode: Record<string, { required: number; actual: number }> = {}
     for (const p of positions) {
       byCode[p.position_name] = {
         required: p.required_count,
-        actual: employees.filter(e => cellValues[`${e.id}|${dateStr}`] === p.position_name).length,
+        actual: employees.filter(e => !isDateBlocked(e, dateStr) && cellValues[`${e.id}|${dateStr}`] === p.position_name).length,
       }
     }
 
-    // D) Tranches horaires
+    // D) Tranches horaires (hors salariés date-bloqués)
     let matin = 0, milieu = 0, soir = 0
     for (const e of employees) {
+      if (isDateBlocked(e, dateStr)) continue
       const code = cellValues[`${e.id}|${dateStr}`]
       if (!code || REPOS_CODES_SET.has(code) || absenceCodeSet.has(code)) continue
       let tranche: 'matin' | 'milieu' | 'soir' | null = null

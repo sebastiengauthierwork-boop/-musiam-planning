@@ -102,6 +102,7 @@ export default function EmployesPage() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [dateCleanupMsg, setDateCleanupMsg] = useState<string | null>(null)
 
   // Créer accès utilisateur
   const [employeeUserIds, setEmployeeUserIds] = useState<Set<string>>(new Set())
@@ -259,6 +260,34 @@ export default function EmployesPage() {
           )
           if (histErr) console.error('INSERT employee_history error:', histErr)
         }
+
+        // Supprimer les schedules hors de la nouvelle période de contrat
+        {
+          const newStart = formData.start_date || null
+          const newEnd = formData.end_date || null
+          const oldStart = editingEmployee.start_date
+          const oldEnd = editingEmployee.end_date
+          let deletedCount = 0
+
+          if (newStart && newStart !== oldStart) {
+            const { data: del1 } = await supabase.from('schedules')
+              .delete().eq('employee_id', employeeId).lt('date', newStart).select('id')
+            deletedCount += del1?.length ?? 0
+          }
+          if (newEnd && newEnd !== oldEnd) {
+            const { data: del2 } = await supabase.from('schedules')
+              .delete().eq('employee_id', employeeId).gt('date', newEnd).select('id')
+            deletedCount += del2?.length ?? 0
+          }
+          if (deletedCount > 0) {
+            const n = deletedCount
+            const parts: string[] = []
+            if (newStart && newStart !== oldStart) parts.push(`antérieurs à la date d'entrée`)
+            if (newEnd && newEnd !== oldEnd) parts.push(`postérieurs à la date de sortie`)
+            setDateCleanupMsg(`${n} jour${n > 1 ? 's' : ''} de planning supprimé${n > 1 ? 's' : ''} car ${parts.join(' / ')}`)
+          }
+        }
+
         const { error: delErr } = await supabase.from('employee_teams').delete().eq('employee_id', employeeId)
         if (delErr) { console.error('DELETE employee_teams error:', delErr); throw delErr }
       } else {
@@ -462,6 +491,12 @@ export default function EmployesPage() {
       </div>
 
       {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm mb-6">Erreur : {error}</div>}
+      {dateCleanupMsg && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-6 flex items-center justify-between">
+          <span>{dateCleanupMsg}</span>
+          <button onClick={() => setDateCleanupMsg(null)} className="ml-4 text-amber-500 hover:text-amber-700 text-lg leading-none">&times;</button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto">
