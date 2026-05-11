@@ -983,27 +983,53 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   function monthlyLimit(emp: Employee): number { return (emp.weekly_contract_hours ?? 35) * 52 / 12 }
 
   // ── Stats par jour (requis vs présents)
+  const REPOS_CODES_SET = new Set(['R', 'REP', 'FER'])
+  const absenceCodeSet = new Set(absenceCodes.map(a => a.code))
+  const CADRE_TRANCHE: Record<string, 'matin' | 'milieu' | 'soir'> = { 'P/O': 'matin', 'P': 'milieu', 'P/F': 'soir' }
+
   function getDayStats(dateStr: string) {
     const structId = calStructureIdMap[dateStr] ?? null
     const positions = structId ? (structurePositions[structId] ?? []) : []
     const required = positions.reduce((s, p) => s + p.required_count, 0)
-    const codeInTeam = (code: string) =>
-      shiftCodes.some(s => s.code === code && (s.team_id === teamId || s.team_id === null))
+
+    // C) Présents = TOUS les codes non-repos non-absence, quel que soit le code
     const presents = employees.filter(e => {
       const code = cellValues[`${e.id}|${dateStr}`]
-      return code ? codeInTeam(code) : false
+      return code ? !REPOS_CODES_SET.has(code) && !absenceCodeSet.has(code) : false
     }).length
+
+    // B) byCode.actual = uniquement depuis les schedules de la grille, filtre strict team+date+code
     const byCode: Record<string, { required: number; actual: number }> = {}
     for (const p of positions) {
       byCode[p.position_name] = {
         required: p.required_count,
-        actual: employees.filter(e => {
-          const code = cellValues[`${e.id}|${dateStr}`]
-          return code === p.position_name && codeInTeam(code)
-        }).length,
+        actual: employees.filter(e => cellValues[`${e.id}|${dateStr}`] === p.position_name).length,
       }
     }
-    return { required, presents, ecart: presents - required, byCode, hasStructure: !!structId }
+
+    // D) Tranches horaires
+    let matin = 0, milieu = 0, soir = 0
+    for (const e of employees) {
+      const code = cellValues[`${e.id}|${dateStr}`]
+      if (!code || REPOS_CODES_SET.has(code) || absenceCodeSet.has(code)) continue
+      let tranche: 'matin' | 'milieu' | 'soir' | null = null
+      if (code in CADRE_TRANCHE) {
+        tranche = CADRE_TRANCHE[code]
+      } else {
+        const sc = shiftCodes.find(s => s.code === code)
+        const startMin = timeStrToMins(sc?.start_time)
+        if (startMin !== null) {
+          if (startMin < 10 * 60) tranche = 'matin'
+          else if (startMin <= 14 * 60) tranche = 'milieu'
+          else tranche = 'soir'
+        }
+      }
+      if (tranche === 'matin') matin++
+      else if (tranche === 'milieu') milieu++
+      else if (tranche === 'soir') soir++
+    }
+
+    return { required, presents, ecart: presents - required, byCode, hasStructure: !!structId, matin, milieu, soir }
   }
 
   function dayPresents(dateStr: string): number {
@@ -1323,6 +1349,30 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   {weeks.map(w => <td key={w.label} className="border-r border-indigo-200 bg-indigo-50/50" />)}
                   <td className="sticky right-0 z-30 bg-white border-l border-gray-100" />
                 </tr>
+
+                {/* Tranches horaires */}
+                {(['matin', 'milieu', 'soir'] as const).map(tranche => (
+                  <tr key={tranche} className="border-b border-gray-100">
+                    <td className="sticky left-0 z-30 bg-gray-50 border-r border-gray-100 px-3 py-0.5 whitespace-nowrap capitalize"
+                      style={{ fontSize: 9, color: '#9ca3af' }}>
+                      {tranche.charAt(0).toUpperCase() + tranche.slice(1)}
+                    </td>
+                    {days.map(d => {
+                      const dateStr = toISO(d)
+                      const stats = getDayStats(dateStr)
+                      const val = stats[tranche]
+                      const isWE = d.getDay() === 0 || d.getDay() === 6
+                      return (
+                        <td key={dateStr} className={`border-r border-gray-100 text-center py-0.5 ${isWE ? 'bg-slate-50' : 'bg-gray-50'}`}
+                          style={{ fontSize: 9, color: '#9ca3af' }}>
+                          {val > 0 ? val : ''}
+                        </td>
+                      )
+                    })}
+                    {weeks.map(w => <td key={w.label} className="border-r border-indigo-100 bg-indigo-50/30" />)}
+                    <td className="sticky right-0 z-30 bg-gray-50 border-l border-gray-100" />
+                  </tr>
+                ))}
 
                 {/* Détail par code horaire */}
                 {monthCodes.map(code => (

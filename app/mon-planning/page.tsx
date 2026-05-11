@@ -417,9 +417,7 @@ export default function MonPlanningPage() {
         const code = s.code ?? ''
         if (REPOS_CODES.has(code) || absenceSet.has(code)) continue
         let start: string, end: string
-        if (s.start_time && s.end_time) {
-          start = s.start_time.slice(0, 5); end = s.end_time.slice(0, 5)
-        } else if (scTimeMap[code]) {
+        if (scTimeMap[code]) {
           start = scTimeMap[code].start; end = scTimeMap[code].end
         } else if (code in CADRE_TIMES) {
           start = CADRE_TIMES[code].start; end = CADRE_TIMES[code].end
