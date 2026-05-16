@@ -8,6 +8,8 @@ import { generatePlanningPdf } from '@/lib/generatePlanningPdf'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 import { isTemporaire, getFnCode } from '@/lib/employeeUtils'
 import { usePermissions } from '@/lib/permissions'
+import { useAuth } from '@/lib/auth'
+import { isAdmin } from '@/lib/utils'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -451,6 +453,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
   const { can } = usePermissions()
   const canEditPast = can('edit_past_planning')
+  const { role } = useAuth()
 
   const [cellValues, setCellValues] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {}
@@ -472,6 +475,12 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [showArchiveModal, setShowArchiveModal] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [archiveStep, setArchiveStep] = useState<'pdf' | 'saving' | null>(null)
+
+  // ── Vider le planning ──
+  const [showClearModal, setShowClearModal] = useState(false)
+  const [clearConfirmText, setClearConfirmText] = useState('')
+  const [clearing, setClearing] = useState(false)
+  const [clearResult, setClearResult] = useState<string | null>(null)
 
   // ── Cycle modal ──
   const [showCycleModal, setShowCycleModal] = useState(false)
@@ -630,6 +639,30 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       setArchiving(false)
       setArchiveStep(null)
     }
+  }
+
+  // ── Vider le planning ─────────────────────────────────────────────────────
+  async function clearPlanning() {
+    if (isArchived) { setClearResult('Impossible : ce planning est archivé.'); return }
+    setClearing(true)
+    const pad2 = (n: number) => String(n).padStart(2, '0')
+    const start = `${year}-${pad2(month + 1)}-01`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const end = `${year}-${pad2(month + 1)}-${pad2(lastDay)}`
+    const { error, count } = await supabase.from('schedules')
+      .delete({ count: 'exact' })
+      .eq('team_id', teamId)
+      .gte('date', start)
+      .lte('date', end)
+    if (error) {
+      setClearResult(`Erreur : ${error.message}`)
+    } else {
+      const n = count ?? 0
+      setClearResult(`Planning vidé. ${n} jour${n > 1 ? 's' : ''} de planning supprimé${n > 1 ? 's' : ''}.`)
+      onRefresh?.()
+    }
+    setClearing(false)
+    setClearConfirmText('')
   }
 
   // ── Cycle ─────────────────────────────────────────────────────────────────
@@ -1157,6 +1190,60 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </div>
       )}
 
+      {/* Vider le planning modal */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => { if (!clearing) { setShowClearModal(false); setClearConfirmText(''); setClearResult(null) } }} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            {clearResult ? (
+              <>
+                <h2 className="text-base font-semibold text-gray-900 mb-3">
+                  {clearResult.startsWith('Impossible') || clearResult.startsWith('Erreur') ? '⚠ Attention' : 'Planning vidé'}
+                </h2>
+                <p className={`text-sm rounded-lg px-4 py-3 ${clearResult.startsWith('Impossible') || clearResult.startsWith('Erreur') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-emerald-700 bg-emerald-50 border border-emerald-200'}`}>
+                  {clearResult}
+                </p>
+                <div className="flex justify-end mt-5">
+                  <button onClick={() => { setShowClearModal(false); setClearResult(null) }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg">
+                    Fermer
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-base font-semibold text-red-700 mb-3">Vider le planning</h2>
+                <p className="text-sm text-gray-700 mb-4">
+                  <strong>ATTENTION</strong> : vous allez supprimer <strong>TOUS les codes saisis</strong> pour{' '}
+                  <strong>{teamName}</strong> en <strong>{MONTHS_FR[month]} {year}</strong>. Cette action est irréversible.
+                </p>
+                <p className="text-sm text-gray-600 mb-2">
+                  Pour confirmer, tapez <span className="font-mono font-bold text-red-700">SUPPRIMER</span> ci-dessous :
+                </p>
+                <input
+                  value={clearConfirmText}
+                  onChange={e => setClearConfirmText(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-300 mb-5"
+                  placeholder="SUPPRIMER"
+                  autoFocus
+                />
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => { setShowClearModal(false); setClearConfirmText('') }} disabled={clearing}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                    Annuler
+                  </button>
+                  <button onClick={clearPlanning} disabled={clearing || clearConfirmText !== 'SUPPRIMER'}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-40">
+                    {clearing ? 'Suppression…' : 'Vider le planning'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Cycle modal */}
       {showCycleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1264,15 +1351,26 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
             </svg>
             Vérifier la conformité
           </button>
-          {year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
-            <button onClick={() => setShowArchiveModal(true)}
-              className="ml-auto inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
-              </svg>
-              Archiver le mois
-            </button>
-          )}
+          <div className="ml-auto flex items-center gap-2">
+            {year * 100 + month <= new Date().getFullYear() * 100 + new Date().getMonth() && (
+              <button onClick={() => setShowArchiveModal(true)}
+                className="inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-200 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2l1-12" />
+                </svg>
+                Archiver le mois
+              </button>
+            )}
+            {isAdmin(role) && (
+              <button onClick={() => setShowClearModal(true)}
+                className="inline-flex items-center gap-2 px-2.5 py-0.5 text-[11px] font-medium text-red-600 border border-red-200 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Vider le planning
+              </button>
+            )}
+          </div>
         </div>
       )}
 
