@@ -22,6 +22,19 @@ export const AuthContext = createContext<AuthContextValue>({
 })
 
 const RESTRICTED_ROUTES = ['/parametrage', '/admin']
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000
+
+function touchActivity() {
+  try { sessionStorage.setItem('last_activity', Date.now().toString()) } catch {}
+}
+
+function isSessionExpiredByInactivity(): boolean {
+  try {
+    const ts = sessionStorage.getItem('last_activity')
+    if (!ts) return false
+    return Date.now() - parseInt(ts, 10) > TWO_HOURS_MS
+  } catch { return false }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -45,11 +58,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null
   }
 
+  // Mise à jour last_activity à chaque action utilisateur (throttlée, sans affecter les perfs)
+  useEffect(() => {
+    let lastWrite = 0
+    const handler = () => {
+      const now = Date.now()
+      if (now - lastWrite > 30_000) {
+        lastWrite = now
+        touchActivity()
+      }
+    }
+    const events = ['click', 'keydown', 'scroll', 'touchstart'] as const
+    events.forEach(e => window.addEventListener(e, handler, { passive: true }))
+    return () => events.forEach(e => window.removeEventListener(e, handler))
+  }, [])
+
   useEffect(() => {
     let timedOut = false
 
-    // Timeout 3s : si getSession() ne répond pas, on considère l'utilisateur
-    // non connecté et on redirige vers /login pour ne pas bloquer indéfiniment.
+    // Timeout 3s : si getSession() ne répond pas, considère l'utilisateur non connecté
     const timeout = setTimeout(() => {
       timedOut = true
       setUser(null); setRole(null); setAllowedTeams([]); setAllowedSiteId(null); setEmployeeId(null)
@@ -62,8 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout)
 
       if (session?.user) {
+        // Expiration par inactivité > 2h
+        if (isSessionExpiredByInactivity()) {
+          supabase.auth.signOut()
+          try { sessionStorage.clear() } catch {}
+          window.location.href = '/login'
+          return
+        }
+        touchActivity()
         setUser(session.user)
-        // Attendre le rôle avant de libérer le rendu — évite le flash dashboard/sidebar
         fetchUserProfile(session.user).then(userRole => {
           if (handleJustLoggedIn(userRole)) return
           const redirected = redirectIfNeeded(session.user, userRole)
@@ -115,10 +149,10 @@ function handleJustLoggedIn(role: Role): boolean {
   const flag = sessionStorage.getItem('just_logged_in')
   if (!flag) return false
   sessionStorage.removeItem('just_logged_in')
+  touchActivity()
   if (role === 'salarie') {
     window.location.href = '/mon-planning'
   } else {
-    // Par défaut smartphone si matchMedia échoue (plus sûr)
     const isMobile = (() => {
       try { return window.matchMedia('(max-width: 767px)').matches } catch { return true }
     })()
@@ -143,7 +177,6 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
       if (role === 'salarie') {
         window.location.href = '/mon-planning'
       } else {
-        // admin/responsable/manager : choix sur mobile, tableau-de-bord sur PC
         window.location.href = window.matchMedia('(max-width: 767px)').matches ? '/choix' : '/tableau-de-bord'
       }
       return true
