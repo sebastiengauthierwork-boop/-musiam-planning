@@ -521,7 +521,8 @@ export default function MonPlanningPage() {
     setLoadingSched(true)
     setSchedules([]); setTeamSchedules([]); setTeamEmployees([])
 
-    if (!isMgmt) {
+    // Mois suivant (offset > 0) : vérifier publication, quel que soit le rôle
+    if (offset > 0) {
       setNextMonthBlocked(null)
       const psRes = await supabase.from('planning_status')
         .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year).maybeSingle()
@@ -551,7 +552,7 @@ export default function MonPlanningPage() {
     setTeamEmployees([...permanents, ...temporaires])
     setTeamSchedules(tschedRes.data ?? [])
     setLoadingSched(false)
-  }, [employeeId, teamId, year, month, isMgmt])
+  }, [employeeId, teamId, year, month, offset])
 
   useEffect(() => { loadSchedules() }, [loadSchedules])
 
@@ -561,17 +562,6 @@ export default function MonPlanningPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [loadSchedules])
 
-  useEffect(() => {
-    if (!teamId || !employeeId || isMgmt) return
-    supabase.from('planning_status')
-      .select('status').eq('team_id', teamId).eq('month', month + 1).eq('year', year)
-      .maybeSingle()
-      .then(({ data }: { data: any }) => {
-        if (data?.status !== 'publie') {
-          setNextMonthBlocked(true); setTeamSchedules([]); setTeamEmployees([]); setSchedules([])
-        } else { setNextMonthBlocked(false) }
-      })
-  }, [tab, teamId, year, month, employeeId, isMgmt])
 
   // ── Guards ──
 
