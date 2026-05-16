@@ -11,7 +11,7 @@ import { useSite } from '@/lib/site-context'
 import { supabase } from '@/lib/supabase'
 import {
   Building2, LayoutDashboard, Users, User, CalendarRange,
-  RefreshCw, Settings, UserCog, CalendarDays,
+  RefreshCw, Settings, UserCog, CalendarDays, Layers,
 } from 'lucide-react'
 
 type NavItem = {
@@ -19,6 +19,7 @@ type NavItem = {
   label: string
   adminOnly?: boolean
   superadminOnly?: boolean
+  adminOrResponsable?: boolean
   requiredAnyPermission?: Permission[]
   icon: React.ReactNode
 }
@@ -58,6 +59,12 @@ const navItems: NavItem[] = [
     label: 'Cycles',
     requiredAnyPermission: ['view_cycles', 'edit_cycles'],
     icon: <RefreshCw className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
+  },
+  {
+    href: '/consolidation',
+    label: 'Consolidation',
+    adminOrResponsable: true,
+    icon: <Layers className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
   {
     href: '/parametrage',
@@ -231,6 +238,7 @@ export default function Sidebar() {
     if (item.superadminOnly && !isSuperAdmin(role)) return false
     if (item.adminOnly && !isAdmin(role)) return false
     if (isAdmin(role)) return true
+    if (item.adminOrResponsable && role !== 'responsable') return false
     if (item.requiredAnyPermission && item.requiredAnyPermission.length > 0) {
       return item.requiredAnyPermission.some(p => can(p))
     }
