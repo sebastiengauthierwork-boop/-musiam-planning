@@ -60,7 +60,7 @@ export default function TableauDeBord() {
     supabase.from('contacts_utiles')
       .select('id, role_label, contact_name, phone, email')
       .eq('site_id', selectedSiteId).order('sort_order')
-      .then(({ data }) => setContacts(data ?? []))
+      .then(({ data }: { data: ContactUtile[] | null }) => setContacts(data ?? []))
       .catch(() => setContacts([]))
   }, [selectedSiteId, role])
 
