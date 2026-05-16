@@ -266,19 +266,22 @@ export default function TableauDeBord() {
 
       {/* Vigilance J+5 */}
       <Card title="Vigilance effectifs" badge="5 prochains jours">
-        <div className="grid grid-cols-5 gap-1.5">
+        <div className="grid grid-cols-5 gap-1">
           {vigilance.map(day => {
             const diff = day.theoretical !== null ? day.planned - day.theoretical : null
             return (
-              <div key={day.date} className="border border-gray-100 rounded-lg p-2 text-center">
+              <div key={day.date} className="border border-gray-100 rounded-lg py-1 px-2 text-center">
                 <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{day.label}</div>
-                <div className={`text-lg font-bold mt-1 ${diff !== null && diff < -1 ? 'text-red-600' : 'text-gray-900'}`}>
+                <div className="text-[20px] font-bold leading-none mt-0.5 text-gray-900">
                   {day.planned}
                 </div>
                 {day.theoretical !== null ? (
-                  <div className={`text-[9px] font-bold mt-0.5 ${diff === 0 ? 'text-gray-400' : diff! > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {diff! > 0 ? `+${diff}` : diff === 0 ? 'OK' : `${diff}`}/{day.theoretical}
-                  </div>
+                  <>
+                    <div className={`text-[18px] font-bold leading-none mt-0.5 ${diff! >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {diff! > 0 ? `+${diff}` : diff === 0 ? '=' : `${diff}`}
+                    </div>
+                    <div className="text-[10px] text-gray-400 leading-none mt-0.5">{day.theoretical} requis</div>
+                  </>
                 ) : (
                   <div className="text-[9px] text-gray-300 mt-0.5">—</div>
                 )}
