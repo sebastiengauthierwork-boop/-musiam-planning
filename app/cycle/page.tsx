@@ -233,8 +233,8 @@ export default function CyclePage() {
                       const key = `${emp.id}|${w}|${dayOfWeek}`
                       const code = entries[key] ?? ''
                       const isWE = di >= 5
-                      const c = !isWE && code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                      const bgStyle = c ? { background: c.bg, color: c.text } : isWE ? { background: '#f1f5f9' } : {}
+                      const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
+                      const bgStyle = c ? { background: c.bg, color: c.text } : {}
                       return (
                         <td key={`${w}-${di}`} className="border-b border-r border-gray-100 p-0 h-7 relative" style={bgStyle}>
                           <input

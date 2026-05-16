@@ -375,7 +375,7 @@ function CellInput({
       )}
 
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[260px] max-h-[300px] overflow-y-auto">
+        <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
           {suggestions.some(c => c.kind === 'shift') && (
             <>
               <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
@@ -432,6 +432,7 @@ function CellInput({
 type ContextMenu = { x: number; y: number; keys: string[] }
 
 const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+const DAY_ABBR = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam']
 
 export default function TabSaisie({ employees, schedules, shiftCodes, absenceCodes, jobFunctions = [], year, month, teamId, teamName, calendarDays, isArchived, archiveDate, onArchived, onRefresh }: TabProps) {
   const days = getDays(year, month)
@@ -1291,7 +1292,10 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   <th key={toISO(d)}
                     className="border-b border-r border-gray-100 py-0.5 text-center"
                     style={{ width: dynDayW, minWidth: dynDayW, background: isTo ? '#dbeafe' : isWE ? '#e5e7eb' : undefined, ...(isMonday ? { borderLeft: '2px solid #6b7280' } : {}) }}>
-                    {structName && <div className="text-[7px] text-violet-500 leading-none truncate px-0.5">{structName.slice(0, 5)}</div>}
+                    <div className="flex items-center justify-center gap-0.5 leading-none">
+                      <span className={`text-[9px] ${isWE ? 'text-red-400' : isTo ? 'text-blue-400' : 'text-gray-400'}`}>{DAY_ABBR[d.getDay()]}</span>
+                      {structName && <span className="w-1 h-1 rounded-full bg-violet-500 inline-block shrink-0" />}
+                    </div>
                     <div className={`font-bold text-[11px] leading-none ${isTo ? 'text-blue-600' : isWE ? 'text-slate-600' : 'text-gray-700'}`}>{d.getDate()}</div>
                   </th>
                 )
