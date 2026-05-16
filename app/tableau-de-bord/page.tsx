@@ -5,7 +5,10 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
-import { getCodeColor } from '@/lib/utils'
+import { useAuth } from '@/lib/auth'
+import { getCodeColor, isAdmin } from '@/lib/utils'
+
+type ContactUtile = { id: string; role_label: string; contact_name: string | null; phone: string | null; email: string | null }
 
 const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre']
 const DAYS_SHORT = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam']
@@ -33,11 +36,13 @@ const STATUT_ORD: Record<string, number> = { cadre: 1, agent_de_maitrise: 2, emp
 
 export default function TableauDeBord() {
   const { selectedSiteId } = useSite()
+  const { role } = useAuth()
   const now = new Date()
   const todayStr = toISO(now)
 
   const loadIdRef = useRef(0)
   const [loading, setLoading] = useState(true)
+  const [contacts, setContacts] = useState<ContactUtile[]>([])
   const [error, setError] = useState<string | null>(null)
   const [ganttEntries, setGanttEntries] = useState<GanttEntry[]>([])
   const [vigilance, setVigilance] = useState<DayVigilance[]>([])
@@ -48,6 +53,16 @@ export default function TableauDeBord() {
   const [ganttTeamId, setGanttTeamId] = useState<string>('')
 
   useEffect(() => { load() }, [selectedSiteId])
+
+  useEffect(() => {
+    const canSee = isAdmin(role) || role === 'responsable' || role === 'manager'
+    if (!canSee || !selectedSiteId) { setContacts([]); return }
+    supabase.from('contacts_utiles')
+      .select('id, role_label, contact_name, phone, email')
+      .eq('site_id', selectedSiteId).order('sort_order')
+      .then(({ data }) => setContacts(data ?? []))
+      .catch(() => setContacts([]))
+  }, [selectedSiteId, role])
 
   async function load() {
     const loadId = ++loadIdRef.current
@@ -306,6 +321,22 @@ export default function TableauDeBord() {
         <QuickStat label="Équipes" value={teamCount} />
         <QuickStat label="Salariés dans les équipes" value={employeeCount} />
       </div>
+
+      {/* Contacts utiles */}
+      {contacts.length > 0 && (
+        <Card title="Contacts utiles">
+          <div className="space-y-2">
+            {contacts.map(c => (
+              <div key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
+                <span className="font-semibold text-gray-800">{c.role_label}</span>
+                {c.contact_name && <span className="text-gray-600">{c.contact_name}</span>}
+                {c.phone && <a href={`tel:${c.phone}`} className="text-blue-600 hover:underline">{c.phone}</a>}
+                {c.email && <a href={`mailto:${c.email}`} className="text-blue-600 hover:underline text-xs">{c.email}</a>}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   )
 }

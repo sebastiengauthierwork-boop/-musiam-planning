@@ -1695,6 +1695,7 @@ const STRUCT_COLORS = [
 
 function Calendrier() {
   const now = new Date()
+  const { selectedSiteId } = useSite()
   const [year, setYear] = useState(now.getFullYear())
   const [teamId, setTeamId] = useState<string>('')
   const [teams, setTeams] = useState<{ id: string; name: string }[]>([])
@@ -1716,22 +1717,21 @@ function Calendrier() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
-  // Load teams + structures once
+  // Load teams + structures filtrés par site actif
   useEffect(() => {
-    Promise.all([
-      supabase.from('teams').select('id, name, cdpf').order('name'),
-      supabase.from('staffing_structures').select('id, name').order('name'),
-    ]).then(([tRes, sRes]) => {
+    setLoading(true)
+    let tQ = supabase.from('teams').select('id, name, cdpf').order('name')
+    if (selectedSiteId) tQ = tQ.eq('site_id', selectedSiteId)
+    let sQ = supabase.from('staffing_structures').select('id, name').order('name')
+    if (selectedSiteId) sQ = sQ.eq('site_id', selectedSiteId)
+    Promise.all([tQ, sQ]).then(([tRes, sRes]) => {
       const tList = tRes.data ?? []
       setTeams(tList)
       setStructures(sRes.data ?? [])
-      if (tList.length > 0) {
-        setTeamId(tList[0].id) // triggers calendar load via second effect
-      } else {
-        setLoading(false)
-      }
+      setTeamId(tList[0]?.id ?? '')
+      if (!tList.length) setLoading(false)
     })
-  }, [])
+  }, [selectedSiteId])
 
   // Load calendar when team or year changes
   useEffect(() => {
@@ -1936,9 +1936,199 @@ function Calendrier() {
   )
 }
 
+// ─── Contacts utiles ──────────────────────────────────────────────────────────
+
+type ContactUtile = {
+  id: string
+  role_label: string
+  contact_name: string | null
+  phone: string | null
+  email: string | null
+  sort_order: number
+}
+
+const DEFAULT_CONTACT_ROLES = ['Support technique', 'Direction financière', 'Comptabilité', 'Agence intérim (CRIT)', 'Direction RH']
+
+const CONTACTS_SQL = `CREATE TABLE IF NOT EXISTS contacts_utiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  site_id UUID REFERENCES sites(id),
+  role_label TEXT NOT NULL,
+  contact_name TEXT,
+  phone TEXT,
+  email TEXT,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+ALTER TABLE contacts_utiles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "cu_select" ON contacts_utiles FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "cu_write" ON contacts_utiles FOR ALL USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('superadmin', 'admin', 'responsable')));`
+
+function ContactsUtiles() {
+  const { selectedSiteId } = useSite()
+  const [rows, setRows] = useState<ContactUtile[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tableError, setTableError] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const [sqlVisible, setSqlVisible] = useState(false)
+
+  async function load() {
+    setLoading(true)
+    setTableError(false)
+    let q = supabase.from('contacts_utiles').select('id, role_label, contact_name, phone, email, sort_order').order('sort_order')
+    if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
+    const { data, error } = await q
+    if (error) {
+      setTableError(true)
+      setRows(DEFAULT_CONTACT_ROLES.map((r, i) => ({ id: '', role_label: r, contact_name: null, phone: null, email: null, sort_order: i })))
+    } else if ((data ?? []).length === 0) {
+      setRows(DEFAULT_CONTACT_ROLES.map((r, i) => ({ id: '', role_label: r, contact_name: null, phone: null, email: null, sort_order: i })))
+    } else {
+      setRows(data ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [selectedSiteId])
+
+  function update(idx: number, field: keyof ContactUtile, value: string) {
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value || null } : r))
+  }
+
+  function addRow() {
+    setRows(prev => [...prev, { id: '', role_label: '', contact_name: null, phone: null, email: null, sort_order: prev.length }])
+  }
+
+  function removeRow(idx: number) {
+    setRows(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function saveAll() {
+    setSaving(true); setSaveError(null); setSaved(false)
+    try {
+      let delQ = supabase.from('contacts_utiles').delete()
+      if (selectedSiteId) delQ = delQ.eq('site_id', selectedSiteId)
+      else delQ = delQ.is('site_id', null)
+      await delQ
+      const inserts = rows.filter(r => r.role_label.trim()).map((r, i) => ({
+        site_id: selectedSiteId || null,
+        role_label: r.role_label.trim(),
+        contact_name: r.contact_name || null,
+        phone: r.phone || null,
+        email: r.email || null,
+        sort_order: i,
+      }))
+      if (inserts.length > 0) {
+        const { error } = await supabase.from('contacts_utiles').insert(inserts)
+        if (error) throw error
+      }
+      await load(); setSaved(true); setTimeout(() => setSaved(false), 2000)
+    } catch (e: any) { setSaveError(e?.message ?? JSON.stringify(e)) }
+    finally { setSaving(false) }
+  }
+
+  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-900">Contacts utiles</h2>
+        <div className="flex gap-2">
+          <button onClick={() => { setSqlVisible(v => !v) }}
+            className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+            SQL
+          </button>
+          <button onClick={addRow}
+            className="px-3 py-1.5 text-xs font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800">
+            + Ajouter un contact
+          </button>
+        </div>
+      </div>
+
+      {sqlVisible && (
+        <div className="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-500">SQL à exécuter dans Supabase (une seule fois)</span>
+            <button onClick={() => navigator.clipboard.writeText(CONTACTS_SQL)}
+              className="text-xs text-blue-600 hover:underline">Copier</button>
+          </div>
+          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono leading-relaxed">{CONTACTS_SQL}</pre>
+        </div>
+      )}
+
+      {tableError && (
+        <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          La table <code className="font-mono">contacts_utiles</code> n'existe pas encore. Exécutez le SQL ci-dessus dans Supabase, puis rechargez.
+        </div>
+      )}
+      {saveError && <div className="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{saveError}</div>}
+
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-52">Rôle</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Nom</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-40">Téléphone</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-52">Email</th>
+              <th className="px-4 py-2.5 w-8" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {rows.map((r, i) => (
+              <tr key={i} className="group hover:bg-gray-50/50">
+                <td className="px-4 py-2">
+                  <input value={r.role_label} onChange={e => update(i, 'role_label', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
+                    placeholder="Ex: Support technique" />
+                </td>
+                <td className="px-4 py-2">
+                  <input value={r.contact_name ?? ''} onChange={e => update(i, 'contact_name', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
+                    placeholder="Nom prénom" />
+                </td>
+                <td className="px-4 py-2">
+                  <input value={r.phone ?? ''} onChange={e => update(i, 'phone', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
+                    placeholder="0X XX XX XX XX" />
+                </td>
+                <td className="px-4 py-2">
+                  <input value={r.email ?? ''} onChange={e => update(i, 'email', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
+                    placeholder="email@exemple.com" />
+                </td>
+                <td className="px-2 py-2">
+                  <button onClick={() => removeRow(i)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-opacity rounded">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">Aucun contact.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 flex items-center justify-end gap-3">
+        {saved && <span className="text-sm text-emerald-600 font-medium">Enregistré ✓</span>}
+        <button onClick={saveAll} disabled={saving || tableError}
+          className="px-5 py-2 text-sm font-semibold text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-40">
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier' | 'roles'
+type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier' | 'contacts' | 'roles'
 
 // ─── Rôles et accès ───────────────────────────────────────────────────────────
 
@@ -2180,6 +2370,7 @@ export default function ParametragePage() {
     ] : []),
     ...(isAdmin(currentRole) || can('edit_staffing') ? [{ id: 'structures' as Section, label: 'Structures' }] : []),
     ...(isAdmin(currentRole) || can('edit_calendar') ? [{ id: 'calendrier' as Section, label: 'Calendrier' }] : []),
+    ...((isSuperAdmin(currentRole) || isAdmin(currentRole) || currentRole === 'responsable') ? [{ id: 'contacts' as Section, label: 'Contacts utiles' }] : []),
     ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
   ]
 
@@ -2245,6 +2436,7 @@ export default function ParametragePage() {
       {section === 'fonctions'  && <Fonctions />}
       {section === 'structures' && <Structures />}
       {section === 'calendrier' && <Calendrier />}
+      {section === 'contacts'   && <ContactsUtiles />}
       {section === 'roles'      && <RolesAcces />}
     </div>
   )
