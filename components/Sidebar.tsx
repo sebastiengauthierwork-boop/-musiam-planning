@@ -381,9 +381,14 @@ export default function Sidebar() {
           </>
         )}
         {!collapsed && (
-          <p className="text-slate-500 mt-2 px-3" style={{ fontSize: '10px', lineHeight: '1.4' }}>
-            Planekipe v1.2 © Sebastien Gauthier
-          </p>
+          <div className="mt-2 px-3 space-y-0.5">
+            <p className="text-slate-500" style={{ fontSize: '10px', lineHeight: '1.4' }}>
+              Planekipe v1.2 © Sebastien Gauthier
+            </p>
+            <a href="/mentions-legales" className="text-slate-600 hover:text-slate-400 underline" style={{ fontSize: '10px' }}>
+              Mentions légales
+            </a>
+          </div>
         )}
       </div>
     </aside>

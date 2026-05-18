@@ -310,6 +310,62 @@ export default function MonPlanningPage() {
 
   const [offset, setOffset] = useState(0)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportPwd, setExportPwd] = useState('')
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function handleExportData() {
+    if (!employee) return
+    setExportLoading(true)
+    setExportError(null)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Non authentifié')
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email ?? '',
+        password: exportPwd,
+      })
+      if (signInError) { setExportError('Mot de passe incorrect.'); return }
+
+      const { data: allSchedules } = await supabase
+        .from('schedules')
+        .select('date, code, start_time, end_time')
+        .eq('employee_id', employeeId ?? '')
+        .order('date')
+
+      const exportData = {
+        export_date: new Date().toISOString().slice(0, 10),
+        employe: {
+          nom: employee.last_name,
+          prenom: employee.first_name,
+          contrat: employee.contract_type,
+          statut: employee.statut,
+        },
+        equipe: team ? team.name : null,
+        plannings: (allSchedules ?? []).map((s: { date: string; code: string; start_time: string | null; end_time: string | null }) => ({
+          date: s.date,
+          code: s.code,
+          heure_debut: s.start_time,
+          heure_fin: s.end_time,
+        })),
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `mes-donnees-${employee.last_name.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      setShowExportModal(false)
+      setExportPwd('')
+    } catch (e: any) {
+      setExportError(e?.message ?? 'Erreur lors de l\'export')
+    } finally {
+      setExportLoading(false)
+    }
+  }
   const monthDate = new Date(now.getFullYear(), now.getMonth() + offset, 1)
   const year = monthDate.getFullYear()
   const month = monthDate.getMonth()
@@ -632,6 +688,39 @@ export default function MonPlanningPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col" style={{ maxWidth: 600, margin: '0 auto' }}>
       {showPasswordModal && <PasswordModal onClose={() => setShowPasswordModal(false)} />}
 
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center px-4 pb-6" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowExportModal(false); setExportPwd(''); setExportError(null) }} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Exporter mes données</h2>
+            <p className="text-sm text-gray-500 mb-4">Confirmez votre identité pour télécharger vos données personnelles au format JSON.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Mot de passe</label>
+                <input
+                  type="password"
+                  value={exportPwd}
+                  onChange={e => setExportPwd(e.target.value)}
+                  disabled={exportLoading}
+                  placeholder="Votre mot de passe"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+                  onKeyDown={e => { if (e.key === 'Enter' && exportPwd) handleExportData() }}
+                />
+              </div>
+              {exportError && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{exportError}</div>}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => { setShowExportModal(false); setExportPwd(''); setExportError(null) }} disabled={exportLoading}
+                  className="flex-1 py-3 text-sm font-semibold text-gray-700 border border-gray-200 rounded-2xl hover:bg-gray-50 disabled:opacity-50">Annuler</button>
+                <button type="button" onClick={handleExportData} disabled={exportLoading || !exportPwd}
+                  className="flex-1 py-3 text-sm font-semibold text-white bg-slate-900 rounded-2xl disabled:opacity-40 transition-colors">
+                  {exportLoading ? 'Export…' : 'Télécharger'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-slate-900 text-white px-4" style={{ paddingTop: 'max(env(safe-area-inset-top), 8px)', paddingBottom: '8px' }}>
         <div className="flex items-center justify-between">
@@ -642,6 +731,13 @@ export default function MonPlanningPage() {
           <div className="flex items-center gap-0.5">
             {isMgmt && (
               <a href="/tableau-de-bord" className="text-slate-400 text-xs px-2 py-1 rounded-lg active:bg-slate-700 active:text-white font-medium">← Gestion</a>
+            )}
+            {!isMgmt && employee && (
+              <button onClick={() => { setShowExportModal(true); setExportPwd(''); setExportError(null) }} className="text-slate-500 p-1.5 rounded-lg active:bg-slate-700 active:text-white" title="Exporter mes données">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
             )}
             <button onClick={() => setShowPasswordModal(true)} className="text-slate-500 p-1.5 rounded-lg active:bg-slate-700 active:text-white" title="Modifier mon mot de passe">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -751,6 +847,9 @@ export default function MonPlanningPage() {
                     Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
                   </p>
                 )}
+                <p className="text-center pt-4 pb-2">
+                  <a href="/mentions-legales" className="text-slate-400 hover:text-slate-600 underline" style={{ fontSize: '11px' }}>Mentions légales</a>
+                </p>
               </div>
             )}
           </div>
