@@ -109,7 +109,7 @@ export default function EmployesPage() {
   const [createAccessEmp, setCreateAccessEmp] = useState<EmployeeWithTeams | null>(null)
   const [createAccessForm, setCreateAccessForm] = useState({
     email: '', password: '',
-    role: 'salarie' as 'salarie' | 'manager' | 'responsable',
+    role: 'salarie' as 'salarie' | 'manager' | 'responsable' | 'admin',
     allowedTeams: [] as string[],
     allowedSiteId: '',
   })
@@ -330,9 +330,26 @@ export default function EmployesPage() {
     } finally { setSaving(false) }
   }
 
-  async function handleDelete(id: string) {
-    const { error } = await supabase.from('employees').delete().eq('id', id)
+  async function logAudit(actionType: string, detail: Record<string, unknown>) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('audit_log').insert({ user_id: user.id, action_type: actionType, detail })
+  }
+
+  async function handleDeactivate(id: string) {
+    const emp = employees.find(e => e.id === id)
+    const { error } = await supabase.from('employees').update({ is_active: false }).eq('id', id)
     if (error) { setSaveError(error.message); return }
+    await logAudit('desactivation_salarie', { employee_id: id, nom: emp ? `${emp.last_name} ${emp.first_name}` : id })
+    setConfirmDeleteId(null)
+    await loadData()
+  }
+
+  async function handleAnonymize(id: string) {
+    const emp = employees.find(e => e.id === id)
+    const { error } = await supabase.from('employees').update({ email: null, phone: null, is_active: false }).eq('id', id)
+    if (error) { setSaveError(error.message); return }
+    await logAudit('anonymisation_salarie', { employee_id: id, nom: emp ? `${emp.last_name} ${emp.first_name}` : id })
     setConfirmDeleteId(null)
     await loadData()
   }
@@ -630,9 +647,9 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
-                    {isSuperAdmin(role) && (
+                    {(isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
                       employeeUserMap[emp.id] ? (
-                        <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                        <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-blue-600 bg-blue-50 hover:text-blue-800 rounded-lg transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                           </svg>
@@ -644,13 +661,6 @@ export default function EmployesPage() {
                           </svg>
                         </button>
                       )
-                    )}
-                    {(isAdmin(role) || role === 'responsable') && employeeUserMap[emp.id] && (
-                      <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                        </svg>
-                      </button>
                     )}
                     {(isAdmin(role) || role === 'responsable') && (
                       <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
@@ -942,9 +952,10 @@ export default function EmployesPage() {
               </Field>
               <Field label="Rôle">
                 <select value={createAccessForm.role} onChange={e => setCreateAccessForm(p => ({ ...p, role: e.target.value as typeof p.role, allowedTeams: [], allowedSiteId: '' }))} className="input">
-                  <option value="salarie">Salarié</option>
+                  {isSuperAdmin(role) && <option value="admin">Administrateur</option>}
+                  {(isSuperAdmin(role) || isAdmin(role)) && <option value="responsable">Responsable de site</option>}
                   <option value="manager">Manager</option>
-                  <option value="responsable">Responsable de site</option>
+                  <option value="salarie">Salarié</option>
                 </select>
               </Field>
               {createAccessForm.role === 'manager' && (
@@ -1048,16 +1059,29 @@ export default function EmployesPage() {
         </Modal>
       )}
 
-      {/* Delete confirmation */}
+      {/* Delete confirmation — 2 options */}
       {confirmDeleteId && (
-        <Modal title="Supprimer le salarié" onClose={() => setConfirmDeleteId(null)}>
-          <p className="text-sm text-gray-600">Cette action est irréversible. Toutes les affectations et plannings de ce salarié seront également supprimées.</p>
-          <div className="flex justify-end gap-3 mt-6">
+        <Modal title="Gérer le salarié" onClose={() => setConfirmDeleteId(null)}>
+          <p className="text-sm text-gray-500 mb-4">Choisissez une action pour ce salarié :</p>
+          <div className="space-y-3 mb-5">
+            <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+              <p className="text-sm font-semibold text-amber-800">Désactiver</p>
+              <p className="text-xs text-amber-700 mt-0.5">N'apparaît plus dans les plannings futurs. Toutes les données (email, téléphone, historique) sont conservées.</p>
+            </div>
+            <div className="border border-red-200 bg-red-50 rounded-lg p-3">
+              <p className="text-sm font-semibold text-red-700">Supprimer définitivement</p>
+              <p className="text-xs text-red-600 mt-0.5">Anonymise le salarié (supprime email et téléphone) mais conserve les plannings historiques pour la comptabilité.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
             <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button onClick={() => handleDelete(confirmDeleteId)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
-              Supprimer
+            <button onClick={() => handleDeactivate(confirmDeleteId)} className="px-4 py-2 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 transition-colors">
+              Désactiver
+            </button>
+            <button onClick={() => handleAnonymize(confirmDeleteId)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors">
+              Supprimer définitivement
             </button>
           </div>
         </Modal>
