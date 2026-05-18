@@ -49,8 +49,8 @@ export default function MentionsLegalesPage() {
         <section className="mb-6">
           <h2 className="text-base font-semibold text-gray-800 mb-2">Hébergement</h2>
           <ul className="text-sm text-gray-600 space-y-1">
-            <li><span className="font-medium">Base de données :</span> Supabase – AWS Paris (eu-west-3), données hébergées en France</li>
-            <li><span className="font-medium">Application web :</span> Vercel – région Paris (cdg1), données hébergées en France</li>
+            <li><span className="font-medium">Base de données :</span> Supabase – AWS Paris (eu-west-3), données hébergées en France 🇫🇷</li>
+            <li><span className="font-medium">Application web :</span> Vercel – région Paris (cdg1), données hébergées en France 🇫🇷</li>
           </ul>
         </section>
 

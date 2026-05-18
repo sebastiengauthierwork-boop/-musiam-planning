@@ -123,6 +123,9 @@ export default function LoginPage() {
       <p className="mt-6 text-center text-gray-400" style={{ fontSize: '11px' }}>
         Musiam Planning fonctionne avec Planekipe v1.2 © Sebastien Gauthier
       </p>
+      <p className="mt-1 text-center text-gray-400" style={{ fontSize: '11px' }}>
+        Base de données et application web hébergées en France 🇫🇷
+      </p>
       <p className="mt-2 text-center" style={{ fontSize: '11px' }}>
         <a href="/mentions-legales" className="text-gray-400 hover:text-gray-600 underline">Mentions légales</a>
       </p>
