@@ -105,7 +105,7 @@ export default function EmployesPage() {
   const [dateCleanupMsg, setDateCleanupMsg] = useState<string | null>(null)
 
   // Créer accès utilisateur
-  const [employeeUserIds, setEmployeeUserIds] = useState<Set<string>>(new Set())
+  const [employeeUserMap, setEmployeeUserMap] = useState<Record<string, { userId: string; loginCode: string | null }>>({})
   const [createAccessEmp, setCreateAccessEmp] = useState<EmployeeWithTeams | null>(null)
   const [createAccessForm, setCreateAccessForm] = useState({
     email: '', password: '',
@@ -117,6 +117,15 @@ export default function EmployesPage() {
   const [createAccessError, setCreateAccessError] = useState<string | null>(null)
   const [createAccessSuccess, setCreateAccessSuccess] = useState<string | null>(null)
   const [showCreatePassword, setShowCreatePassword] = useState(false)
+  // Réinitialisation mot de passe
+  const [resetEmp, setResetEmp] = useState<EmployeeWithTeams | null>(null)
+  const [resetUserId, setResetUserId] = useState('')
+  const [resetLoginCode, setResetLoginCode] = useState<string | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [resetSaving, setResetSaving] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetSuccess, setResetSuccess] = useState(false)
 
   const [historyModal, setHistoryModal] = useState<{
     changedFields: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[]
@@ -141,7 +150,7 @@ export default function EmployesPage() {
       supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
       teamsQ,
       supabase.from('job_functions').select('id, name, code, is_active').eq('is_active', true).order('name').limit(100),
-      supabase.from('users').select('employee_id').not('employee_id', 'is', null),
+      supabase.from('users').select('id, employee_id, login_code').not('employee_id', 'is', null),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
     ])
 
@@ -161,7 +170,11 @@ export default function EmployesPage() {
     setEmployees((empRes.data ?? []).map((emp: any) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })))
     setAllTeams(teamsRes.data ?? [])
     setJobFunctions(fnRes.data ?? [])
-    setEmployeeUserIds(new Set((usersRes.data ?? []).map((u: any) => u.employee_id).filter(Boolean)))
+    const umap: Record<string, { userId: string; loginCode: string | null }> = {}
+    for (const u of (usersRes.data ?? []) as any[]) {
+      if (u.employee_id) umap[u.employee_id] = { userId: u.id, loginCode: u.login_code ?? null }
+    }
+    setEmployeeUserMap(umap)
     setSites(sitesRes.data ?? [])
   }
 
@@ -353,10 +366,27 @@ export default function EmployesPage() {
     setCreateAccessSuccess(null)
   }
 
+  function openResetAccess(emp: EmployeeWithTeams) {
+    const info = employeeUserMap[emp.id]
+    if (!info) return
+    setResetEmp(emp)
+    setResetUserId(info.userId)
+    setResetLoginCode(info.loginCode)
+    setResetPassword('')
+    setResetError(null)
+    setResetSuccess(false)
+    setShowResetPassword(false)
+  }
+
   async function handleCreateAccess() {
     if (!createAccessEmp) return
-    if (!createAccessForm.email.trim() || !createAccessForm.password) {
-      setCreateAccessError('Email et mot de passe requis')
+    const needsEmail = createAccessForm.role !== 'salarie'
+    if (needsEmail && !createAccessForm.email.trim()) {
+      setCreateAccessError('Email requis')
+      return
+    }
+    if (!createAccessForm.password) {
+      setCreateAccessError('Mot de passe requis')
       return
     }
     setCreateAccessSaving(true)
@@ -370,7 +400,7 @@ export default function EmployesPage() {
           'Authorization': `Bearer ${session?.access_token ?? ''}`,
         },
         body: JSON.stringify({
-          email: createAccessForm.email.trim().toLowerCase(),
+          email: needsEmail ? createAccessForm.email.trim().toLowerCase() : undefined,
           password: createAccessForm.password,
           role: createAccessForm.role,
           employee_id: createAccessEmp.id,
@@ -383,12 +413,42 @@ export default function EmployesPage() {
         setCreateAccessError(result.error ?? 'Erreur lors de la création du compte')
         return
       }
-      setCreateAccessSuccess('Compte créé avec succès.')
+      const msg = result.login_code
+        ? `Compte créé. Identifiant : ${result.login_code}`
+        : 'Compte créé avec succès.'
+      setCreateAccessSuccess(msg)
       await loadData()
     } catch (e: any) {
       setCreateAccessError(e?.message ?? 'Erreur réseau')
     } finally {
       setCreateAccessSaving(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!resetUserId || !resetPassword) return
+    setResetSaving(true)
+    setResetError(null)
+    try {
+      const session = (await supabase.auth.getSession()).data.session
+      const res = await fetch('/api/update-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ user_id: resetUserId, new_password: resetPassword }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        setResetError(result.error ?? 'Erreur lors de la réinitialisation')
+        return
+      }
+      setResetSuccess(true)
+    } catch (e: any) {
+      setResetError(e?.message ?? 'Erreur réseau')
+    } finally {
+      setResetSaving(false)
     }
   }
 
@@ -571,12 +631,12 @@ export default function EmployesPage() {
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
                     {isSuperAdmin(role) && (
-                      employeeUserIds.has(emp.id) ? (
-                        <span title="Accès actif" className="p-1 text-green-500">
+                      employeeUserMap[emp.id] ? (
+                        <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                           </svg>
-                        </span>
+                        </button>
                       ) : (
                         <button onClick={() => openCreateAccess(emp)} title="Créer un accès" className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -584,6 +644,13 @@ export default function EmployesPage() {
                           </svg>
                         </button>
                       )
+                    )}
+                    {(isAdmin(role) || role === 'responsable') && employeeUserMap[emp.id] && (
+                      <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                        </svg>
+                      </button>
                     )}
                     {(isAdmin(role) || role === 'responsable') && (
                       <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
@@ -627,19 +694,23 @@ export default function EmployesPage() {
               </Field>
             </div>
 
-            {/* Email */}
-            <Field label="Email">
-              <input type="text" inputMode="email" autoComplete="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
-            </Field>
+            {/* Email — visible superadmin/admin/responsable uniquement */}
+            {(isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
+              <Field label="Email">
+                <input type="text" inputMode="email" autoComplete="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
+              </Field>
+            )}
 
             {/* Matricule + Téléphone */}
             <div className="grid grid-cols-2 gap-4">
               <Field label="Matricule">
                 <input type="text" value={formData.matricule} onChange={(e) => setFormData({ ...formData, matricule: e.target.value })} className="input font-mono" placeholder="EMP-001" />
               </Field>
-              <Field label="Téléphone">
-                <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="input" placeholder="06 10 11 12 13" />
-              </Field>
+              {(isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
+                <Field label="Téléphone">
+                  <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="input" placeholder="06 10 11 12 13" />
+                </Field>
+              )}
             </div>
 
             {/* Statut + Fonction */}
@@ -848,9 +919,15 @@ export default function EmployesPage() {
                   {createAccessEmp.last_name} {createAccessEmp.first_name}
                 </div>
               </div>
-              <Field label="Email *">
-                <input type="email" value={createAccessForm.email} onChange={e => setCreateAccessForm(p => ({ ...p, email: e.target.value }))} className="input" placeholder="prenom.nom@exemple.fr" />
-              </Field>
+              {createAccessForm.role !== 'salarie' ? (
+                <Field label="Email *">
+                  <input type="email" value={createAccessForm.email} onChange={e => setCreateAccessForm(p => ({ ...p, email: e.target.value }))} className="input" placeholder="prenom.nom@exemple.fr" />
+                </Field>
+              ) : (
+                <div className="px-3 py-2.5 rounded-lg border border-violet-200 bg-violet-50 text-xs text-violet-700">
+                  Un identifiant unique (ex: <span className="font-mono font-bold">MP-7K9X2</span>) sera généré automatiquement.
+                </div>
+              )}
               <Field label="Mot de passe *">
                 <div className="relative">
                   <input type={showCreatePassword ? 'text' : 'password'} value={createAccessForm.password} onChange={e => setCreateAccessForm(p => ({ ...p, password: e.target.value }))} className="input pr-10" placeholder="Min. 6 caractères" />
@@ -903,8 +980,67 @@ export default function EmployesPage() {
                 <button onClick={() => setCreateAccessEmp(null)} disabled={createAccessSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
                   Annuler
                 </button>
-                <button onClick={handleCreateAccess} disabled={createAccessSaving || !createAccessForm.email.trim() || !createAccessForm.password} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+                <button onClick={handleCreateAccess} disabled={createAccessSaving || (createAccessForm.role !== 'salarie' && !createAccessForm.email.trim()) || !createAccessForm.password} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
                   {createAccessSaving ? 'Création…' : 'Créer le compte'}
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
+
+      {/* Modal Réinitialiser mot de passe */}
+      {resetEmp && (
+        <Modal title="Réinitialiser le mot de passe" onClose={() => setResetEmp(null)}>
+          {resetSuccess ? (
+            <div className="space-y-4">
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                <p className="font-medium">Mot de passe mis à jour.</p>
+                {resetLoginCode && (
+                  <p className="mt-1">Identifiant du salarié : <span className="font-mono font-bold text-violet-700">{resetLoginCode}</span></p>
+                )}
+              </div>
+              <div className="flex justify-end">
+                <button onClick={() => setResetEmp(null)} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg">Fermer</button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Salarié</label>
+                <div className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600 font-medium">
+                  {resetEmp.last_name} {resetEmp.first_name}
+                </div>
+              </div>
+              {resetLoginCode && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Identifiant</label>
+                  <div className="px-3 py-2 rounded-lg border border-violet-200 bg-violet-50 font-mono font-bold text-violet-700 text-sm">{resetLoginCode}</div>
+                </div>
+              )}
+              <Field label="Nouveau mot de passe *">
+                <div className="relative">
+                  <input
+                    type={showResetPassword ? 'text' : 'password'}
+                    value={resetPassword}
+                    onChange={e => setResetPassword(e.target.value)}
+                    className="input pr-10"
+                    placeholder="Min. 6 caractères"
+                  />
+                  <button type="button" onClick={() => setShowResetPassword(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showResetPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
+                    </svg>
+                  </button>
+                </div>
+              </Field>
+              {resetError && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm">Erreur : {resetError}</div>}
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => setResetEmp(null)} disabled={resetSaving} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                  Annuler
+                </button>
+                <button onClick={handleResetPassword} disabled={resetSaving || resetPassword.length < 6} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+                  {resetSaving ? 'Enregistrement…' : 'Enregistrer'}
                 </button>
               </div>
             </div>

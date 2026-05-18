@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Configuration serveur manquante (SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 })
   }
 
-  // Utiliser le service role key pour valider le token et lire le profil (contourne les RLS)
   const adminClient = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     serviceKey,
@@ -27,20 +26,37 @@ export async function POST(req: NextRequest) {
 
   const { data: callerProfile } = await adminClient
     .from('users').select('role').eq('id', caller.id).single()
-  if (!callerProfile || (callerProfile.role !== 'admin' && callerProfile.role !== 'superadmin')) {
-    return NextResponse.json({ error: 'Accès refusé — réservé aux administrateurs' }, { status: 403 })
+  if (!callerProfile || !['superadmin', 'admin', 'responsable'].includes(callerProfile.role)) {
+    return NextResponse.json({ error: 'Accès refusé — réservé aux administrateurs et responsables' }, { status: 403 })
   }
 
   const body = await req.json()
-  const { user_id, new_email } = body
+  const { user_id, new_email, new_password } = body
 
-  if (!user_id || !new_email) {
-    return NextResponse.json({ error: 'user_id et new_email requis' }, { status: 400 })
+  if (!user_id) {
+    return NextResponse.json({ error: 'user_id requis' }, { status: 400 })
+  }
+
+  // ── Reset mot de passe uniquement ──────────────────────────────────────────
+  if (new_password) {
+    const { error: pwError } = await adminClient.auth.admin.updateUserById(user_id, {
+      password: new_password,
+    })
+    if (pwError) return NextResponse.json({ error: pwError.message }, { status: 400 })
+    return NextResponse.json({ success: true })
+  }
+
+  // ── Modification email ─────────────────────────────────────────────────────
+  if (!new_email) {
+    return NextResponse.json({ error: 'new_email ou new_password requis' }, { status: 400 })
+  }
+
+  if (!['superadmin', 'admin'].includes(callerProfile.role)) {
+    return NextResponse.json({ error: 'Modification d\'email réservée aux administrateurs' }, { status: 403 })
   }
 
   const emailNorm = String(new_email).trim().toLowerCase()
 
-  // Mettre à jour l'email dans Supabase Auth (sans confirmation)
   const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(user_id, {
     email: emailNorm,
     email_confirm: true,
@@ -49,7 +65,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updateAuthError.message }, { status: 400 })
   }
 
-  // Mettre à jour la table users
   const { data: userProfile, error: updateProfileError } = await adminClient
     .from('users')
     .update({ email: emailNorm })
@@ -60,7 +75,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: updateProfileError.message }, { status: 500 })
   }
 
-  // Mettre à jour la table employees si l'utilisateur est lié à un salarié
   if (userProfile?.employee_id) {
     await adminClient
       .from('employees')

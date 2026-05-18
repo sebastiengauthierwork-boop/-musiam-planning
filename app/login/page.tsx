@@ -37,7 +37,8 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const loginEmail = email.includes('@') ? email : `${email}@planekipe.local`
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password })
 
       if (error) {
         setError(`Erreur : ${error.message} (${error.status ?? 'no status'})`)
@@ -71,14 +72,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Identifiant</label>
             <input
-              type="email"
+              type="text"
               required
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value.trim())}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="vous@exemple.com"
+              placeholder="Email ou code (ex: MP-7K9X2)"
             />
           </div>
 

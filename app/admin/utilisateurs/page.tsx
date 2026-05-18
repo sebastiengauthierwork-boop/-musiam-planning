@@ -26,6 +26,7 @@ interface Site {
 interface AppUser {
   id: string
   email: string
+  login_code: string | null
   role: 'superadmin' | 'admin' | 'responsable' | 'manager' | 'salarie'
   team_id: string | null
   allowed_teams: string[] | null
@@ -119,6 +120,14 @@ export default function UtilisateursPage() {
   // Export backup
   const [exporting, setExporting] = useState(false)
 
+  // Reset mot de passe
+  const [resetTarget, setResetTarget] = useState<AppUser | null>(null)
+  const [resetPassword, setResetPassword] = useState('')
+  const [showResetPw, setShowResetPw] = useState(false)
+  const [resetSaving, setResetSaving] = useState(false)
+  const [resetError, setResetError] = useState<string | null>(null)
+  const [resetSuccess, setResetSuccess] = useState(false)
+
   // -------------------------------------------------------------------------
   // Data loading
   // -------------------------------------------------------------------------
@@ -127,7 +136,7 @@ export default function UtilisateursPage() {
     setDataLoading(true)
     setError(null)
     const [usersRes, teamsRes, sitesRes] = await Promise.all([
-      supabase.from('users').select('id, email, role, team_id, allowed_teams, allowed_site_id, employee_id').order('email'),
+      supabase.from('users').select('id, email, login_code, role, team_id, allowed_teams, allowed_site_id, employee_id').order('email'),
       supabase.from('teams').select('id, name, cdpf').order('name'),
       supabase.from('sites').select('id, name').eq('is_active', true).order('name'),
     ])
@@ -270,6 +279,31 @@ export default function UtilisateursPage() {
   }
 
   // -------------------------------------------------------------------------
+  // Reset mot de passe
+  // -------------------------------------------------------------------------
+
+  async function handleResetPassword() {
+    if (!resetTarget || !resetPassword) return
+    setResetSaving(true)
+    setResetError(null)
+    try {
+      const session = (await supabase.auth.getSession()).data.session
+      const res = await fetch('/api/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token ?? ''}` },
+        body: JSON.stringify({ user_id: resetTarget.id, new_password: resetPassword }),
+      })
+      const result = await res.json()
+      if (!res.ok) { setResetError(result.error ?? 'Erreur'); return }
+      setResetSuccess(true)
+    } catch (e: any) {
+      setResetError(e?.message ?? 'Erreur réseau')
+    } finally {
+      setResetSaving(false)
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Delete
   // -------------------------------------------------------------------------
 
@@ -408,7 +442,9 @@ export default function UtilisateursPage() {
               {users.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5 text-slate-800 font-medium">
-                    {user.email}
+                    {user.role === 'salarie' && user.login_code
+                      ? <span className="font-mono text-violet-700">{user.login_code}</span>
+                      : user.email}
                   </td>
                   <td className="px-5 py-3.5">
                     <RoleBadge role={user.role} />
@@ -445,6 +481,13 @@ export default function UtilisateursPage() {
                   </td>
                   <td className="px-5 py-3.5 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => { setResetTarget(user); setResetPassword(''); setResetError(null); setResetSuccess(false); setShowResetPw(false) }}
+                        className="rounded-md px-3 py-1.5 text-xs font-medium text-amber-700 border border-amber-200 hover:bg-amber-50 transition-colors"
+                        title="Réinitialiser le mot de passe"
+                      >
+                        Mot de passe
+                      </button>
                       <button
                         onClick={() => openEditModal(user)}
                         className="rounded-md px-3 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 hover:bg-slate-100 transition-colors"
@@ -623,6 +666,68 @@ export default function UtilisateursPage() {
                 {saving ? 'Enregistrement…' : 'Enregistrer'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Reset mot de passe modal                                            */}
+      {/* ------------------------------------------------------------------ */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResetTarget(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-xl p-7">
+            <h2 className="text-lg font-semibold text-slate-900 mb-5">Réinitialiser le mot de passe</h2>
+            {resetSuccess ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm text-green-800">
+                  <p className="font-medium">Mot de passe mis à jour.</p>
+                  {resetTarget.login_code && (
+                    <p className="mt-1">Identifiant : <span className="font-mono font-bold text-violet-700">{resetTarget.login_code}</span></p>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button onClick={() => setResetTarget(null)} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white">Fermer</button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Utilisateur</p>
+                  <p className="font-medium text-slate-900">
+                    {resetTarget.role === 'salarie' && resetTarget.login_code
+                      ? <span className="font-mono text-violet-700">{resetTarget.login_code}</span>
+                      : resetTarget.email}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Nouveau mot de passe</label>
+                  <div className="relative">
+                    <input
+                      type={showResetPw ? 'text' : 'password'}
+                      value={resetPassword}
+                      onChange={e => setResetPassword(e.target.value)}
+                      placeholder="Min. 6 caractères"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-10 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent transition"
+                    />
+                    <button type="button" onClick={() => setShowResetPw(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showResetPw ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                {resetError && <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-3 text-sm text-red-700">{resetError}</div>}
+                <div className="flex items-center justify-end gap-3 mt-2">
+                  <button onClick={() => setResetTarget(null)} disabled={resetSaving} className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                    Annuler
+                  </button>
+                  <button onClick={handleResetPassword} disabled={resetSaving || resetPassword.length < 6} className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50">
+                    {resetSaving ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
