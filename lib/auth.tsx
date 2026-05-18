@@ -165,8 +165,9 @@ function redirectIfNeeded(user: User | null, role: Role): boolean {
   if (typeof window === 'undefined') return false
   const pathname = window.location.pathname
 
-  // Non connecté hors /login → /login
-  if (!user && !pathname.startsWith('/login')) {
+  // Non connecté hors routes publiques → /login
+  const PUBLIC_ROUTES = ['/login', '/mentions-legales']
+  if (!user && !PUBLIC_ROUTES.some(r => pathname.startsWith(r))) {
     window.location.href = '/login'
     return true
   }
