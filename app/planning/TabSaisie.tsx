@@ -329,7 +329,7 @@ function CellInput({
   return (
     <div
       className={`relative w-full h-full ${ring} transition-all`}
-      style={{ ...bgStyle, ...selectionStyle }}
+      style={{ ...bgStyle, ...selectionStyle, ...(open ? { zIndex: 10000 } : {}) }}
       title={status === 'error' ? errorMsg : allCodes.find(c => c.code === val)?.label}
       onMouseDown={e => {
         if (e.button !== 0) return

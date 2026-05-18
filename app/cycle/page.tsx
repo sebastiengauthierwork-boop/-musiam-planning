@@ -207,7 +207,7 @@ export default function CyclePage() {
                     const isWE = di >= 5
                     return (
                       <th key={`${w}-${di}`}
-                        className={`w-10 min-w-[38px] border-b border-r border-gray-200 py-1.5 text-center ${isWE ? 'bg-slate-50' : ''}`}>
+                        className="w-10 min-w-[38px] border-b border-r border-gray-200 py-1.5 text-center">
                         {di === 0
                           ? <div className="text-[9px] font-bold text-indigo-500 leading-none mb-0.5">S{w}</div>
                           : <div className="leading-none mb-0.5 invisible text-[9px]">·</div>
