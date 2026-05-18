@@ -28,6 +28,7 @@ type Employee = {
   created_at: string
   start_date: string | null
   end_date: string | null
+  site_id: string | null
 }
 
 type Team = { id: string; name: string; cdpf: string | null }
@@ -53,6 +54,7 @@ type FormData = {
   selectedTeamIds: string[]
   start_date: string
   end_date: string
+  site_id: string
 }
 
 const emptyForm: FormData = {
@@ -70,6 +72,7 @@ const emptyForm: FormData = {
   selectedTeamIds: [],
   start_date: '',
   end_date: '',
+  site_id: '',
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -127,6 +130,12 @@ export default function EmployesPage() {
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetSuccess, setResetSuccess] = useState(false)
 
+  // Salariés sans site
+  const [unaffectedEmployees, setUnaffectedEmployees] = useState<EmployeeWithTeams[]>([])
+  const [assignSiteEmpId, setAssignSiteEmpId] = useState<string | null>(null)
+  const [assignSiteId, setAssignSiteId] = useState('')
+  const [assignSaving, setAssignSaving] = useState(false)
+
   const [historyModal, setHistoryModal] = useState<{
     changedFields: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[]
     option: 'beginning' | 'from_date'
@@ -138,15 +147,18 @@ export default function EmployesPage() {
 
   async function loadData() {
     let empQ = supabase.from('employees')
-      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date')
+      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id')
       .order('last_name').limit(500)
     if (selectedSiteId) empQ = empQ.eq('site_id', selectedSiteId)
 
     let teamsQ = supabase.from('teams').select('id, name, cdpf').order('name').limit(100)
     if (selectedSiteId) teamsQ = teamsQ.eq('site_id', selectedSiteId)
 
-    const [empRes, etRes, teamsRes, fnRes, usersRes, sitesRes] = await Promise.all([
+    const [empRes, unaffectedRes, etRes, teamsRes, fnRes, usersRes, sitesRes] = await Promise.all([
       empQ,
+      supabase.from('employees')
+        .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id')
+        .is('site_id', null).order('last_name').limit(200),
       supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
       teamsQ,
       supabase.from('job_functions').select('id, name, code, is_active').eq('is_active', true).order('name').limit(100),
@@ -167,7 +179,11 @@ export default function EmployesPage() {
       })
     }
 
-    setEmployees((empRes.data ?? []).map((emp: any) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })))
+    const toEWT = (emp: any) => ({ ...emp, teams: teamsByEmployee[emp.id] ?? [] })
+    setEmployees((empRes.data ?? []).map(toEWT))
+    // Unaffected = sans site_id ; quand filtre actif, ils ne sont pas dans la liste principale
+    const unaffected = (unaffectedRes.data ?? []).map(toEWT)
+    setUnaffectedEmployees(unaffected)
     setAllTeams(teamsRes.data ?? [])
     setJobFunctions(fnRes.data ?? [])
     const umap: Record<string, { userId: string; loginCode: string | null }> = {}
@@ -181,7 +197,9 @@ export default function EmployesPage() {
   useEffect(() => { loadData().finally(() => setLoading(false)) }, [selectedSiteId])
 
   function openAdd() {
-    setEditingEmployee(null); setFormData(emptyForm); setSaveError(null); setShowModal(true)
+    setEditingEmployee(null)
+    setFormData({ ...emptyForm, site_id: selectedSiteId ?? '' })
+    setSaveError(null); setShowModal(true)
   }
 
   function openEdit(emp: EmployeeWithTeams) {
@@ -202,12 +220,14 @@ export default function EmployesPage() {
       selectedTeamIds: emp.teams.map((t) => t.team_id),
       start_date: emp.start_date ?? '',
       end_date: emp.end_date ?? '',
+      site_id: emp.site_id ?? selectedSiteId ?? '',
     })
     setShowModal(true)
   }
 
   function handleSaveClick() {
     if (!formData.first_name.trim() || !formData.last_name.trim()) return
+    if (sites.length > 0 && !formData.site_id) { setSaveError('Veuillez sélectionner un site.'); return }
     if (editingEmployee) {
       const changed: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[] = []
       if (formData.contract_type !== editingEmployee.contract_type) {
@@ -254,6 +274,7 @@ export default function EmployesPage() {
         fonction: formData.fonction.trim() || null,
         start_date: formData.start_date || null,
         end_date: formData.end_date || null,
+        site_id: formData.site_id || null,
       }
 
       let employeeId: string
@@ -305,7 +326,7 @@ export default function EmployesPage() {
         if (delErr) { console.error('DELETE employee_teams error:', delErr); throw delErr }
       } else {
         const { data, error } = await supabase.from('employees')
-          .insert({ ...payload, ...(selectedSiteId ? { site_id: selectedSiteId } : {}) })
+          .insert(payload)
           .select('id').single()
         if (error) { console.error('INSERT employees error:', error); throw error }
         employeeId = data.id
@@ -334,6 +355,13 @@ export default function EmployesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     await supabase.from('audit_log').insert({ user_id: user.id, action_type: actionType, detail })
+  }
+
+  async function handleAssignSite(empId: string, siteId: string) {
+    setAssignSaving(true)
+    const { error } = await supabase.from('employees').update({ site_id: siteId }).eq('id', empId)
+    if (!error) { setAssignSiteEmpId(null); setAssignSiteId(''); await loadData() }
+    setAssignSaving(false)
   }
 
   async function handleDeactivate(id: string) {
@@ -568,6 +596,16 @@ export default function EmployesPage() {
       </div>
 
       {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm mb-6">Erreur : {error}</div>}
+      {unaffectedEmployees.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-4 flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <span>
+            <strong>{unaffectedEmployees.length} salarié{unaffectedEmployees.length > 1 ? 's' : ''}</strong> ne {unaffectedEmployees.length > 1 ? 'sont' : 'est'} affecté{unaffectedEmployees.length > 1 ? 's' : ''} à aucun site. Utilisez le bouton <strong>Affecter</strong> pour les rattacher à un site.
+          </span>
+        </div>
+      )}
       {dateCleanupMsg && (
         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg px-4 py-3 text-sm mb-6 flex items-center justify-between">
           <span>{dateCleanupMsg}</span>
@@ -690,6 +728,82 @@ export default function EmployesPage() {
         </table>
       </div>
 
+      {/* Section salariés non affectés à un site */}
+      {selectedSiteId && unaffectedEmployees.length > 0 && (
+        <div className="mt-6">
+          <h2 className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            Salariés non affectés à un site ({unaffectedEmployees.length})
+          </h2>
+          <div className="bg-white rounded-xl border border-amber-200 overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-amber-100 bg-amber-50">
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-amber-700">Nom</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-amber-700">Contrat</th>
+                  <th className="text-left px-4 py-2 text-xs font-semibold text-amber-700">Équipes</th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold text-amber-700">Affecter au site</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-50">
+                {unaffectedEmployees.map(emp => (
+                  <tr key={emp.id} className="hover:bg-amber-50/40">
+                    <td className="px-4 py-2">
+                      <span className="font-medium text-gray-900">{emp.last_name}</span>{' '}
+                      <span className="text-gray-600">{emp.first_name}</span>
+                    </td>
+                    <td className="px-4 py-2"><ContractBadge type={emp.contract_type} /></td>
+                    <td className="px-4 py-2">
+                      <div className="flex flex-wrap gap-1">
+                        {emp.teams.length === 0 ? <span className="text-gray-400">—</span> : emp.teams.map(t => (
+                          <span key={t.team_id} className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">{teamLabel(t)}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center justify-end gap-2">
+                        {assignSiteEmpId === emp.id ? (
+                          <>
+                            <select value={assignSiteId} onChange={e => setAssignSiteId(e.target.value)}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-slate-300">
+                              <option value="">— Choisir —</option>
+                              {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                            <button onClick={() => assignSiteId && handleAssignSite(emp.id, assignSiteId)}
+                              disabled={!assignSiteId || assignSaving}
+                              className="px-2.5 py-1 text-xs font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50">
+                              {assignSaving ? '…' : 'Confirmer'}
+                            </button>
+                            <button onClick={() => { setAssignSiteEmpId(null); setAssignSiteId('') }}
+                              className="px-2.5 py-1 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                              Annuler
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => { setAssignSiteEmpId(emp.id); setAssignSiteId('') }}
+                              className="px-2.5 py-1 text-xs font-medium text-amber-700 border border-amber-300 bg-amber-50 rounded-lg hover:bg-amber-100">
+                              Affecter
+                            </button>
+                            <button onClick={() => openEdit(emp)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Add/Edit Modal */}
       {showModal && (
         <Modal title={editingEmployee ? 'Modifier le salarié' : 'Nouveau salarié'} onClose={() => setShowModal(false)}>
@@ -708,6 +822,17 @@ export default function EmployesPage() {
             {(isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
               <Field label="Email">
                 <input type="text" inputMode="email" autoComplete="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="input" placeholder="sophie.marchand@louvre.fr" />
+              </Field>
+            )}
+
+            {/* Site — obligatoire */}
+            {sites.length > 0 && (
+              <Field label="Site *">
+                <select value={formData.site_id} onChange={e => setFormData({ ...formData, site_id: e.target.value })}
+                  className={`input ${!formData.site_id ? 'border-amber-300 bg-amber-50' : ''}`}>
+                  <option value="">— Sélectionner un site —</option>
+                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
               </Field>
             )}
 
@@ -804,7 +929,7 @@ export default function EmployesPage() {
             <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button onClick={handleSaveClick} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim()} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+            <button onClick={handleSaveClick} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || (sites.length > 0 && !formData.site_id)} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>
