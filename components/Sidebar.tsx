@@ -313,7 +313,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 py-3" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>
+      <nav className="flex-1 overflow-y-auto min-h-0" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>
         <ul className="space-y-0.5">
           {/* Mon planning — admins, responsables, managers */}
           {(isAdmin(role) || role === 'responsable' || role === 'manager') && (
