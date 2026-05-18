@@ -313,7 +313,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto min-h-0" style={{ padding: collapsed ? '12px 6px' : '12px 12px' }}>
+      <nav className="flex-1 min-h-0 overflow-hidden" style={{ padding: collapsed ? '8px 6px' : '8px 12px' }}>
         <ul className="space-y-0.5">
           {/* Mon planning — admins, responsables, managers */}
           {(isAdmin(role) || role === 'responsable' || role === 'manager') && (
@@ -322,7 +322,7 @@ export default function Sidebar() {
                 href="/mon-planning"
                 title={collapsed ? 'Mon planning' : undefined}
                 className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
-                  collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                  collapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5'
                 } ${pathname.startsWith('/mon-planning') ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
               >
                 <CalendarDays className="h-5 w-5 shrink-0" strokeWidth={1.5} />
@@ -338,7 +338,7 @@ export default function Sidebar() {
                   href={item.href}
                   title={collapsed ? item.label : undefined}
                   className={`flex items-center rounded-lg text-sm font-medium transition-colors ${
-                    collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                    collapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5'
                   } ${active ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'}`}
                 >
                   {item.icon}
@@ -351,14 +351,14 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer : déconnexion + copyright */}
-      <div className="border-t border-slate-700/60" style={{ padding: collapsed ? '10px 6px' : '10px 12px' }}>
+      <div className="shrink-0 border-t border-slate-700/60" style={{ padding: collapsed ? '8px 6px' : '8px 12px' }}>
         {!authLoading && (
           <>
             <button
               onClick={() => setShowPasswordModal(true)}
               title={collapsed ? 'Modifier mon mot de passe' : undefined}
               className={`w-full flex items-center rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors mb-0.5 ${
-                collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                collapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5'
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -370,7 +370,7 @@ export default function Sidebar() {
               onClick={signOut}
               title={collapsed ? 'Se déconnecter' : undefined}
               className={`w-full flex items-center rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors ${
-                collapsed ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5'
+                collapsed ? 'justify-center px-0 py-1.5' : 'gap-3 px-3 py-1.5'
               }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -381,14 +381,9 @@ export default function Sidebar() {
           </>
         )}
         {!collapsed && (
-          <div className="mt-2 px-3 space-y-0.5">
-            <p className="text-slate-500" style={{ fontSize: '10px', lineHeight: '1.4' }}>
-              Planekipe v1.2 © Sebastien Gauthier
-            </p>
-            <a href="/mentions-legales" className="text-slate-600 hover:text-slate-400 underline" style={{ fontSize: '10px' }}>
-              Mentions légales
-            </a>
-          </div>
+          <p className="text-slate-500 mt-1.5 px-3" style={{ fontSize: '10px', lineHeight: '1.4' }}>
+            Planekipe v1.2 © Sebastien Gauthier
+          </p>
         )}
       </div>
     </aside>
