@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import FlagFR from '@/components/FlagFR'
 
 function EyeIcon({ show }: { show: boolean }) {
   return show ? (
@@ -124,7 +125,7 @@ export default function LoginPage() {
         Musiam Planning fonctionne avec Planekipe v1.2 © Sebastien Gauthier
       </p>
       <p className="mt-1 text-center text-gray-400" style={{ fontSize: '11px' }}>
-        Base de données et application web hébergées en France 🇫🇷
+        Base de données et application web hébergées en France<FlagFR />
       </p>
       <p className="mt-2 text-center" style={{ fontSize: '11px' }}>
         <a href="/mentions-legales" className="text-gray-400 hover:text-gray-600 underline">Mentions légales</a>
