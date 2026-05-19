@@ -2524,11 +2524,9 @@ export default function ParametragePage() {
   const waitingPerms = isManagerRole && permsLoading
 
   const tabs: { id: Section; label: string }[] = [
-    ...(isAdmin(currentRole) ? [
-      { id: 'horaires' as Section,   label: 'Codes horaires' },
-      { id: 'absence' as Section,    label: 'Codes absence'  },
-      { id: 'fonctions' as Section,  label: 'Fonctions'      },
-    ] : []),
+    ...(isAdmin(currentRole) || can('edit_shift_codes')   ? [{ id: 'horaires'  as Section, label: 'Codes horaires' }] : []),
+    ...(isAdmin(currentRole) || can('edit_absence_codes') ? [{ id: 'absence'   as Section, label: 'Codes absence'  }] : []),
+    ...(isAdmin(currentRole) || can('edit_functions')     ? [{ id: 'fonctions' as Section, label: 'Fonctions'      }] : []),
     ...(isAdmin(currentRole) || can('edit_staffing') ? [{ id: 'structures' as Section, label: 'Structures' }] : []),
     ...(isAdmin(currentRole) || can('edit_calendar') ? [{ id: 'calendrier' as Section, label: 'Calendrier' }] : []),
     ...((isSuperAdmin(currentRole) || isAdmin(currentRole) || currentRole === 'responsable') ? [{ id: 'contacts' as Section, label: 'Contacts utiles' }] : []),

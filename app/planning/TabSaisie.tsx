@@ -218,7 +218,23 @@ function computeConformite(
       }
     }
 
-    // 6. Week-end complet (CDI, hors temporaires)
+    // 6. Minimum 2 repos par semaine (tous salariés)
+    for (const week of getWeeksOfMonth(days)) {
+      const weekEntries = week.days.filter(d => !!cellValues[`${emp.id}|${toISO(d)}`]).length
+      if (weekEntries === 0) continue
+      const reposCount = week.days.filter(d => {
+        const code = cellValues[`${emp.id}|${toISO(d)}`] || null
+        return !!code && getScheduleType(code, shiftCodes, absenceCodes) === 'repos'
+      }).length
+      if (reposCount < 2) {
+        alerts.push({
+          severity: 'red', rule: 'Moins de 2 jours de repos dans la semaine',
+          detail: `${week.label} (du ${fmtDate(week.days[0])} au ${fmtDate(week.days[week.days.length - 1])}) : ${reposCount} jour${reposCount > 1 ? 's' : ''} de repos (minimum 2)`,
+        })
+      }
+    }
+
+    // 7. Week-end complet (CDI, hors temporaires)
     if (isCDI && !isTmp) {
       let hasWeekend = false
       for (let i = 0; i < empDays.length - 1; i++) {
