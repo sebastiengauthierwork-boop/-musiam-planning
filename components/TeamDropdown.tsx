@@ -30,7 +30,7 @@ export default function TeamDropdown({ teams, selectedIds, onChange, className }
 
   const allSelected = teams.length > 0 && selectedIds.length === teams.length
 
-  const buttonLabel = selectedIds.length === 0
+  const summary = selectedIds.length === 0
     ? 'Aucune équipe'
     : allSelected
     ? 'Toutes les équipes'
@@ -44,7 +44,7 @@ export default function TeamDropdown({ teams, selectedIds, onChange, className }
         onClick={() => setOpen(p => !p)}
         className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-1 text-xs text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-200 whitespace-nowrap"
       >
-        <span>Équipes : {buttonLabel}</span>
+        <span>{summary}</span>
         <svg
           className={`h-3 w-3 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
