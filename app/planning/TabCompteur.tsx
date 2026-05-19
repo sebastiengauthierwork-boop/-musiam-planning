@@ -5,6 +5,7 @@ import type { Employee, Schedule, TabProps, Team } from './types'
 import { teamLabel } from '@/lib/teamUtils'
 import { loadTeamData } from '@/lib/planning-data'
 import { supabase } from '@/lib/supabase'
+import TeamDropdown from '@/components/TeamDropdown'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -107,15 +108,6 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
     if (!schedule.code) return 0
     const sc = shiftCodes.find(c => c.code === schedule.code)
     return sc?.paid_hours ? Number(sc.paid_hours) : 0
-  }
-
-  // ─── Team toggles ─────────────────────────────────────────────────────────
-  const allSelected = teams.length > 0 && selectedTeamIds.length === teams.length
-  function toggleTeam(tid: string) {
-    setSelectedTeamIds(prev => prev.includes(tid) ? prev.filter(id => id !== tid) : [...prev, tid])
-  }
-  function toggleAll() {
-    setSelectedTeamIds(allSelected ? [] : teams.map(t => t.id))
   }
 
   // ─── Per-team per-day aggregations (by code team attribution) ─────────────
@@ -286,28 +278,15 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Top bar: team checkboxes + export ── */}
+      {/* ── Top bar: team selector + export ── */}
       <div className="shrink-0 px-6 py-3 border-b border-gray-200 bg-white flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-semibold text-gray-700">Équipes :</span>
-
-        <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-slate-700" />
-          <span className="font-medium">Toutes</span>
-        </label>
-
-        <span className="text-gray-300">|</span>
-
-        {teams.map(t => (
-          <label key={t.id} className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={selectedTeamIds.includes(t.id)}
-              onChange={() => toggleTeam(t.id)}
-              className="accent-slate-700"
-            />
-            {teamLabel(t)}
-          </label>
-        ))}
+        {teams.length > 1 && (
+          <TeamDropdown
+            teams={teams}
+            selectedIds={selectedTeamIds}
+            onChange={setSelectedTeamIds}
+          />
+        )}
 
         <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
           <button

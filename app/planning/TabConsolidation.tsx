@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { TabProps } from './types'
 import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColor } from '@/lib/utils'
+import TeamDropdown from '@/components/TeamDropdown'
 
 const DAY_LETTER = ['D','L','M','M','J','V','S']
 function pad(n: number) { return String(n).padStart(2, '0') }
@@ -139,29 +140,11 @@ export default function TabConsolidation({ teams = [], shiftCodes, year, month }
     <div className="flex flex-col h-full">
       {/* Team selector */}
       <div className="shrink-0 px-4 py-2 border-b border-gray-200 bg-white flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-semibold text-gray-600">Équipes :</span>
-        {teams.map(team => (
-          <label key={team.id} className="flex items-center gap-1.5 cursor-pointer select-none text-xs">
-            <input
-              type="checkbox"
-              checked={selectedTeamIds.includes(team.id)}
-              onChange={() => setSelectedTeamIds(prev =>
-                prev.includes(team.id) ? prev.filter(id => id !== team.id) : [...prev, team.id]
-              )}
-              className="rounded border-gray-300"
-            />
-            <span className="font-semibold text-slate-700">{getTeamShortLabel(team.id)}</span>
-            <span className="text-gray-500">{team.name}</span>
-          </label>
-        ))}
-        {teams.length > 1 && (
-          <button
-            onClick={() => setSelectedTeamIds(selectedTeamIds.length === teams.length ? [] : teams.map(t => t.id))}
-            className="text-xs text-blue-600 hover:underline"
-          >
-            {selectedTeamIds.length === teams.length ? 'Tout décocher' : 'Tout cocher'}
-          </button>
-        )}
+        <TeamDropdown
+          teams={teams}
+          selectedIds={selectedTeamIds}
+          onChange={setSelectedTeamIds}
+        />
         {loading && <span className="text-xs text-gray-400 animate-pulse ml-2">Chargement…</span>}
       </div>
 
