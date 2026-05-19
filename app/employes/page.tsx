@@ -825,11 +825,11 @@ export default function EmployesPage() {
               </Field>
             )}
 
-            {/* Site — obligatoire */}
+            {/* Site — obligatoire sauf superadmin/admin */}
             {sites.length > 0 && (
-              <Field label="Site *">
+              <Field label={(isSuperAdmin(role) || isAdmin(role)) ? 'Site' : 'Site *'}>
                 <select value={formData.site_id} onChange={e => setFormData({ ...formData, site_id: e.target.value })}
-                  className={`input ${!formData.site_id ? 'border-amber-300 bg-amber-50' : ''}`}>
+                  className={`input ${!formData.site_id && !(isSuperAdmin(role) || isAdmin(role)) ? 'border-amber-300 bg-amber-50' : ''}`}>
                   <option value="">— Sélectionner un site —</option>
                   {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -896,7 +896,7 @@ export default function EmployesPage() {
               <Field label="Jours travaillés / semaine">
                 <input type="number" value={formData.work_days_per_week} onChange={(e) => setFormData({ ...formData, work_days_per_week: e.target.value })} className="input" placeholder="5" min={1} max={7} step={1} />
               </Field>
-              <Field label="Horaire journalier (h)">
+              <Field label="Horaire journalier (centièmes)">
                 <input type="number" value={formData.daily_hours} onChange={(e) => setFormData({ ...formData, daily_hours: e.target.value })} className="input font-mono" placeholder="7.0" min={0} max={24} step={0.5} />
               </Field>
             </div>
@@ -929,7 +929,7 @@ export default function EmployesPage() {
             <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               Annuler
             </button>
-            <button onClick={handleSaveClick} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || (sites.length > 0 && !formData.site_id)} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
+            <button onClick={handleSaveClick} disabled={saving || !formData.first_name.trim() || !formData.last_name.trim() || (!(isSuperAdmin(role) || isAdmin(role)) && sites.length > 0 && !formData.site_id)} className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50">
               {saving ? 'Enregistrement…' : 'Enregistrer'}
             </button>
           </div>

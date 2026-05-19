@@ -136,17 +136,6 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-            {[
-              { label: 'Signature du salarié', value: null },
-              { label: 'Visa du responsable', value: null },
-            ].map(block => (
-              <div key={block.label} style={{ border: '1px solid #d1d5db', borderRadius: 4, padding: '5px 8px', minHeight: 38 }}>
-                <div style={{ fontSize: '7px', color: '#6b7280', marginBottom: 18 }}>{block.label}</div>
-                <div style={{ borderBottom: '1px solid #d1d5db' }} />
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* TABLEAU */}

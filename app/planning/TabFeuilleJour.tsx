@@ -335,43 +335,42 @@ export default function TabFeuilleJour({
                       <td style={{ borderBottom: '1px solid #e2e8f0', borderLeft: '1px solid #cbd5e1', borderRight: '1px solid #e2e8f0', textAlign: 'center', padding: '2px 4px', verticalAlign: 'middle' }}>
                         {!isCadre && (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <input
                                 type="text"
-                                maxLength={2}
-                                value={pStart ? (pStart.split(':')[0] ?? '') : ''}
+                                maxLength={5}
+                                value={pStart ?? ''}
                                 onChange={e => {
-                                  const hh = e.target.value.replace(/\D/g, '')
-                                  const mm = pStart ? (pStart.split(':')[1] ?? '') : ''
-                                  const newVal = hh || mm ? `${hh}:${mm}` : ''
+                                  let raw = e.target.value.replace(/[^0-9:]/g, '')
+                                  const digits = raw.replace(/:/g, '')
+                                  if (!raw.includes(':') && digits.length === 4) {
+                                    raw = `${digits.slice(0, 2)}:${digits.slice(2)}`
+                                  }
                                   setPauseStarts(prev => {
-                                    const next = { ...prev, [emp.id]: newVal }
+                                    const next = { ...prev, [emp.id]: raw }
                                     saveToStorage(storageKey, next, poste1, poste2)
                                     return next
                                   })
                                 }}
-                                placeholder="HH"
-                                className="fj-input"
-                                style={{ width: 28, border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
-                              />
-                              <span style={{ fontSize: '8px', color: '#94a3b8', fontWeight: 600 }}>:</span>
-                              <input
-                                type="text"
-                                maxLength={2}
-                                value={pStart ? (pStart.split(':')[1] ?? '') : ''}
-                                onChange={e => {
-                                  const mm = e.target.value.replace(/\D/g, '')
-                                  const hh = pStart ? (pStart.split(':')[0] ?? '') : ''
-                                  const newVal = hh || mm ? `${hh}:${mm}` : ''
-                                  setPauseStarts(prev => {
-                                    const next = { ...prev, [emp.id]: newVal }
-                                    saveToStorage(storageKey, next, poste1, poste2)
-                                    return next
-                                  })
+                                onBlur={e => {
+                                  const raw = e.target.value.replace(/[^0-9:]/g, '')
+                                  const digits = raw.replace(/:/g, '')
+                                  let formatted = raw
+                                  if (!raw.includes(':')) {
+                                    if (digits.length === 4) formatted = `${digits.slice(0, 2)}:${digits.slice(2)}`
+                                    else if (digits.length === 3) formatted = `${digits.slice(0, 1)}:${digits.slice(1)}`
+                                  }
+                                  if (formatted !== pStart) {
+                                    setPauseStarts(prev => {
+                                      const next = { ...prev, [emp.id]: formatted }
+                                      saveToStorage(storageKey, next, poste1, poste2)
+                                      return next
+                                    })
+                                  }
                                 }}
-                                placeholder="MM"
+                                placeholder="HH:MM"
                                 className="fj-input"
-                                style={{ width: 28, border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
+                                style={{ width: 44, border: '1px solid #e2e8f0', borderRadius: 3, padding: '1px 2px', fontSize: '8px', color: '#374151', background: 'transparent', outline: 'none', textAlign: 'center' }}
                               />
                             </div>
                             {pDisplay && (
