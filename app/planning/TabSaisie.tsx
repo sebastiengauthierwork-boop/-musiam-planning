@@ -288,6 +288,7 @@ function CellInput({
   const [val, setVal] = useState(saved)
   const [open, setOpen] = useState(false)
   const [flash, setFlash] = useState(false)
+  const [selectedIdx, setSelectedIdx] = useState(-1)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => { setVal(saved) }, [saved])
@@ -314,7 +315,7 @@ function CellInput({
     ...shiftCodes.map(c => c.code),
     ...absenceCodes.map(c => c.code),
   ])
-  const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val))
+  const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val.toUpperCase()))
 
   function isValidCode(code: string): boolean {
     return code === '' || allValidCodes.has(code)
@@ -374,18 +375,31 @@ function CellInput({
             if (isValidCode(trimmed)) onSave(trimmed)
           }, 800)
         }}
-        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
         onBlur={() => { setTimeout(() => setOpen(false), 130); commit(val) }}
         onKeyDown={e => {
-          if (e.key === 'ArrowUp')    { e.preventDefault(); commit(val); onNavigate('up') }
-          if (e.key === 'ArrowDown')  { e.preventDefault(); commit(val); onNavigate('down') }
-          if (e.key === 'ArrowLeft')  { e.preventDefault(); commit(val); onNavigate('left') }
-          if (e.key === 'ArrowRight') { e.preventDefault(); commit(val); onNavigate('right') }
-          if (e.key === 'Enter')  { e.preventDefault(); commit(val); onNavigate('down') }
-          if (e.key === 'Tab')    { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
-          if (e.key === 'Escape') {
-            if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
-            setVal(saved); setOpen(false)
+          if (open) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, suggestions.length - 1)) }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, -1)) }
+            else if (e.key === 'Enter') {
+              e.preventDefault()
+              const chosen = selectedIdx >= 0 ? suggestions[selectedIdx]?.code : val
+              commit(chosen ?? val)
+              onNavigate('down')
+            }
+            else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); setSelectedIdx(-1) }
+            else if (e.key === 'Tab') { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
+          } else {
+            if (e.key === 'ArrowUp')    { e.preventDefault(); commit(val); onNavigate('up') }
+            else if (e.key === 'ArrowDown')  { e.preventDefault(); commit(val); onNavigate('down') }
+            else if (e.key === 'ArrowLeft')  { e.preventDefault(); commit(val); onNavigate('left') }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); commit(val); onNavigate('right') }
+            else if (e.key === 'Enter')  { e.preventDefault(); setOpen(true); setSelectedIdx(-1) }
+            else if (e.key === 'Tab')    { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
+            else if (e.key === 'Escape') {
+              if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+              setVal(saved); setOpen(false)
+            }
           }
         }}
         className="w-full h-full text-center text-[10px] font-mono bg-transparent focus:outline-none uppercase rounded"
@@ -399,55 +413,42 @@ function CellInput({
         <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 pointer-events-none" />
       )}
 
-      {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
-          {suggestions.some(c => c.kind === 'shift') && (
-            <>
-              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
-                Codes horaires
+      {open && suggestions.length > 0 && (() => {
+        const items: React.ReactNode[] = []
+        let lastKind: string | null = null
+        suggestions.forEach((c, idx) => {
+          if (c.kind !== lastKind) {
+            lastKind = c.kind
+            items.push(
+              <div key={`hdr-${c.kind}`} className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
+                {c.kind === 'shift' ? 'Codes horaires' : 'Absences'}
               </div>
-              {suggestions.filter(c => c.kind === 'shift').map(c => (
-                <button
-                  key={c.code}
-                  onMouseDown={e => {
-                    e.preventDefault()
-                    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
-                    setVal(c.code); onSave(c.code); setOpen(false)
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left"
-                >
-                  <span className="font-mono font-bold w-10 shrink-0 text-blue-600">{c.code}</span>
-                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
-                  {c.start_time && (
-                    <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>
-                  )}
-                </button>
-              ))}
-            </>
-          )}
-          {suggestions.some(c => c.kind === 'absence') && (
-            <>
-              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">
-                Absences
-              </div>
-              {suggestions.filter(c => c.kind === 'absence').map(c => (
-                <button
-                  key={c.code}
-                  onMouseDown={e => {
-                    e.preventDefault()
-                    if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
-                    setVal(c.code); onSave(c.code); setOpen(false)
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left"
-                >
-                  <span className="font-mono font-bold w-10 shrink-0 text-gray-500">{c.code}</span>
-                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
-                </button>
-              ))}
-            </>
-          )}
-        </div>
-      )}
+            )
+          }
+          items.push(
+            <button
+              key={c.code}
+              onMouseDown={e => {
+                e.preventDefault()
+                if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
+                setVal(c.code); onSave(c.code); setOpen(false)
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left ${idx === selectedIdx ? 'bg-blue-100' : 'hover:bg-blue-50'}`}
+            >
+              <span className={`font-mono font-bold w-10 shrink-0 ${c.kind === 'shift' ? 'text-blue-600' : 'text-gray-500'}`}>{c.code}</span>
+              <span className="text-gray-500 truncate flex-1">{c.label}</span>
+              {c.kind === 'shift' && c.start_time && (
+                <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>
+              )}
+            </button>
+          )
+        })
+        return (
+          <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
+            {items}
+          </div>
+        )
+      })()}
     </div>
   )
 }
@@ -1459,7 +1460,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   <div className="text-[8px] font-normal text-indigo-400">{w.days.length}j</div>
                 </th>
               ))}
-              <th className="sticky right-0 z-30 bg-white border-b border-l border-gray-100 px-1 py-0.5 text-center text-gray-500 font-semibold text-[10px] uppercase tracking-wider w-14">
+              <th className="bg-white border-b border-l border-gray-100 px-1 py-0.5 text-center text-gray-500 font-semibold text-[10px] uppercase tracking-wider w-14">
                 Total
               </th>
             </tr>
@@ -1727,11 +1728,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                       )
                     })}
                     {isCadre ? (
-                      <td className="sticky right-0 z-10 border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 text-indigo-700">
+                      <td className="border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 text-indigo-700">
                         {cadreMonthDays > 0 ? `${cadreMonthDays}j` : '—'}
                       </td>
                     ) : (
-                      <td className={`sticky right-0 z-10 border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 ${over ? 'text-red-600' : 'text-gray-700'}`}>
+                      <td className={`border-b border-l border-gray-100 px-1 h-6 text-center text-[10px] font-semibold bg-white group-hover:bg-blue-50 ${over ? 'text-red-600' : 'text-gray-700'}`}>
                         {fmtH(monthH)}
                         {over && <span className="block text-[8px] font-normal text-red-400">/{fmtH(limit)}</span>}
                       </td>
@@ -1881,7 +1882,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                   </td>
                 )
               })}
-              <td className="sticky right-0 z-30 bg-gray-50 border-t border-l border-gray-100 px-1 py-0.5 text-center text-[10px] font-bold text-gray-700">
+              <td className="bg-gray-50 border-t border-l border-gray-100 px-1 py-0.5 text-center text-[10px] font-bold text-gray-700">
                 {fmtH(Object.values(dayTotals).reduce((s, h) => s + h, 0))}
               </td>
             </tr>

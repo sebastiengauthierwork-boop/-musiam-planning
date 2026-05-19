@@ -55,6 +55,7 @@ export default function ConsolidationPage() {
   const [scheduleMap, setScheduleMap] = useState<Record<string, Record<string, CellEntry[]>>>({})
   const [teamBudget, setTeamBudget] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'heures' | 'planning'>('heures')
 
   const canView = isAdmin(role) || role === 'responsable'
 
@@ -435,12 +436,28 @@ export default function ConsolidationPage() {
         </div>
       )}
 
+      {/* ── Onglets ── */}
+      <div className="flex gap-2 mb-4 border-b border-slate-200">
+        <button
+          onClick={() => setActiveTab('heures')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'heures' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Heures
+        </button>
+        <button
+          onClick={() => setActiveTab('planning')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'planning' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Planning
+        </button>
+      </div>
+
       {loading && (
         <div className="text-sm text-gray-400 mb-4 animate-pulse">Chargement…</div>
       )}
 
       {/* ── Synthèse ── */}
-      {!loading && selectedTeams.length > 0 && (
+      {activeTab === 'heures' && !loading && selectedTeams.length > 0 && (
         <div className="mb-6 overflow-x-auto">
           <table className="text-sm border-collapse">
             <thead>
@@ -491,7 +508,7 @@ export default function ConsolidationPage() {
       )}
 
       {/* ── Grille consolidée ── */}
-      {!loading && sortedEmployees.length > 0 && (
+      {activeTab === 'planning' && !loading && sortedEmployees.length > 0 && (
         <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
           <table className="text-xs border-collapse" style={{ minWidth: `${COL_NOM + COL_PRENOM + COL_EQ + days.length * 38 + 64}px` }}>
             <thead>

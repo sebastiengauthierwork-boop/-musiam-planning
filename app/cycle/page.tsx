@@ -8,7 +8,7 @@ import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
-type Team = { id: string; name: string; cdpf: string | null; cycle_weeks: number | null }
+type Team = { id: string; name: string; cdpf: string | null; cycle_weeks: number | null; site_id: string | null }
 type Employee = { id: string; first_name: string; last_name: string; fonction: string | null; contract_type: string | null; statut: string | null }
 type ShiftCode = { id: string; code: string; label: string; start_time: string | null; end_time: string | null; net_hours: number | null }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
@@ -108,17 +108,15 @@ export default function CyclePage() {
   const [removeConfirmId, setRemoveConfirmId] = useState<string | null>(null)
   const [removeLoading, setRemoveLoading] = useState(false)
 
-  // Load teams + codes once
+  // Load teams + absence codes once
   useEffect(() => {
     Promise.all([
-      supabase.from('teams').select('id, name, cdpf, cycle_weeks').order('name'),
-      supabase.from('shift_codes').select('id, code, label, start_time, end_time, net_hours, color').order('code'),
+      supabase.from('teams').select('id, name, cdpf, cycle_weeks, site_id').order('name'),
       supabase.from('absence_codes').select('id, code, label, is_paid, color').order('code'),
-    ]).then(([tRes, scRes, acRes]) => {
+    ]).then(([tRes, acRes]) => {
       const t = tRes.data ?? []
       setTeams(t)
       if (t.length > 0) setTeamId(t[0].id)
-      setShiftCodes(scRes.data ?? [])
       setAbsenceCodes(acRes.data ?? [])
     })
   }, [])
@@ -127,6 +125,19 @@ export default function CyclePage() {
     if (!teamId) return
     setLoading(true)
     try {
+      // Load shift codes filtered by this team's site
+      const team = teams.find(t => t.id === teamId)
+      if (team?.site_id) {
+        const { data: scData } = await supabase
+          .from('shift_codes')
+          .select('id, code, label, start_time, end_time, net_hours, color')
+          .eq('site_id', team.site_id)
+          .order('code')
+        setShiftCodes(scData ?? [])
+      } else {
+        setShiftCodes([])
+      }
+
       // Load all active CDI/CDD team members (no INTERIM/EXTRA)
       const { data: etData } = await supabase
         .from('employee_teams')
@@ -170,7 +181,7 @@ export default function CyclePage() {
     } finally {
       setLoading(false)
     }
-  }, [teamId])
+  }, [teamId, teams])
 
   useEffect(() => { loadTeamData() }, [loadTeamData])
 
