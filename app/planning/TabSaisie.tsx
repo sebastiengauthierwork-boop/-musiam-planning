@@ -1844,7 +1844,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                         </td>
                       )
                     })}
-                    <td className="sticky right-0 z-10 border-b border-l border-amber-100 px-2 h-6 text-center font-semibold bg-amber-50 group-hover:bg-amber-100 text-amber-800">
+                    <td className="border-b border-l border-amber-100 px-2 h-6 text-center font-semibold bg-amber-50 group-hover:bg-amber-100 text-amber-800">
                       {fmtH(monthH)}
                     </td>
                   </tr>
