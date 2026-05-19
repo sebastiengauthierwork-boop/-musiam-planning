@@ -322,26 +322,65 @@ function CodesHoraires() {
           <ImportExcel
             label="codes horaires"
             templateFilename="modele_codes_horaires.xlsx"
-            columns={['code','label','paid_hours','start_time','break_minutes','dressing_minutes','meal_included']}
+            columns={[
+              { key: 'code', label: 'Code', required: true, example: 'EOS', aliases: ['code horaire'] },
+              { key: 'label', label: 'Label', required: true, example: 'Employé Ouverture Salon', aliases: ['libelle', 'description', 'intitule'] },
+              { key: 'start_time', label: 'Prise de poste', example: '05:00', aliases: ['debut poste', 'heure debut', 'debut', 'heure prise'] },
+              { key: 'end_time', label: 'Fin de poste', example: '13:00', aliases: ['fin poste', 'heure fin', 'fin'] },
+              { key: 'paid_hours', label: 'Heures payées', required: true, example: '7.50', aliases: ['heures payees', 'h payees', 'heures', 'duree'] },
+              { key: 'break_minutes', label: 'Pause repas (min)', example: '30', aliases: ['pause repas', 'pause', 'coupure'] },
+              { key: 'dressing_minutes', label: 'Habillage (min)', example: '10', aliases: ['habillage', 'deshabillage'] },
+              { key: 'meal_included', label: 'Repas inclus', example: 'Non', dropdown: ['Oui', 'Non'], aliases: ['repas', 'repas inclus', 'avantage repas'] },
+              { key: 'color', label: 'Couleur (hex)', example: '#5BA55B', aliases: ['couleur', 'hex', 'color'] },
+            ]}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
+              function parseTime(s: string | null): string | null {
+                if (!s) return null
+                const clean = String(s).trim().replace(/[h]/i, ':')
+                if (/^\d{3,4}$/.test(clean.replace(':', ''))) {
+                  const t = clean.replace(':', '').padStart(4, '0')
+                  return `${t.slice(0,2)}:${t.slice(2,4)}`
+                }
+                if (/^\d{1,2}:\d{2}$/.test(clean)) return clean.padStart(5, '0')
+                return null
+              }
               rows.forEach((r: any, i) => {
-                if (!r.code || !r.label) { errors.push(`Ligne ${i+2} : code et label requis`); return }
-                valid.push(r)
+                const code = r.code ? String(r.code).trim().toUpperCase() : ''
+                const label = r.label ? String(r.label).trim() : ''
+                if (!code || !label) { errors.push(`Ligne ${i+2} : code et label requis`); return }
+                const mealRaw = String(r.meal_included ?? '').toLowerCase().trim()
+                valid.push({
+                  code,
+                  label,
+                  start_time: parseTime(r.start_time),
+                  end_time: parseTime(r.end_time),
+                  paid_hours: r.paid_hours ? String(r.paid_hours) : null,
+                  break_minutes: r.break_minutes ? parseInt(String(r.break_minutes)) || 0 : 0,
+                  dressing_minutes: r.dressing_minutes ? parseInt(String(r.dressing_minutes)) || 0 : 0,
+                  meal_included: ['oui', 'true', '1', 'yes'].includes(mealRaw),
+                  color: r.color ? String(r.color).trim() : null,
+                })
               })
               return { valid, errors }
             }}
             onImport={async rows => {
               for (const r of rows) {
                 const ph = r.paid_hours ? hMinToDecimal(String(r.paid_hours)) : null
-                const dress = parseInt(String(r.dressing_minutes ?? 0)) || 0
                 await supabase.from('shift_codes').upsert({
-                  code: String(r.code).trim().toUpperCase(), label: String(r.label).trim(),
-                  site_id: selectedSiteId || null, team_id: null,
-                  paid_hours: ph, target_hours: ph,
-                  start_time: r.start_time || null, break_minutes: parseInt(String(r.break_minutes ?? 0)) || 0,
-                  dressing_minutes: dress, meal_included: String(r.meal_included).toLowerCase() === 'true' || r.meal_included === 1,
+                  code: String(r.code),
+                  label: String(r.label),
+                  site_id: selectedSiteId || null,
+                  team_id: null,
+                  paid_hours: ph,
+                  target_hours: ph,
+                  start_time: r.start_time || null,
+                  end_time: r.end_time || null,
+                  break_minutes: (r.break_minutes as number) || 0,
+                  dressing_minutes: (r.dressing_minutes as number) || 0,
+                  meal_included: r.meal_included as boolean,
                   pause_minutes: 0,
+                  ...(r.color ? { color: String(r.color) } : {}),
                 }, { onConflict: 'code,site_id' })
               }
               await load()
@@ -751,20 +790,36 @@ function CodesAbsence() {
           <ImportExcel
             label="codes absence"
             templateFilename="modele_codes_absence.xlsx"
-            columns={['code','label','is_paid']}
+            columns={[
+              { key: 'code', label: 'Code', required: true, example: 'CP', aliases: ['code absence'] },
+              { key: 'label', label: 'Label', required: true, example: 'Congés payés', aliases: ['libelle', 'description', 'intitule'] },
+              { key: 'is_paid', label: 'Payé', example: 'Oui', dropdown: ['Oui', 'Non'], aliases: ['paye', 'remunere', 'remuneration'] },
+              { key: 'counts_as_worked', label: 'Compte comme travaillé', example: 'Non', dropdown: ['Oui', 'Non'], aliases: ['travaille', 'comme travaille'] },
+            ]}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
               rows.forEach((r: any, i) => {
-                if (!r.code || !r.label) { errors.push(`Ligne ${i+2} : code et label requis`); return }
-                valid.push(r)
+                const code = r.code ? String(r.code).trim().toUpperCase() : ''
+                const label = r.label ? String(r.label).trim() : ''
+                if (!code || !label) { errors.push(`Ligne ${i+2} : code et label requis`); return }
+                const isPaidRaw = String(r.is_paid ?? '').toLowerCase().trim()
+                const countsRaw = String(r.counts_as_worked ?? '').toLowerCase().trim()
+                valid.push({
+                  code,
+                  label,
+                  is_paid: ['oui', 'true', '1', 'yes'].includes(isPaidRaw) ? true : !isPaidRaw ? true : false,
+                  counts_as_worked: ['oui', 'true', '1', 'yes'].includes(countsRaw),
+                })
               })
               return { valid, errors }
             }}
             onImport={async rows => {
               for (const r of rows) {
                 await supabase.from('absence_codes').upsert({
-                  code: String(r.code).trim().toUpperCase(), label: String(r.label).trim(),
-                  is_paid: String(r.is_paid).toLowerCase() === 'true' || r.is_paid === 1,
+                  code: String(r.code),
+                  label: String(r.label),
+                  is_paid: r.is_paid as boolean,
+                  counts_as_worked: r.counts_as_worked as boolean,
                 }, { onConflict: 'code' })
               }
               await load()

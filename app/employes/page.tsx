@@ -511,35 +511,78 @@ export default function EmployesPage() {
           <ImportExcel
             label="salariés"
             templateFilename="modele_employes.xlsx"
-            columns={['last_name','first_name','email','phone','contract_type','statut','fonction','weekly_contract_hours','matricule','work_days_per_week','equipe_principale','equipe_secondaire']}
+            columns={[
+              { key: 'last_name', label: 'Nom', required: true, example: 'DUPONT', aliases: ['nom', 'nom de famille', 'lastname', 'last name'] },
+              { key: 'first_name', label: 'Prénom', required: true, example: 'Jean', aliases: ['prenom', 'firstname', 'first name'] },
+              { key: 'statut', label: 'Statut', example: 'Employé', dropdown: ['Cadre', 'Agent de maîtrise', 'Employé'], aliases: ['statut'] },
+              { key: 'contract_type', label: 'Contrat', example: 'CDI', dropdown: ['CDI', 'CDD', 'Intérim', 'Extra'], aliases: ['contrat', 'type contrat', 'contract'] },
+              { key: 'fonction', label: 'Fonction', example: 'Caissier', aliases: ['poste', 'job'] },
+              { key: 'weekly_contract_hours', label: 'Heures hebdo contrat', example: '35', aliases: ['heures hebdo', 'h hebdo', 'weekly hours', 'heures semaine'] },
+              { key: 'work_days_per_week', label: 'Jours/semaine', example: '5', aliases: ['jours semaine', 'jours travailles', 'work days'] },
+              { key: 'start_date', label: "Date d'entrée", example: '01/01/2024', aliases: ['date entree', 'entree', 'debut', 'date debut'] },
+              { key: 'end_date', label: 'Date de sortie', aliases: ['date sortie', 'sortie', 'fin', 'date fin'] },
+              { key: 'equipe_principale', label: 'Équipe principale', example: 'Boulangerie', aliases: ['equipe', 'equipe 1', 'equipe principale'] },
+              { key: 'equipe_secondaire', label: 'Équipe secondaire', aliases: ['equipe 2', 'equipe secondaire', 'renfort'] },
+            ]}
             onParse={rows => {
               const valid: any[] = []
               const errors: string[] = []
+
+              function capitalizeFirst(s: string): string {
+                if (!s) return s
+                return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
+              }
+              function parseFrDate(s: string | null): string | null {
+                if (!s) return null
+                const m = String(s).match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/)
+                if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
+                const iso = String(s).match(/^(\d{4})-(\d{2})-(\d{2})$/)
+                if (iso) return s
+                return null
+              }
+              function normalizeContract(raw: string): string {
+                const r = raw.toLowerCase().trim()
+                if (['cdi'].includes(r)) return 'CDI'
+                if (['cdd'].includes(r)) return 'CDD'
+                if (['interim', 'intérim', 'interimaire', 'int'].includes(r)) return 'INTERIM'
+                if (['extra', 'extras'].includes(r)) return 'extra'
+                return 'CDI'
+              }
+
               rows.forEach((r: any, i) => {
                 const lineNum = i + 2
-                const lastName = r.last_name ? String(r.last_name).trim() : ''
-                const firstName = r.first_name ? String(r.first_name).trim() : ''
+                const lastName = r.last_name ? String(r.last_name).trim().toUpperCase() : ''
+                const firstName = r.first_name ? capitalizeFirst(String(r.first_name).trim()) : ''
                 if (!lastName && !firstName) { errors.push(`Ligne ${lineNum} : nom et prénom manquants`); return }
                 if (!lastName) { errors.push(`Ligne ${lineNum} : nom manquant`); return }
                 if (!firstName) { errors.push(`Ligne ${lineNum} : prénom manquant`); return }
 
                 const warnings: string[] = []
-                if (!r.email) warnings.push('email manquant')
                 const rawContract = String(r.contract_type ?? '').trim()
-                const contractType = ['CDI', 'CDD', 'extra', 'INTERIM'].includes(rawContract) ? rawContract : 'CDI'
+                const contractType = rawContract ? normalizeContract(rawContract) : 'CDI'
                 if (!rawContract) warnings.push('contrat → CDI par défaut')
-                else if (contractType === 'CDI' && rawContract !== 'CDI') warnings.push(`contrat "${rawContract}" invalide → CDI`)
-                if (!r.statut) warnings.push('statut → salarié par défaut')
-                if (!r.weekly_contract_hours) warnings.push('heures/semaine → 151.67 par défaut')
+
+                const rawStatut = String(r.statut ?? '').trim()
+                if (!rawStatut) warnings.push('statut → Employé par défaut')
+
+                const rawHours = r.weekly_contract_hours ? parseFloat(String(r.weekly_contract_hours)) : null
+                if (!rawHours) warnings.push('heures hebdo → 35h par défaut')
+
+                const startDate = parseFrDate(r.start_date)
+                const endDate = parseFrDate(r.end_date)
 
                 valid.push({
-                  ...r,
                   last_name: lastName,
                   first_name: firstName,
                   contract_type: contractType,
-                  statut: r.statut || 'employe',
-                  weekly_contract_hours: r.weekly_contract_hours ? parseFloat(String(r.weekly_contract_hours)) : 151.67,
+                  statut: rawStatut || 'Employé',
+                  fonction: r.fonction ? String(r.fonction).trim() : null,
+                  weekly_contract_hours: rawHours ?? 35,
                   work_days_per_week: r.work_days_per_week ? parseInt(String(r.work_days_per_week)) : 5,
+                  start_date: startDate,
+                  end_date: endDate,
+                  equipe_principale: r.equipe_principale ? String(r.equipe_principale).trim() : null,
+                  equipe_secondaire: r.equipe_secondaire ? String(r.equipe_secondaire).trim() : null,
                   ...(warnings.length > 0 ? { __warnings: warnings } : {}),
                 })
               })
@@ -547,30 +590,21 @@ export default function EmployesPage() {
             }}
             onImport={async rows => {
               for (const r of rows) {
-                const email = r.email ? String(r.email).trim().toLowerCase() : null
-                const payload = {
-                  last_name: String(r.last_name).trim(),
-                  first_name: String(r.first_name).trim(),
-                  email,
-                  phone: r.phone ? String(r.phone).trim() : null,
-                  matricule: r.matricule ? String(r.matricule).trim() : null,
+                const payload: any = {
+                  last_name: String(r.last_name),
+                  first_name: String(r.first_name),
                   contract_type: r.contract_type,
                   statut: r.statut || null,
-                  fonction: r.fonction ? String(r.fonction).trim() : null,
+                  fonction: r.fonction ? String(r.fonction) : null,
                   weekly_contract_hours: (r.weekly_contract_hours as number) ?? null,
                   work_days_per_week: (r.work_days_per_week as number) ?? null,
+                  start_date: r.start_date || null,
+                  end_date: r.end_date || null,
                   is_active: true,
                 }
-                let empData: any, empErr: any
-                if (email) {
-                  const res = await supabase.from('employees').upsert(payload, { onConflict: 'email' }).select('id').single()
-                  empData = res.data; empErr = res.error
-                } else {
-                  const res = await supabase.from('employees').insert(payload).select('id').single()
-                  empData = res.data; empErr = res.error
-                }
-                if (empErr || !empData) continue
-                const empId = empData.id
+                const res = await supabase.from('employees').insert(payload).select('id').single()
+                if (res.error || !res.data) continue
+                const empId = res.data.id
                 for (const [field, isPrimary] of [['equipe_principale', true], ['equipe_secondaire', false]] as const) {
                   const teamName = r[field] ? String(r[field]).trim() : null
                   if (!teamName) continue

@@ -39,6 +39,7 @@ export type AbsenceCode = {
   code: string
   label: string
   is_paid: boolean
+  counts_as_worked?: boolean
   color?: string | null
 }
 
