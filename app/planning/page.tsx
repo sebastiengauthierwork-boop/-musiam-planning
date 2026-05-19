@@ -12,6 +12,7 @@ import TabCompteur from './TabCompteur'
 import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import TabFeuilleJour from './TabFeuilleJour'
+import TabConsolidation from './TabConsolidation'
 import { useAuth } from '@/lib/auth'
 import { isAdmin } from '@/lib/utils'
 import { useSite } from '@/lib/site-context'
@@ -21,12 +22,13 @@ import { loadTeamData, loadEmployeeHistory } from '@/lib/planning-data'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const TABS = [
-  { id: 'saisie',       label: 'Saisie' },
-  { id: 'planning',     label: 'Planning imprimable' },
-  { id: 'compteur',     label: 'Compteur d\'heures' },
-  { id: 'emargement',   label: 'Feuille d\'émargement' },
-  { id: 'feuille-jour', label: 'Feuille du jour' },
-  { id: 'archives',     label: 'Archives' },
+  { id: 'saisie',         label: 'Saisie' },
+  { id: 'planning',       label: 'Planning imprimable' },
+  { id: 'compteur',       label: 'Compteur d\'heures' },
+  { id: 'emargement',     label: 'Feuille d\'émargement' },
+  { id: 'feuille-jour',   label: 'Feuille du jour' },
+  { id: 'archives',       label: 'Archives' },
+  { id: 'consolidation',  label: 'Consolidation' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -364,12 +366,13 @@ export default function PlanningPage() {
           </div>
         ) : (
           <>
-            {tab === 'saisie'       && <TabSaisie      key={saisieKey} {...tabProps} />}
-            {tab === 'planning'     && <TabPlanning    {...tabProps} />}
-            {tab === 'compteur'     && <TabCompteur    {...tabProps} />}
-            {tab === 'emargement'   && <TabEmargement  {...tabProps} />}
-            {tab === 'feuille-jour' && <TabFeuilleJour {...tabProps} />}
-            {tab === 'archives'     && <TabArchives    {...tabProps} />}
+            {tab === 'saisie'        && <TabSaisie       key={saisieKey} {...tabProps} />}
+            {tab === 'planning'      && <TabPlanning     {...tabProps} />}
+            {tab === 'compteur'      && <TabCompteur     {...tabProps} />}
+            {tab === 'emargement'    && <TabEmargement   {...tabProps} />}
+            {tab === 'feuille-jour'  && <TabFeuilleJour  {...tabProps} />}
+            {tab === 'archives'      && <TabArchives     {...tabProps} />}
+            {tab === 'consolidation' && <TabConsolidation {...tabProps} />}
           </>
         )}
       </div>

@@ -11,7 +11,7 @@ import { useSite } from '@/lib/site-context'
 import { supabase } from '@/lib/supabase'
 import {
   Building2, LayoutDashboard, Users, User, CalendarRange,
-  RefreshCw, Settings, UserCog, CalendarDays, Layers,
+  RefreshCw, Settings, UserCog, CalendarDays, BarChart3,
 } from 'lucide-react'
 
 type NavItem = {
@@ -26,27 +26,9 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    href: '/sites',
-    label: 'Sites',
-    adminOnly: true,
-    icon: <Building2 className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
-  },
-  {
     href: '/tableau-de-bord',
     label: 'Tableau de bord',
     icon: <LayoutDashboard className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
-  },
-  {
-    href: '/equipes',
-    label: 'Équipes',
-    requiredAnyPermission: ['edit_teams'],
-    icon: <Users className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
-  },
-  {
-    href: '/employes',
-    label: 'Salariés',
-    requiredAnyPermission: ['create_employee', 'delete_employee', 'import_employees'],
-    icon: <User className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
   {
     href: '/planning',
@@ -55,16 +37,34 @@ const navItems: NavItem[] = [
     icon: <CalendarRange className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
   {
+    href: '/employes',
+    label: 'Salariés',
+    requiredAnyPermission: ['create_employee', 'delete_employee', 'import_employees'],
+    icon: <User className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
+  },
+  {
+    href: '/equipes',
+    label: 'Équipes',
+    requiredAnyPermission: ['edit_teams'],
+    icon: <Users className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
+  },
+  {
+    href: '/sites',
+    label: 'Sites',
+    adminOnly: true,
+    icon: <Building2 className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
+  },
+  {
     href: '/cycle',
     label: 'Cycles',
     requiredAnyPermission: ['view_cycles', 'edit_cycles'],
     icon: <RefreshCw className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
   {
-    href: '/consolidation',
-    label: 'Consolidation',
+    href: '/controle-de-gestion',
+    label: 'Contrôle de gestion',
     adminOrResponsable: true,
-    icon: <Layers className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
+    icon: <BarChart3 className="h-5 w-5 shrink-0" strokeWidth={1.5} />,
   },
   {
     href: '/parametrage',
