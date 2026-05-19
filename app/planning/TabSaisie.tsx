@@ -252,7 +252,7 @@ type AllCode = { code: string; label: string; kind: 'shift' | 'absence'; start_t
 
 function CellInput({
   saved, status, errorMsg, shiftCodes, absenceCodes, teamShiftCodes, onSave, isWeekend,
-  isSelected, onNormalClick, onShiftClick, onContextMenu,
+  isSelected, onNormalClick, onShiftClick, onContextMenu, cellKey, onNavigate,
 }: {
   saved: string
   status: CellStatus
@@ -266,6 +266,8 @@ function CellInput({
   onNormalClick: () => void
   onShiftClick: () => void
   onContextMenu: (e: React.MouseEvent) => void
+  cellKey: string
+  onNavigate: (dir: 'up' | 'down' | 'left' | 'right') => void
 }) {
   const [val, setVal] = useState(saved)
   const [open, setOpen] = useState(false)
@@ -328,6 +330,7 @@ function CellInput({
 
   return (
     <div
+      data-cell={cellKey}
       className={`relative w-full h-full ${ring} transition-all`}
       style={{ ...bgStyle, ...selectionStyle, ...(open ? { zIndex: 10000 } : {}) }}
       title={status === 'error' ? errorMsg : allCodes.find(c => c.code === val)?.label}
@@ -358,12 +361,16 @@ function CellInput({
         onFocus={() => setOpen(true)}
         onBlur={() => { setTimeout(() => setOpen(false), 130); commit(val) }}
         onKeyDown={e => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+          if (e.key === 'ArrowUp')    { e.preventDefault(); commit(val); onNavigate('up') }
+          if (e.key === 'ArrowDown')  { e.preventDefault(); commit(val); onNavigate('down') }
+          if (e.key === 'ArrowLeft')  { e.preventDefault(); commit(val); onNavigate('left') }
+          if (e.key === 'ArrowRight') { e.preventDefault(); commit(val); onNavigate('right') }
+          if (e.key === 'Enter')  { e.preventDefault(); commit(val); onNavigate('down') }
+          if (e.key === 'Tab')    { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
           if (e.key === 'Escape') {
             if (debounceRef.current) { clearTimeout(debounceRef.current); debounceRef.current = null }
             setVal(saved); setOpen(false)
           }
-          if (e.key === 'Tab') commit(val)
         }}
         className="w-full h-full text-center text-[10px] font-mono bg-transparent focus:outline-none uppercase rounded"
         maxLength={5}
@@ -516,7 +523,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
   // ── Selection state ──
   const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [clipboard, setClipboard] = useState('')
+  const [clipboard, setClipboard] = useState<string[]>([])
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const anchorRef = useRef<{ empId: string; dateStr: string } | null>(null)
 
@@ -905,34 +912,44 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
 
   function extendSelection(empId: string, dateStr: string) {
     if (!anchorRef.current) { selectSingle(empId, dateStr); return }
-    const aEmpIdx = employees.findIndex(e => e.id === anchorRef.current!.empId)
+    // Plage sur une seule ligne (même salarié)
+    if (empId !== anchorRef.current.empId) { selectSingle(empId, dateStr); return }
     const aDayIdx = days.findIndex(d => toISO(d) === anchorRef.current!.dateStr)
-    const tEmpIdx = employees.findIndex(e => e.id === empId)
     const tDayIdx = days.findIndex(d => toISO(d) === dateStr)
-    const minE = Math.min(aEmpIdx, tEmpIdx), maxE = Math.max(aEmpIdx, tEmpIdx)
     const minD = Math.min(aDayIdx, tDayIdx), maxD = Math.max(aDayIdx, tDayIdx)
     const next = new Set<string>()
-    for (let ei = minE; ei <= maxE; ei++)
-      for (let di = minD; di <= maxD; di++)
-        next.add(`${employees[ei].id}|${toISO(days[di])}`)
+    for (let di = minD; di <= maxD; di++)
+      next.add(`${empId}|${toISO(days[di])}`)
     setSelected(next)
   }
 
   // ── Copy / Paste / Delete ─────────────────────────────────────────────────
   const copySelected = useCallback(() => {
-    const first = Array.from(selected)[0]
-    if (!first) return
-    const code = cellValues[first] ?? ''
-    setClipboard(code)
+    if (selected.size === 0) return
+    const sortedKeys = Array.from(selected).sort((a, b) => {
+      const [, aDate] = a.split('|')
+      const [, bDate] = b.split('|')
+      return aDate.localeCompare(bDate)
+    })
+    setClipboard(sortedKeys.map(k => cellValues[k] ?? ''))
   }, [selected, cellValues])
 
   const pasteToSelected = useCallback(() => {
-    if (!clipboard) return
-    for (const key of selected) {
-      const [empId, dateStr] = key.split('|')
-      saveCell(empId, dateStr, clipboard)
+    if (clipboard.length === 0) return
+    if (clipboard.length === 1) {
+      for (const key of selected) {
+        const [empId, dateStr] = key.split('|')
+        saveCell(empId, dateStr, clipboard[0])
+      }
+    } else {
+      const anchor = anchorRef.current
+      if (!anchor) return
+      const startDayIdx = days.findIndex(d => toISO(d) === anchor.dateStr)
+      for (let i = 0; i < clipboard.length && startDayIdx + i < days.length; i++) {
+        saveCell(anchor.empId, toISO(days[startDayIdx + i]), clipboard[i])
+      }
     }
-  }, [clipboard, selected, saveCell])
+  }, [clipboard, selected, saveCell, days])
 
   const deleteSelected = useCallback(() => {
     for (const key of selected) {
@@ -942,12 +959,34 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     setContextMenu(null)
   }, [selected, saveCell])
 
+  function navigateCell(empId: string, dateStr: string, dir: 'up' | 'down' | 'left' | 'right') {
+    const ordered = [
+      ...employees.filter(e => !isTemporaire(e.contract_type)),
+      ...employees.filter(e => isTemporaire(e.contract_type)),
+    ]
+    const empIdx = ordered.findIndex(e => e.id === empId)
+    const dayIdx = days.findIndex(d => toISO(d) === dateStr)
+    let nextEmpIdx = empIdx, nextDayIdx = dayIdx
+    if (dir === 'up')    nextEmpIdx = Math.max(0, empIdx - 1)
+    if (dir === 'down')  nextEmpIdx = Math.min(ordered.length - 1, empIdx + 1)
+    if (dir === 'left')  nextDayIdx = Math.max(0, dayIdx - 1)
+    if (dir === 'right') nextDayIdx = Math.min(days.length - 1, dayIdx + 1)
+    const nextEmp = ordered[nextEmpIdx]
+    if (!nextEmp) return
+    const nextDateStr = toISO(days[nextDayIdx])
+    selectSingle(nextEmp.id, nextDateStr)
+    setTimeout(() => {
+      const key = `${nextEmp.id}|${nextDateStr}`
+      tableRef.current?.querySelector<HTMLInputElement>(`[data-cell="${key}"] input`)?.focus()
+    }, 0)
+  }
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     function handle(e: KeyboardEvent) {
       if (!e.ctrlKey && !e.metaKey) return
       if (e.key === 'c' && selected.size > 0) { e.preventDefault(); copySelected() }
-      if (e.key === 'v' && clipboard) { e.preventDefault(); pasteToSelected() }
+      if (e.key === 'v' && clipboard.length > 0) { e.preventDefault(); pasteToSelected() }
     }
     document.addEventListener('keydown', handle)
     return () => document.removeEventListener('keydown', handle)
@@ -1634,6 +1673,8 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                                 if (!isSel) selectSingle(emp.id, dateStr)
                                 setContextMenu({ x: e.clientX, y: e.clientY, keys })
                               }}
+                              cellKey={key}
+                              onNavigate={dir => navigateCell(emp.id, dateStr, dir)}
                             />
                           )}
                         </td>
@@ -1767,6 +1808,8 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                                 if (!isSel) selectSingle(emp.id, dateStr)
                                 setContextMenu({ x: e.clientX, y: e.clientY, keys })
                               }}
+                              cellKey={key}
+                              onNavigate={dir => navigateCell(emp.id, dateStr, dir)}
                             />
                           )}
                         </td>
@@ -1991,11 +2034,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           </button>
           <button
             onClick={() => { pasteToSelected(); setContextMenu(null) }}
-            disabled={!clipboard}
+            disabled={clipboard.length === 0}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-gray-700 hover:bg-gray-50 disabled:opacity-40"
           >
             <span className="text-gray-400 text-xs font-mono">Ctrl+V</span>
-            <span>Coller {clipboard ? <span className="font-mono text-blue-600 ml-1">({clipboard})</span> : ''}</span>
+            <span>Coller {clipboard.length > 0 ? <span className="font-mono text-blue-600 ml-1">({clipboard.join(', ')})</span> : ''}</span>
           </button>
           <div className="border-t border-gray-100 my-1" />
           <button
