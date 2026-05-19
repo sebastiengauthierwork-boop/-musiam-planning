@@ -8,14 +8,88 @@ import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
 import { sortEmployees, isTemporaire } from '@/lib/employeeUtils'
 
-type Team = { id: string; name: string; cdpf: string | null }
+type Team = { id: string; name: string; cdpf: string | null; cycle_weeks: number | null }
 type Employee = { id: string; first_name: string; last_name: string; fonction: string | null; contract_type: string | null; statut: string | null }
 type ShiftCode = { id: string; code: string; label: string; start_time: string | null; end_time: string | null; net_hours: number | null }
 type AbsenceCode = { id: string; code: string; label: string; is_paid: boolean }
+type AllCode = { code: string; label: string; kind: 'shift' | 'absence'; start_time?: string | null; end_time?: string | null }
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LABELS = ['L', 'Ma', 'Me', 'J', 'V', 'S', 'D']
-const WEEKS = [1, 2, 3, 4, 5, 6] as const
+
+function CycleCell({ code, shiftCodes, absenceCodes, onSave }: {
+  code: string
+  shiftCodes: ShiftCode[]
+  absenceCodes: AbsenceCode[]
+  onSave: (code: string) => void
+}) {
+  const [val, setVal] = useState(code)
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setVal(code) }, [code])
+
+  const allCodes: AllCode[] = [
+    ...shiftCodes.map(c => ({ code: c.code, label: c.label, kind: 'shift' as const, start_time: c.start_time, end_time: c.end_time })),
+    ...absenceCodes.map(c => ({ code: c.code, label: c.label, kind: 'absence' as const })),
+  ]
+  const allValidCodes = new Set([...shiftCodes.map(c => c.code), ...absenceCodes.map(c => c.code)])
+  const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val.toUpperCase()))
+
+  function commit(v: string) {
+    const upper = v.trim().toUpperCase()
+    if (upper === '' || allValidCodes.has(upper)) { setVal(upper); onSave(upper) }
+    else setVal(code)
+    setOpen(false)
+  }
+
+  const colors = val ? getCodeColors(val, shiftCodes, absenceCodes) : null
+  const bgStyle = colors ? { background: colors.bg, color: colors.text } : {}
+
+  return (
+    <div className="relative w-full h-full" style={bgStyle}>
+      <input
+        value={val}
+        onChange={e => { setVal(e.target.value.toUpperCase()); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => { setTimeout(() => setOpen(false), 130); commit(val) }}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(val) }
+          if (e.key === 'Escape') { setVal(code); setOpen(false) }
+        }}
+        className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase"
+        maxLength={5}
+      />
+      {open && suggestions.length > 0 && (
+        <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
+          {suggestions.some(c => c.kind === 'shift') && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Codes horaires</div>
+              {suggestions.filter(c => c.kind === 'shift').map(c => (
+                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left">
+                  <span className="font-mono font-bold w-10 shrink-0 text-blue-600">{c.code}</span>
+                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
+                  {c.start_time && <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {suggestions.some(c => c.kind === 'absence') && (
+            <>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Absences</div>
+              {suggestions.filter(c => c.kind === 'absence').map(c => (
+                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false) }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left">
+                  <span className="font-mono font-bold w-10 shrink-0 text-gray-500">{c.code}</span>
+                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function CyclePage() {
   const now = new Date()
@@ -37,7 +111,7 @@ export default function CyclePage() {
   // Load teams + codes once
   useEffect(() => {
     Promise.all([
-      supabase.from('teams').select('id, name, cdpf').order('name'),
+      supabase.from('teams').select('id, name, cdpf, cycle_weeks').order('name'),
       supabase.from('shift_codes').select('id, code, label, start_time, end_time, net_hours, color').order('code'),
       supabase.from('absence_codes').select('id, code, label, is_paid, color').order('code'),
     ]).then(([tRes, scRes, acRes]) => {
@@ -156,6 +230,9 @@ export default function CyclePage() {
 
   const cycleIds = new Set(cycleEmployees.map(e => e.id))
   const available = allPermanents.filter(e => !cycleIds.has(e.id))
+  const currentTeam = teams.find(t => t.id === teamId)
+  const cycleWeeks = (currentTeam?.cycle_weeks ?? 6) || 6
+  const weeks = Array.from({ length: cycleWeeks }, (_, i) => i + 1)
 
   return (
     <div className="flex flex-col h-full">
@@ -177,7 +254,7 @@ export default function CyclePage() {
         </button>
         {saving && <span className="text-xs text-blue-400 animate-pulse">Sauvegarde…</span>}
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-gray-400">S1–S6 = semaines du cycle · L=lundi … D=dimanche</span>
+          <span className="text-xs text-gray-400">S1–S{cycleWeeks} = semaines du cycle · L=lundi … D=dimanche</span>
         </div>
       </div>
 
@@ -202,7 +279,7 @@ export default function CyclePage() {
                 <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-44 min-w-[176px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
                   Salarié
                 </th>
-                {WEEKS.map(w =>
+                {weeks.map(w =>
                   DAY_LABELS.map((d, di) => {
                     const isWE = di >= 5
                     return (
@@ -227,25 +304,19 @@ export default function CyclePage() {
                     <span className="text-gray-500">{emp.first_name}</span>
                     {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
                   </td>
-                  {WEEKS.map(w =>
+                  {weeks.map(w =>
                     DAY_LABELS.map((_, di) => {
                       const dayOfWeek = di + 1
                       const key = `${emp.id}|${w}|${dayOfWeek}`
                       const code = entries[key] ?? ''
                       const isWE = di >= 5
-                      const c = code ? getCodeColors(code, shiftCodes, absenceCodes) : null
-                      const bgStyle = c ? { background: c.bg, color: c.text } : {}
                       return (
-                        <td key={`${w}-${di}`} className="border-b border-r border-gray-100 p-0 h-7 relative" style={bgStyle}>
-                          <input
-                            value={code}
-                            onChange={e => {
-                              const v = e.target.value.trim().toUpperCase()
-                              setEntries(prev => { const n = { ...prev }; if (v) n[key] = v; else delete n[key]; return n })
-                            }}
-                            onBlur={e => saveEntry(emp.id, w, dayOfWeek, e.target.value.trim().toUpperCase())}
-                            className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase"
-                            maxLength={5}
+                        <td key={`${w}-${di}`} className={`border-b border-r border-gray-100 p-0 h-7 relative${isWE ? ' bg-gray-50/30' : ''}`}>
+                          <CycleCell
+                            code={code}
+                            shiftCodes={shiftCodes}
+                            absenceCodes={absenceCodes}
+                            onSave={v => saveEntry(emp.id, w, dayOfWeek, v)}
                           />
                         </td>
                       )

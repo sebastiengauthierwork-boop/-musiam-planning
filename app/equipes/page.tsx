@@ -18,6 +18,7 @@ type Team = {
   created_at: string
   site_id: string | null
   site_name: string | null
+  cycle_weeks: number | null
 }
 
 type TeamWithCount = Team & { employeeCount: number }
@@ -29,9 +30,10 @@ type FormData = {
   type: 'point_de_vente' | 'metier'
   description: string
   site_id: string
+  cycle_weeks: string
 }
 
-const emptyForm: FormData = { name: '', cdpf: '', letter: '', type: 'point_de_vente', description: '', site_id: '' }
+const emptyForm: FormData = { name: '', cdpf: '', letter: '', type: 'point_de_vente', description: '', site_id: '', cycle_weeks: '6' }
 
 export default function EquipesPage() {
   const { role } = useAuth()
@@ -48,7 +50,7 @@ export default function EquipesPage() {
   async function loadTeams() {
     let q = supabase
       .from('teams')
-      .select('id, name, cdpf, letter, type, description, created_at, site_id, sites(name)')
+      .select('id, name, cdpf, letter, type, description, created_at, site_id, cycle_weeks, sites(name)')
       .order('name').limit(200)
     if (selectedSiteId) q = q.eq('site_id', selectedSiteId)
 
@@ -100,7 +102,7 @@ export default function EquipesPage() {
 
   function openEdit(team: Team) {
     setEditingTeam(team)
-    setFormData({ name: team.name, cdpf: team.cdpf ?? '', letter: team.letter ?? '', type: team.type, description: team.description ?? '', site_id: team.site_id ?? '' })
+    setFormData({ name: team.name, cdpf: team.cdpf ?? '', letter: team.letter ?? '', type: team.type, description: team.description ?? '', site_id: team.site_id ?? '', cycle_weeks: String(team.cycle_weeks ?? 6) })
     setShowModal(true)
   }
 
@@ -124,6 +126,7 @@ export default function EquipesPage() {
         type: formData.type,
         description: formData.description.trim() || null,
         site_id: formData.site_id || null,
+        cycle_weeks: parseInt(formData.cycle_weeks) || null,
       }
       if (editingTeam) {
         const { error } = await supabase.from('teams').update(payload).eq('id', editingTeam.id)
@@ -229,6 +232,17 @@ export default function EquipesPage() {
             <Field label="Description">
               <textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })}
                 className="input resize-none" rows={3} placeholder="Description optionnelle…" />
+            </Field>
+            <Field label="Durée du cycle">
+              <select value={formData.cycle_weeks} onChange={e => setFormData({ ...formData, cycle_weeks: e.target.value })} className="input">
+                <option value="0">Pas de cycle</option>
+                <option value="2">2 semaines</option>
+                <option value="3">3 semaines</option>
+                <option value="4">4 semaines</option>
+                <option value="6">6 semaines</option>
+                <option value="8">8 semaines</option>
+                <option value="12">12 semaines</option>
+              </select>
             </Field>
           </div>
           <div className="flex justify-end gap-3 mt-6">

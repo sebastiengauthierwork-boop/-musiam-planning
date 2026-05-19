@@ -44,7 +44,7 @@ type ShiftForm = {
 
 type NomenTeam = { id: string; name: string; letter: string | null; site_id: string | null }
 type AbsenceForm = { code: string; label: string; is_paid: boolean; color: string }
-type Structure = { id: string; name: string; site_id?: string | null }
+type Structure = { id: string; name: string; site_id?: string | null; team_id?: string | null }
 type StructurePosition = { id: string; structure_id: string; position_name: string; required_count: number }
 type CalendarEntry = { date: string; team_id: string | null; structure_id: string | null }
 
@@ -1223,6 +1223,8 @@ function Structures() {
   const [structures, setStructures] = useState<Structure[]>([])
   const [positions, setPositions] = useState<StructurePosition[]>([])
   const [shiftCodes, setShiftCodes] = useState<ShiftCodeMin[]>([])
+  const [teams, setTeams] = useState<TeamOption[]>([])
+  const [selectedTeamId, setSelectedTeamId] = useState('')
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState<'add' | 'edit' | null>(null)
   const [editing, setEditing] = useState<Structure | null>(null)
@@ -1234,21 +1236,27 @@ function Structures() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   async function load() {
-    let sQ = supabase.from('staffing_structures').select('id, name, site_id').order('name')
+    let sQ = supabase.from('staffing_structures').select('id, name, site_id, team_id').order('name')
     if (selectedSiteId) sQ = sQ.eq('site_id', selectedSiteId)
+    if (selectedTeamId) sQ = sQ.eq('team_id', selectedTeamId)
     let scQ = supabase.from('shift_codes').select('id, code, label, paid_hours, net_hours, start_time, end_time, break_minutes').order('code')
     if (selectedSiteId) scQ = scQ.eq('site_id', selectedSiteId)
-    const [sRes, pRes, scRes] = await Promise.all([
+    let tQ = supabase.from('teams').select('id, name, cdpf').order('name')
+    if (selectedSiteId) tQ = tQ.eq('site_id', selectedSiteId)
+    const [sRes, pRes, scRes, tRes] = await Promise.all([
       sQ,
       supabase.from('staffing_structure_positions').select('id, structure_id, position_name, required_count').order('position_name'),
       scQ,
+      tQ,
     ])
     setStructures(sRes.data ?? [])
     setPositions(pRes.data ?? [])
     setShiftCodes(scRes.data ?? [])
+    setTeams(tRes.data ?? [])
     setLoading(false)
   }
-  useEffect(() => { load() }, [selectedSiteId])
+  useEffect(() => { setSelectedTeamId('') }, [selectedSiteId])
+  useEffect(() => { load() }, [selectedSiteId, selectedTeamId])
 
   function lineHours(line: PosLine): number {
     const sc = shiftCodes.find(c => c.code === line.code)
@@ -1288,7 +1296,7 @@ function Structures() {
         const { error: delErr } = await supabase.from('staffing_structure_positions').delete().eq('structure_id', editing.id)
         if (delErr) throw delErr
       } else {
-        const { data, error } = await supabase.from('staffing_structures').insert({ name: name.trim(), site_id: selectedSiteId || null }).select('id').single()
+        const { data, error } = await supabase.from('staffing_structures').insert({ name: name.trim(), site_id: selectedSiteId || null, team_id: selectedTeamId || null }).select('id').single()
         if (error) throw error
         if (!data) throw new Error('Aucune donnée retournée — vérifiez que la table staffing_structures existe et que les RLS autorisent INSERT.')
         sid = data.id
@@ -1321,9 +1329,21 @@ function Structures() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">
-          Structures de staffing <span className="text-gray-400 font-normal text-sm">({structures.length})</span>
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-semibold text-gray-900">
+            Structures de staffing <span className="text-gray-400 font-normal text-sm">({structures.length})</span>
+          </h2>
+          {teams.length > 0 && (
+            <select
+              value={selectedTeamId}
+              onChange={e => setSelectedTeamId(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
+            >
+              <option value="">Toutes les équipes</option>
+              {teams.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` (${t.cdpf})` : ''}</option>)}
+            </select>
+          )}
+        </div>
         <button onClick={openAdd} className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
           Ajouter
@@ -2128,7 +2148,7 @@ function ContactsUtiles() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier' | 'contacts' | 'roles'
+type Section = 'horaires' | 'absence' | 'fonctions' | 'structures' | 'calendrier' | 'contacts' | 'roles' | 'journal'
 
 // ─── Rôles et accès ───────────────────────────────────────────────────────────
 
@@ -2354,6 +2374,147 @@ function RolesAcces() {
   )
 }
 
+// ─── Journal d'audit ─────────────────────────────────────────────────────────
+
+type AuditRow = {
+  id: string
+  created_at: string
+  user_id: string
+  action_type: string
+  detail: string | null
+  users?: { email: string | null; login_code: string | null } | null
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  reset_password: 'Réinitialisation mot de passe',
+  deactivate_employee: 'Désactivation employé',
+  anonymize_employee: 'Anonymisation employé',
+  export_data: 'Export données',
+  create_user: 'Création compte',
+  delete_user: 'Suppression compte',
+}
+
+function JournalAudit() {
+  const [rows, setRows] = useState<AuditRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filterUser, setFilterUser] = useState('')
+  const [filterAction, setFilterAction] = useState('')
+  const [filterDays, setFilterDays] = useState('30')
+
+  async function load() {
+    setLoading(true)
+    const since = new Date()
+    since.setDate(since.getDate() - parseInt(filterDays || '30'))
+    let q = supabase
+      .from('audit_log')
+      .select('id, created_at, user_id, action_type, detail, users(email, login_code)')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200)
+    if (filterAction) q = q.eq('action_type', filterAction)
+    const { data } = await q
+    let filtered = (data ?? []) as AuditRow[]
+    if (filterUser.trim()) {
+      const needle = filterUser.trim().toLowerCase()
+      filtered = filtered.filter(r => {
+        const email = r.users?.email ?? ''
+        const code = r.users?.login_code ?? ''
+        return email.toLowerCase().includes(needle) || code.toLowerCase().includes(needle)
+      })
+    }
+    setRows(filtered)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [filterAction, filterDays])
+
+  function formatDate(iso: string) {
+    const d = new Date(iso)
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+  }
+
+  function userLabel(row: AuditRow) {
+    if (row.users?.login_code) return row.users.login_code
+    if (row.users?.email) return row.users.email.replace('@planekipe.local', '')
+    return row.user_id.slice(0, 8) + '…'
+  }
+
+  const actionTypes = Array.from(new Set(rows.map(r => r.action_type).filter(Boolean)))
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-3 mb-5 items-end">
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Utilisateur</label>
+          <input
+            type="text"
+            value={filterUser}
+            onChange={e => setFilterUser(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') load() }}
+            placeholder="Email ou code MP-…"
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 w-52"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Action</label>
+          <select value={filterAction} onChange={e => setFilterAction(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
+            <option value="">Toutes</option>
+            {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-500 mb-1">Période</label>
+          <select value={filterDays} onChange={e => setFilterDays(e.target.value)}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
+            <option value="7">7 derniers jours</option>
+            <option value="30">30 derniers jours</option>
+            <option value="90">90 derniers jours</option>
+            <option value="365">1 an</option>
+          </select>
+        </div>
+        <button onClick={load} className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors">
+          Actualiser
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-400 py-8 text-center">Chargement…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-gray-400 py-8 text-center">Aucune entrée pour cette période.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-gray-200">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">Date / Heure</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Utilisateur</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Détail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map(row => (
+                <tr key={row.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">{formatDate(row.created_at)}</td>
+                  <td className="px-4 py-2.5 text-gray-700 font-medium whitespace-nowrap">{userLabel(row)}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                      {ACTION_LABELS[row.action_type] ?? row.action_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{row.detail ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-gray-400 mt-3">{rows.length} entrée{rows.length > 1 ? 's' : ''} affichée{rows.length > 1 ? 's' : ''}</p>
+    </div>
+  )
+}
+
 export default function ParametragePage() {
   const { role: currentRole, loading: authLoading } = useAuth()
   const { can, loading: permsLoading } = usePermissions()
@@ -2372,6 +2533,7 @@ export default function ParametragePage() {
     ...(isAdmin(currentRole) || can('edit_calendar') ? [{ id: 'calendrier' as Section, label: 'Calendrier' }] : []),
     ...((isSuperAdmin(currentRole) || isAdmin(currentRole) || currentRole === 'responsable') ? [{ id: 'contacts' as Section, label: 'Contacts utiles' }] : []),
     ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
+    ...(isSuperAdmin(currentRole) || isAdmin(currentRole) ? [{ id: 'journal' as Section, label: 'Journal' }] : []),
   ]
 
   // Corriger la section active si elle n'est plus visible (ex: changement de rôle)
@@ -2438,6 +2600,7 @@ export default function ParametragePage() {
       {section === 'calendrier' && <Calendrier />}
       {section === 'contacts'   && <ContactsUtiles />}
       {section === 'roles'      && <RolesAcces />}
+      {section === 'journal'    && <JournalAudit />}
     </div>
   )
 }
