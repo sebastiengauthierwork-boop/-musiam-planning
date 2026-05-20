@@ -11,6 +11,7 @@ import { teamLabel } from '@/lib/teamUtils'
 import TabCompteur from '@/app/planning/TabCompteur'
 import TeamDropdown from '@/components/TeamDropdown'
 import type { ShiftCode } from '@/app/planning/types'
+import { Structures, Calendrier } from '@/components/StaffingTabs'
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 
@@ -50,7 +51,7 @@ export default function ControleDeGestionPage() {
   const [localSiteId, setLocalSiteId] = useState<string | null>(null)
   const [month, setMonth] = useState(now.getMonth())
   const [year, setYear] = useState(now.getFullYear())
-  const [activeTab, setActiveTab] = useState<'compteur' | 'consolidation'>('compteur')
+  const [activeTab, setActiveTab] = useState<'structures' | 'calendrier' | 'compteur' | 'consolidation'>('compteur')
 
   const [allTeams, setAllTeams] = useState<Team[]>([])
   const [shiftCodes, setShiftCodes] = useState<ShiftCode[]>([])
@@ -286,15 +287,19 @@ export default function ControleDeGestionPage() {
           </select>
         )}
 
-        <select value={month} onChange={e => setMonth(+e.target.value)}
-          className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
-          {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-        </select>
+        {(activeTab === 'compteur' || activeTab === 'consolidation') && (
+          <>
+            <select value={month} onChange={e => setMonth(+e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+              {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
 
-        <select value={year} onChange={e => setYear(+e.target.value)}
-          className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
+            <select value={year} onChange={e => setYear(+e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-0.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </>
+        )}
 
         {activeTab === 'compteur' && allTeams.length > 0 && (
           <select
@@ -308,6 +313,14 @@ export default function ControleDeGestionPage() {
 
       {/* ── Tabs ── */}
       <div className="shrink-0 bg-white border-b border-gray-200 px-4 flex gap-0">
+        <button onClick={() => setActiveTab('structures')}
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'structures' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          Structures
+        </button>
+        <button onClick={() => setActiveTab('calendrier')}
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'calendrier' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          Calendrier annuel
+        </button>
         <button onClick={() => setActiveTab('compteur')}
           className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'compteur' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
           Compteur d'heures
@@ -320,6 +333,14 @@ export default function ControleDeGestionPage() {
 
       {/* ── Content ── */}
       <div className="flex-1 overflow-hidden">
+        {activeTab === 'structures' && (
+          <div className="flex-1 overflow-auto h-full p-6"><Structures /></div>
+        )}
+
+        {activeTab === 'calendrier' && (
+          <div className="flex-1 overflow-auto h-full p-6"><Calendrier /></div>
+        )}
+
         {activeTab === 'compteur' && (
           <TabCompteur
             key={`${localSiteId}-${year}-${month}-${compteurTeamId}`}
