@@ -1054,7 +1054,7 @@ function Fonctions() {
           <ImportExcel
             label="fonctions"
             templateFilename="modele_fonctions.xlsx"
-            columns={['name']}
+            columns={[{ key: 'name', label: 'Nom', required: true }]}
             onParse={rows => {
               const valid: any[] = []; const errors: string[] = []
               rows.forEach((r: any, i) => {

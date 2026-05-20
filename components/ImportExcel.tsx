@@ -24,11 +24,11 @@ type Props<T extends ImportRow> = {
 // Normalise une chaine pour la comparaison flexible de noms de colonnes
 function normalizeHeader(s: string): string {
   return String(s)
-    .normalize(‘NFD’).replace(/[̀-ͯ]/g, ‘’)  // enlève les accents
-    .replace(/[‘‘’ʼ]/g, ‘ ‘)            // apostrophes → espace
-    .replace(/[*"`()/\\]/g, ‘’)                        // ponctuations inutiles
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')  // enlève les accents
+    .replace(/[‘''ʼ]/g, ' ')            // apostrophes → espace
+    .replace(/[*"`()/\\]/g, '')                        // ponctuations inutiles
     .toLowerCase()
-    .replace(/\s+/g, ‘ ‘)
+    .replace(/\s+/g, ' ')
     .trim()
 }
 
