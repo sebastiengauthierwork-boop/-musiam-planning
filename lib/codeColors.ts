@@ -24,22 +24,34 @@ export function autoTextColor(hexBg: string): string {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#000000' : '#ffffff'
 }
 
-/** Returns bg+text colors for any planning code. Custom DB color takes priority over palette. */
+/** Returns bg+text colors for any planning code. Absence codes take priority over shift codes to avoid palette bleed. */
 export function getCodeColors(
   code: string,
   shiftCodes: { code: string; color?: string | null }[],
   absenceCodes: { code: string; color?: string | null }[]
 ): { bg: string; text: string } | null {
   if (!code) return null
-  const custom = shiftCodes.find(c => c.code === code)?.color || absenceCodes.find(c => c.code === code)?.color
-  if (custom) return { bg: custom, text: autoTextColor(custom) }
+
+  // Codes d'absence : priorité à leur couleur DB, fallback générique
+  const absEntry = absenceCodes.find(c => c.code === code)
+  if (absEntry) {
+    if (absEntry.color) return { bg: absEntry.color, text: autoTextColor(absEntry.color) }
+    if (code === 'R' || code === 'REP' || code === 'FER') return REPOS_COLOR
+    return ABSENCE_COLOR
+  }
+
+  // Codes horaires : couleur DB puis palette par position
   const shiftIdx = shiftCodes.findIndex(c => c.code === code)
   if (shiftIdx !== -1) {
+    const shiftColor = shiftCodes[shiftIdx].color
+    if (shiftColor) return { bg: shiftColor, text: autoTextColor(shiftColor) }
     const bg = SHIFT_PALETTE[shiftIdx % SHIFT_PALETTE.length].bg
     return { bg, text: autoTextColor(bg) }
   }
+
+  // Repos non déclaré dans absence_codes
   if (code === 'R' || code === 'REP' || code === 'FER') return REPOS_COLOR
-  if (absenceCodes.some(c => c.code === code)) return ABSENCE_COLOR
+
   const fallbackBg = '#fef9c3'
   return { bg: fallbackBg, text: autoTextColor(fallbackBg) }
 }

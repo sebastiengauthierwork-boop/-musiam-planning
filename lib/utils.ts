@@ -22,14 +22,26 @@ export function getCodeColor(
 ): { bg: string; text: string } {
   if (!code) return { bg: '#f3f4f6', text: '#374151' }
   const c = code.trim()
-  const custom = shiftCodes?.find(s => s.code === c)?.color || absenceCodes?.find(a => a.code === c)?.color
-  if (custom) return { bg: custom, text: autoTextColor(custom) }
+
+  // Codes d'absence : priorité à leur couleur DB, fallback générique
+  const absEntry = absenceCodes?.find(a => a.code === c)
+  if (absEntry) {
+    if (absEntry.color) return { bg: absEntry.color, text: autoTextColor(absEntry.color) }
+    if (c === 'R' || c === 'REP' || c === 'FER') return REPOS_COLOR
+    return ABSENCE_COLOR
+  }
+
+  // Codes horaires : couleur DB puis palette par position
   const shiftIdx = shiftCodes?.findIndex(s => s.code === c) ?? -1
   if (shiftIdx !== -1) {
+    const shiftColor = shiftCodes![shiftIdx].color
+    if (shiftColor) return { bg: shiftColor, text: autoTextColor(shiftColor) }
     const bg = SHIFT_PALETTE[shiftIdx % SHIFT_PALETTE.length].bg
     return { bg, text: autoTextColor(bg) }
   }
+
+  // Repos non déclaré dans absence_codes
   if (c === 'R' || c === 'REP' || c === 'FER') return REPOS_COLOR
-  if (absenceCodes?.some(a => a.code === c)) return ABSENCE_COLOR
+
   return { bg: '#f3f4f6', text: '#374151' }
 }
