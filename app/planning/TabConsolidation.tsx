@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { TabProps } from './types'
 import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColor } from '@/lib/utils'
+import { sortEmployees } from '@/lib/employeeUtils'
 import TeamDropdown from '@/components/TeamDropdown'
 
 const DAY_LETTER = ['D','L','M','M','J','V','S']
@@ -19,7 +20,7 @@ function fmtH(h: number): string {
 }
 
 type CellEntry = { teamId: string; code: string }
-type EmpRow = { id: string; first_name: string; last_name: string; teamIds: string[] }
+type EmpRow = { id: string; first_name: string; last_name: string; statut: string | null; contract_type: string | null; teamIds: string[] }
 
 const COL_NOM = 120
 const COL_PRENOM = 90
@@ -52,7 +53,7 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
 
       const [etRes, schedRes] = await Promise.all([
         supabase.from('employee_teams')
-          .select('employee_id, team_id, employees(id, first_name, last_name, is_active, start_date, end_date)')
+          .select('employee_id, team_id, employees(id, first_name, last_name, statut, contract_type, is_active, start_date, end_date)')
           .in('team_id', selectedTeamIds),
         supabase.from('schedules')
           .select('employee_id, team_id, date, code')
@@ -69,7 +70,7 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
         if (!e || !e.is_active) continue
         if (e.start_date && e.start_date > endDate) continue
         if (e.end_date && e.end_date < startDate) continue
-        if (!newEmpMap[e.id]) newEmpMap[e.id] = { id: e.id, first_name: e.first_name, last_name: e.last_name, teamIds: [] }
+        if (!newEmpMap[e.id]) newEmpMap[e.id] = { id: e.id, first_name: e.first_name, last_name: e.last_name, statut: e.statut ?? null, contract_type: e.contract_type ?? null, teamIds: [] }
         if (!newEmpMap[e.id].teamIds.includes(et.team_id)) newEmpMap[e.id].teamIds.push(et.team_id)
       }
       setEmpMap(newEmpMap)
@@ -91,7 +92,8 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
   useEffect(() => { loadData() }, [loadData])
 
   const sortedEmployees = useMemo(() => {
-    return Object.values(empMap).sort((a, b) => a.last_name.localeCompare(b.last_name))
+    const { permanents, temporaires } = sortEmployees(Object.values(empMap))
+    return [...permanents, ...temporaires]
   }, [empMap])
 
   const selectedTeams = useMemo(() => teams.filter(t => selectedTeamIds.includes(t.id)), [teams, selectedTeamIds])

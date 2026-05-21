@@ -20,7 +20,7 @@ export function sortEmployees<T extends {
       const oa = STATUT_ORDER[a.statut ?? ''] ?? 3
       const ob = STATUT_ORDER[b.statut ?? ''] ?? 3
       if (oa !== ob) return oa - ob
-      return (a.last_name || '').localeCompare(b.last_name || '')
+      return (a.last_name || '').localeCompare(b.last_name || '', 'fr')
     })
 
   const temporaires = employees
@@ -29,7 +29,7 @@ export function sortEmployees<T extends {
       const aU = (a.contract_type ?? '').toUpperCase()
       const bU = (b.contract_type ?? '').toUpperCase()
       if (aU !== bU) return aU === 'EXTRA' ? -1 : 1
-      return (a.last_name || '').localeCompare(b.last_name || '')
+      return (a.last_name || '').localeCompare(b.last_name || '', 'fr')
     })
 
   return { permanents, temporaires }
