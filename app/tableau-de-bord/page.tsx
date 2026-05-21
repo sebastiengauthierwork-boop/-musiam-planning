@@ -51,6 +51,8 @@ export default function TableauDeBord() {
   const [employeeCount, setEmployeeCount] = useState(0)
   const [ganttTeams, setGanttTeams] = useState<{ id: string; name: string; cdpf: string | null }[]>([])
   const [ganttTeamId, setGanttTeamId] = useState<string>('')
+  const [shiftCodesForGantt, setShiftCodesForGantt] = useState<{ code: string; color?: string | null }[]>([])
+  const [absenceCodesForGantt, setAbsenceCodesForGantt] = useState<{ code: string; color?: string | null }[]>([])
 
   useEffect(() => { load() }, [selectedSiteId])
 
@@ -85,8 +87,8 @@ export default function TableauDeBord() {
 
       // 2. Shift codes map (code → paid_hours + times) + absence codes
       const [scRes, absRes] = await Promise.all([
-        supabase.from('shift_codes').select('code, start_time, end_time, paid_hours'),
-        supabase.from('absence_codes').select('code'),
+        supabase.from('shift_codes').select('code, start_time, end_time, paid_hours, color'),
+        supabase.from('absence_codes').select('code, color'),
       ])
       const scMap: Record<string, number> = {}
       const scTimeMap: Record<string, { start: string; end: string }> = {}
@@ -160,6 +162,8 @@ export default function TableauDeBord() {
         return a.name.localeCompare(b.name)
       })
       if (loadId !== loadIdRef.current) return
+      setShiftCodesForGantt(scRes.data ?? [])
+      setAbsenceCodesForGantt(absRes.data ?? [])
       setGanttEntries(gantt)
 
       // 7. Structure positions (vigilance + budget, une seule requête)
@@ -258,7 +262,7 @@ export default function TableauDeBord() {
             </select>
           </div>
         )}
-        <GanttChart entries={displayedGantt} />
+        <GanttChart entries={displayedGantt} shiftCodes={shiftCodesForGantt} absenceCodes={absenceCodesForGantt} />
         <div className="mt-3 text-right">
           <a href="/planning" className="text-xs text-blue-600 hover:underline">Voir détails →</a>
         </div>
@@ -358,7 +362,7 @@ function Card({ title, badge, children }: { title: string; badge?: string; child
   )
 }
 
-function GanttChart({ entries }: { entries: GanttEntry[] }) {
+function GanttChart({ entries, shiftCodes, absenceCodes }: { entries: GanttEntry[]; shiftCodes: { code: string; color?: string | null }[]; absenceCodes: { code: string; color?: string | null }[] }) {
   if (entries.length === 0) {
     return <p className="text-xs text-gray-400 italic">Aucun salarié planifié aujourd'hui.</p>
   }
@@ -373,7 +377,7 @@ function GanttChart({ entries }: { entries: GanttEntry[] }) {
         const s = toMin(e.start), en = toMin(e.end)
         const left = ((s - minH) / span) * 100
         const width = Math.max(((en - s) / span) * 100, 2)
-        const color = getCodeColor(e.code)
+        const color = getCodeColor(e.code, shiftCodes, absenceCodes)
         return (
           <div key={e.employee_id} className="flex items-center gap-2">
             <span className="text-[10px] text-gray-500 w-24 shrink-0 truncate">{e.name}</span>

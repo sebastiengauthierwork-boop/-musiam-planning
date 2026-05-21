@@ -15,8 +15,8 @@ interface Employee { id: string; first_name: string; last_name: string; contract
 interface Site { id: string; name: string }
 interface Team { id: string; name: string; cdpf: string | null; site_id: string | null }
 interface Schedule { employee_id: string; date: string; code: string; start_time: string | null; end_time: string | null }
-interface ShiftCode { id: string; code: string; label: string; start_time: string | null; end_time: string | null }
-interface AbsenceCode { id: string; code: string; label: string }
+interface ShiftCode { id: string; code: string; label: string; start_time: string | null; end_time: string | null; color?: string | null }
+interface AbsenceCode { id: string; code: string; label: string; color?: string | null }
 interface DashboardEntry { employee_id: string; name: string; code: string; start: string; end: string; statut: string }
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
