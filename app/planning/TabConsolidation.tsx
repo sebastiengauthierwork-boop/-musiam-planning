@@ -25,7 +25,7 @@ const COL_NOM = 120
 const COL_PRENOM = 90
 const COL_EQ = 60
 
-export default function TabConsolidation({ teams = [], shiftCodes, year, month }: TabProps) {
+export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes, year, month }: TabProps) {
   const days = getDays(year, month)
 
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(teams.map(t => t.id))
@@ -204,7 +204,7 @@ export default function TabConsolidation({ teams = [], shiftCodes, year, month }
                         }
                         const code = cells[0]?.code ?? ''
                         if (!code) return <td key={d.getDate()} className="border-b border-r border-slate-100" style={{ background: isWe ? '#f1f5f9' : bg, minWidth: 38 }} />
-                        const { bg: codeBg, text: codeText } = getCodeColor(code, shiftCodes as any, [])
+                        const { bg: codeBg, text: codeText } = getCodeColor(code, shiftCodes, absenceCodes)
                         return (
                           <td key={d.getDate()} className="border-b border-r border-slate-100 px-0.5 py-0.5 text-center" style={{ background: bg }}>
                             <div className="rounded font-semibold leading-tight px-0.5 py-0.5" style={{ fontSize: 10, background: codeBg, color: codeText }}>{code}</div>
