@@ -1634,13 +1634,15 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 const code = cellValues[`${emp.id}|${dateStr}`]
                 return s + (isCadreWorkedDay(code, shiftCodes, absenceCodes) ? 1 : 0)
               }, 0) : 0
+              const isRecruiting = emp.recruitment_status === 'recruiting'
               return (
                 <Fragment key={emp.id}>
-                  <tr className="group hover:bg-blue-50/20">
-                    <td className="sticky left-0 z-10 border-b border-r border-gray-100 px-2 py-0 h-6 bg-white group-hover:bg-blue-50">
+                  <tr className={`group ${isRecruiting ? 'bg-slate-50/60 hover:bg-slate-100/60' : 'hover:bg-blue-50/20'}`}>
+                    <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-2 py-0 h-6 ${isRecruiting ? 'bg-slate-50 group-hover:bg-slate-100' : 'bg-white group-hover:bg-blue-50'}`}>
                       <div className="flex items-center gap-1 overflow-hidden max-w-[160px]">
+                        {isRecruiting && <span className="shrink-0 text-[8px] font-bold text-amber-600 bg-amber-100 px-1 rounded leading-tight">REC</span>}
                         <span className="font-semibold text-[11px] text-gray-800 shrink-0 whitespace-nowrap">{emp.last_name.toUpperCase()}</span>
-                        <span className="text-[11px] text-gray-500 truncate min-w-0">{emp.first_name}</span>
+                        {emp.first_name && <span className="text-[11px] text-gray-500 truncate min-w-0">{emp.first_name}</span>}
                         {emp.fonction && <span className="ml-0.5 text-gray-400 text-[9px] shrink-0 whitespace-nowrap" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
                       </div>
                     </td>

@@ -29,6 +29,7 @@ type Employee = {
   start_date: string | null
   end_date: string | null
   site_id: string | null
+  recruitment_status: 'active' | 'recruiting'
 }
 
 type Team = { id: string; name: string; cdpf: string | null }
@@ -136,6 +137,18 @@ export default function EmployesPage() {
   const [assignSiteId, setAssignSiteId] = useState('')
   const [assignSaving, setAssignSaving] = useState(false)
 
+  // Poste à pourvoir
+  const [showRecruitModal, setShowRecruitModal] = useState(false)
+  const [recruitForm, setRecruitForm] = useState({ label: '', statut: '' as 'cadre' | 'agent_de_maitrise' | 'employe' | '', selectedTeamIds: [] as string[], site_id: '' })
+  const [recruitSaving, setRecruitSaving] = useState(false)
+  const [recruitError, setRecruitError] = useState<string | null>(null)
+
+  // Finaliser l'embauche
+  const [finalizeEmp, setFinalizeEmp] = useState<EmployeeWithTeams | null>(null)
+  const [finalizeForm, setFinalizeForm] = useState({ first_name: '', last_name: '', email: '', start_date: '' })
+  const [finalizeSaving, setFinalizeSaving] = useState(false)
+  const [finalizeError, setFinalizeError] = useState<string | null>(null)
+
   const [historyModal, setHistoryModal] = useState<{
     changedFields: { field: 'contract_type' | 'fonction' | 'weekly_contract_hours' | 'statut'; oldValue: string | null; newValue: string | null }[]
     option: 'beginning' | 'from_date'
@@ -147,7 +160,7 @@ export default function EmployesPage() {
 
   async function loadData() {
     let empQ = supabase.from('employees')
-      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id')
+      .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id, recruitment_status')
       .order('last_name').limit(500)
     if (selectedSiteId) empQ = empQ.eq('site_id', selectedSiteId)
 
@@ -157,7 +170,7 @@ export default function EmployesPage() {
     const [empRes, unaffectedRes, etRes, teamsRes, fnRes, usersRes, sitesRes] = await Promise.all([
       empQ,
       supabase.from('employees')
-        .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id')
+        .select('id, first_name, last_name, email, phone, matricule, contract_type, weekly_contract_hours, work_days_per_week, daily_hours, statut, fonction, is_active, created_at, start_date, end_date, site_id, recruitment_status')
         .is('site_id', null).order('last_name').limit(200),
       supabase.from('employee_teams').select('employee_id, team_id, is_primary, teams(name, cdpf)').limit(2000),
       teamsQ,
@@ -380,6 +393,63 @@ export default function EmployesPage() {
     await logAudit('anonymisation_salarie', { employee_id: id, nom: emp ? `${emp.last_name} ${emp.first_name}` : id })
     setConfirmDeleteId(null)
     await loadData()
+  }
+
+  async function handleCreateRecruit() {
+    if (!recruitForm.statut) { setRecruitError('La catégorie est obligatoire.'); return }
+    if (recruitForm.selectedTeamIds.length === 0) { setRecruitError("L'équipe est obligatoire."); return }
+    if (sites.length > 0 && !recruitForm.site_id) { setRecruitError('Veuillez sélectionner un site.'); return }
+    setRecruitSaving(true); setRecruitError(null)
+    try {
+      const recruitingCount = employees.filter(e => e.recruitment_status === 'recruiting').length
+      const label = recruitForm.label.trim() || `POSTE À POURVOIR ${recruitingCount + 1}`
+      const { data, error } = await supabase.from('employees').insert({
+        last_name: label,
+        first_name: '',
+        contract_type: 'CDI',
+        statut: recruitForm.statut,
+        is_active: true,
+        recruitment_status: 'recruiting',
+        site_id: recruitForm.site_id || null,
+      }).select('id').single()
+      if (error) throw error
+      if (recruitForm.selectedTeamIds.length > 0) {
+        await supabase.from('employee_teams').insert(
+          recruitForm.selectedTeamIds.map((teamId, index) => ({ employee_id: data.id, team_id: teamId, is_primary: index === 0 }))
+        )
+      }
+      setShowRecruitModal(false)
+      setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: '' })
+      await loadData()
+    } catch (err: any) {
+      setRecruitError(err?.message ?? JSON.stringify(err))
+    } finally { setRecruitSaving(false) }
+  }
+
+  function openFinalizeModal(emp: EmployeeWithTeams) {
+    setFinalizeEmp(emp)
+    setFinalizeForm({ first_name: '', last_name: '', email: '', start_date: '' })
+    setFinalizeError(null)
+  }
+
+  async function handleFinalize() {
+    if (!finalizeEmp) return
+    if (!finalizeForm.first_name.trim() || !finalizeForm.last_name.trim()) { setFinalizeError('Nom et prénom sont obligatoires.'); return }
+    setFinalizeSaving(true); setFinalizeError(null)
+    try {
+      const { error } = await supabase.from('employees').update({
+        first_name: finalizeForm.first_name.trim(),
+        last_name: finalizeForm.last_name.trim().toUpperCase(),
+        email: finalizeForm.email.trim() || null,
+        start_date: finalizeForm.start_date || null,
+        recruitment_status: 'active',
+      }).eq('id', finalizeEmp.id)
+      if (error) throw error
+      setFinalizeEmp(null)
+      await loadData()
+    } catch (err: any) {
+      setFinalizeError(err?.message ?? JSON.stringify(err))
+    } finally { setFinalizeSaving(false) }
   }
 
   function toggleTeam(teamId: string) {
@@ -620,6 +690,13 @@ export default function EmployesPage() {
               await loadData()
             }}
           />
+          <button onClick={() => { setRecruitError(null); setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: selectedSiteId ?? '' }); setShowRecruitModal(true) }}
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            Poste à pourvoir
+          </button>
           <button onClick={openAdd} className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -673,6 +750,7 @@ export default function EmployesPage() {
               const sorted = [...permanents, ...temporaires]
               return sorted.map((emp, idx) => {
                 const isTmp = temporaires.includes(emp)
+                const isRecruiting = emp.recruitment_status === 'recruiting'
                 const needsSep = idx > 0 && isTmp && !temporaires.includes(sorted[idx - 1])
                 return (
                   <Fragment key={emp.id}>
@@ -683,10 +761,19 @@ export default function EmployesPage() {
                         </td>
                       </tr>
                     )}
-                    <tr className={isTmp ? 'hover:bg-amber-50/40 transition-colors' : 'hover:bg-gray-50 transition-colors'}>
+                    <tr className={isTmp ? 'hover:bg-amber-50/40 transition-colors' : isRecruiting ? 'bg-slate-50/80 hover:bg-slate-100/80 transition-colors' : 'hover:bg-gray-50 transition-colors'}>
                 <td className="px-4 py-1.5">
-                  <span className="font-medium text-gray-900">{emp.last_name}</span>{' '}
-                  <span className="text-gray-600">{emp.first_name}</span>
+                  {isRecruiting ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded whitespace-nowrap">En recrutement</span>
+                      <span className="font-medium text-gray-700 italic">{emp.last_name}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium text-gray-900">{emp.last_name}</span>{' '}
+                      <span className="text-gray-600">{emp.first_name}</span>
+                    </>
+                  )}
                 </td>
                 <td className="px-4 py-1.5 text-gray-500 font-mono">
                   {emp.matricule || <span className="text-gray-300">—</span>}
@@ -719,7 +806,12 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex items-center justify-end gap-1.5">
-                    {(isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
+                    {isRecruiting && (isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
+                      <button onClick={() => openFinalizeModal(emp)} title="Finaliser l'embauche" className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 rounded transition-colors">
+                        Finaliser l'embauche
+                      </button>
+                    )}
+                    {!isRecruiting && (isSuperAdmin(role) || isAdmin(role) || role === 'responsable') && (
                       employeeUserMap[emp.id] ? (
                         <button onClick={() => openResetAccess(emp)} title="Réinitialiser le mot de passe" className="p-1 text-blue-600 bg-blue-50 hover:text-blue-800 rounded-lg transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1215,6 +1307,100 @@ export default function EmployesPage() {
               </div>
             </div>
           )}
+        </Modal>
+      )}
+
+      {/* Modal Créer un poste à pourvoir */}
+      {showRecruitModal && (
+        <Modal title="Créer un poste à pourvoir" onClose={() => setShowRecruitModal(false)}>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+              Ce poste apparaîtra dans les plannings et les cycles. Vous pourrez saisir son planning dès maintenant, puis compléter son identité lors de l'embauche.
+            </div>
+            <Field label="Libellé temporaire">
+              <input type="text" value={recruitForm.label}
+                onChange={e => setRecruitForm(p => ({ ...p, label: e.target.value }))}
+                className="input" placeholder={`POSTE À POURVOIR ${employees.filter(e => e.recruitment_status === 'recruiting').length + 1}`} />
+            </Field>
+            <Field label="Catégorie *">
+              <select value={recruitForm.statut} onChange={e => setRecruitForm(p => ({ ...p, statut: e.target.value as typeof p.statut }))} className="input">
+                <option value="">— Sélectionner —</option>
+                <option value="cadre">Cadre</option>
+                <option value="agent_de_maitrise">Agent de maîtrise</option>
+                <option value="employe">Employé</option>
+              </select>
+            </Field>
+            {sites.length > 0 && (
+              <Field label="Site *">
+                <select value={recruitForm.site_id} onChange={e => setRecruitForm(p => ({ ...p, site_id: e.target.value }))} className="input">
+                  <option value="">— Sélectionner un site —</option>
+                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="Équipe(s) *">
+              <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
+                {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucune équipe disponible</p>}
+                {allTeams.map(team => (
+                  <label key={team.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" checked={recruitForm.selectedTeamIds.includes(team.id)}
+                      onChange={() => setRecruitForm(p => ({
+                        ...p,
+                        selectedTeamIds: p.selectedTeamIds.includes(team.id) ? p.selectedTeamIds.filter(id => id !== team.id) : [...p.selectedTeamIds, team.id],
+                      }))} className="rounded border-gray-300 text-slate-900" />
+                    <span className="text-sm text-gray-700">
+                      {teamLabel(team)}
+                      {recruitForm.selectedTeamIds[0] === team.id && <span className="ml-2 text-xs text-slate-500">(principale)</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </Field>
+            {recruitError && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm">Erreur : {recruitError}</div>}
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button onClick={() => setShowRecruitModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
+            <button onClick={handleCreateRecruit} disabled={recruitSaving || !recruitForm.statut || recruitForm.selectedTeamIds.length === 0}
+              className="px-4 py-2 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50">
+              {recruitSaving ? 'Création…' : 'Créer le poste'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Finaliser l'embauche */}
+      {finalizeEmp && (
+        <Modal title="Finaliser l'embauche" onClose={() => setFinalizeEmp(null)}>
+          <div className="space-y-4">
+            <div className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600">
+              Poste : <span className="font-semibold">{finalizeEmp.last_name}</span>
+            </div>
+            <p className="text-sm text-gray-500">
+              Le planning existant sera conservé. Le salarié sera activé avec son vrai nom.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Prénom *">
+                <input type="text" value={finalizeForm.first_name} onChange={e => setFinalizeForm(p => ({ ...p, first_name: e.target.value }))} className="input" placeholder="Sophie" autoFocus />
+              </Field>
+              <Field label="Nom *">
+                <input type="text" value={finalizeForm.last_name} onChange={e => setFinalizeForm(p => ({ ...p, last_name: e.target.value }))} className="input" placeholder="Marchand" />
+              </Field>
+            </div>
+            <Field label="Email (optionnel)">
+              <input type="email" value={finalizeForm.email} onChange={e => setFinalizeForm(p => ({ ...p, email: e.target.value }))} className="input" placeholder="sophie.marchand@exemple.fr" />
+            </Field>
+            <Field label="Date d'entrée">
+              <input type="date" value={finalizeForm.start_date} onChange={e => setFinalizeForm(p => ({ ...p, start_date: e.target.value }))} className="input" />
+            </Field>
+            {finalizeError && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-3 text-sm">Erreur : {finalizeError}</div>}
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <button onClick={() => setFinalizeEmp(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
+            <button onClick={handleFinalize} disabled={finalizeSaving || !finalizeForm.first_name.trim() || !finalizeForm.last_name.trim()}
+              className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+              {finalizeSaving ? 'Enregistrement…' : 'Confirmer l\'embauche'}
+            </button>
+          </div>
         </Modal>
       )}
 

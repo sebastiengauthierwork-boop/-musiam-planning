@@ -20,7 +20,7 @@ function fmtH(h: number): string {
 }
 
 type CellEntry = { teamId: string; code: string }
-type EmpRow = { id: string; first_name: string; last_name: string; statut: string | null; contract_type: string | null; teamIds: string[] }
+type EmpRow = { id: string; first_name: string; last_name: string; statut: string | null; contract_type: string | null; teamIds: string[]; recruitment_status?: string | null }
 
 const COL_NOM = 120
 const COL_PRENOM = 90
@@ -53,7 +53,7 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
 
       const [etRes, schedRes] = await Promise.all([
         supabase.from('employee_teams')
-          .select('employee_id, team_id, employees(id, first_name, last_name, statut, contract_type, is_active, start_date, end_date)')
+          .select('employee_id, team_id, employees(id, first_name, last_name, statut, contract_type, is_active, start_date, end_date, recruitment_status)')
           .in('team_id', selectedTeamIds),
         supabase.from('schedules')
           .select('employee_id, team_id, date, code')
@@ -70,7 +70,7 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
         if (!e || !e.is_active) continue
         if (e.start_date && e.start_date > endDate) continue
         if (e.end_date && e.end_date < startDate) continue
-        if (!newEmpMap[e.id]) newEmpMap[e.id] = { id: e.id, first_name: e.first_name, last_name: e.last_name, statut: e.statut ?? null, contract_type: e.contract_type ?? null, teamIds: [] }
+        if (!newEmpMap[e.id]) newEmpMap[e.id] = { id: e.id, first_name: e.first_name, last_name: e.last_name, statut: e.statut ?? null, contract_type: e.contract_type ?? null, teamIds: [], recruitment_status: e.recruitment_status ?? 'active' }
         if (!newEmpMap[e.id].teamIds.includes(et.team_id)) newEmpMap[e.id].teamIds.push(et.team_id)
       }
       setEmpMap(newEmpMap)
@@ -179,11 +179,17 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
               </thead>
               <tbody>
                 {sortedEmployees.map((emp, idx) => {
-                  const bg = idx % 2 === 0 ? '#ffffff' : '#f9fafb'
+                  const isRecruiting = emp.recruitment_status === 'recruiting'
+                  const bg = isRecruiting ? '#f8f8f8' : idx % 2 === 0 ? '#ffffff' : '#f9fafb'
                   const totalH = getEmpTotalHours(emp.id)
                   return (
                     <tr key={emp.id}>
-                      <td className="border-b border-r border-slate-100 px-2 py-1.5 font-medium text-slate-900 whitespace-nowrap" style={{ position: 'sticky', left: 0, zIndex: 10, background: bg, minWidth: COL_NOM }}>{emp.last_name}</td>
+                      <td className="border-b border-r border-slate-100 px-2 py-1.5 whitespace-nowrap" style={{ position: 'sticky', left: 0, zIndex: 10, background: bg, minWidth: COL_NOM }}>
+                        <div className="flex items-center gap-1">
+                          {isRecruiting && <span className="shrink-0 text-[8px] font-bold text-amber-600 bg-amber-100 px-1 rounded leading-tight">REC</span>}
+                          <span className="font-medium text-slate-900">{emp.last_name}</span>
+                        </div>
+                      </td>
                       <td className="border-b border-r border-slate-100 px-2 py-1.5 text-slate-700 whitespace-nowrap" style={{ position: 'sticky', left: COL_NOM, zIndex: 10, background: bg, minWidth: COL_PRENOM }}>{emp.first_name}</td>
                       <td className="border-b border-r border-slate-100 px-2 py-1.5 text-center text-slate-500 whitespace-nowrap" style={{ position: 'sticky', left: COL_NOM + COL_PRENOM, zIndex: 10, background: bg, minWidth: COL_EQ }}>
                         {emp.teamIds.map(t => getTeamShortLabel(t)).join(',')}

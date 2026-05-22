@@ -34,7 +34,7 @@ export async function loadTeamData(teamId: string, month: number, year: number):
   // Load employees first (no role filter — accessible to all authenticated users)
   const etRes = await supabase
     .from('employee_teams')
-    .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date)')
+    .select('employee_id, is_primary, employees(id, first_name, last_name, contract_type, weekly_contract_hours, hourly_rate, statut, fonction, is_active, start_date, end_date, recruitment_status)')
     .eq('team_id', teamId)
 
   if (etRes.error) throw new Error(etRes.error.message)
@@ -57,6 +57,7 @@ export async function loadTeamData(teamId: string, month: number, year: number):
       is_primary: et.is_primary ?? true,
       start_date: e.start_date ?? null,
       end_date: e.end_date ?? null,
+      recruitment_status: e.recruitment_status ?? 'active',
     })
   }
 

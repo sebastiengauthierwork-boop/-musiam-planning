@@ -10,6 +10,7 @@ export type Employee = {
   is_primary?: boolean   // true = équipe principale, false = renfort
   start_date?: string | null  // YYYY-MM-DD, optionnel
   end_date?: string | null    // YYYY-MM-DD, optionnel
+  recruitment_status?: 'active' | 'recruiting' | null
 }
 
 export type CalendarDay = {
