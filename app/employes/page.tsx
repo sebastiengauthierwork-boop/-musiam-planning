@@ -139,7 +139,7 @@ export default function EmployesPage() {
 
   // Poste à pourvoir
   const [showRecruitModal, setShowRecruitModal] = useState(false)
-  const [recruitForm, setRecruitForm] = useState({ label: '', statut: '' as 'cadre' | 'agent_de_maitrise' | 'employe' | '', selectedTeamIds: [] as string[], site_id: '' })
+  const [recruitForm, setRecruitForm] = useState({ label: '', statut: '' as 'cadre' | 'agent_de_maitrise' | 'employe' | '', selectedTeamIds: [] as string[], site_id: '', start_date: '' })
   const [recruitSaving, setRecruitSaving] = useState(false)
   const [recruitError, setRecruitError] = useState<string | null>(null)
 
@@ -398,6 +398,7 @@ export default function EmployesPage() {
   async function handleCreateRecruit() {
     if (!recruitForm.statut) { setRecruitError('La catégorie est obligatoire.'); return }
     if (recruitForm.selectedTeamIds.length === 0) { setRecruitError("L'équipe est obligatoire."); return }
+    if (!recruitForm.start_date) { setRecruitError("La date de début est obligatoire."); return }
     if (sites.length > 0 && !recruitForm.site_id) { setRecruitError('Veuillez sélectionner un site.'); return }
     setRecruitSaving(true); setRecruitError(null)
     try {
@@ -411,6 +412,7 @@ export default function EmployesPage() {
         is_active: true,
         recruitment_status: 'recruiting',
         site_id: recruitForm.site_id || null,
+        start_date: recruitForm.start_date,
       }).select('id').single()
       if (error) throw error
       if (recruitForm.selectedTeamIds.length > 0) {
@@ -419,7 +421,7 @@ export default function EmployesPage() {
         )
       }
       setShowRecruitModal(false)
-      setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: '' })
+      setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: '', start_date: '' })
       await loadData()
     } catch (err: any) {
       setRecruitError(err?.message ?? JSON.stringify(err))
@@ -690,7 +692,7 @@ export default function EmployesPage() {
               await loadData()
             }}
           />
-          <button onClick={() => { setRecruitError(null); setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: selectedSiteId ?? '' }); setShowRecruitModal(true) }}
+          <button onClick={() => { setRecruitError(null); setRecruitForm({ label: '', statut: '', selectedTeamIds: [], site_id: selectedSiteId ?? '', start_date: '' }); setShowRecruitModal(true) }}
             className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -1315,8 +1317,13 @@ export default function EmployesPage() {
         <Modal title="Créer un poste à pourvoir" onClose={() => setShowRecruitModal(false)}>
           <div className="space-y-4">
             <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-              Ce poste apparaîtra dans les plannings et les cycles. Vous pourrez saisir son planning dès maintenant, puis compléter son identité lors de l'embauche.
+              Ce poste apparaîtra dans les plannings à partir de la date de début. Vous pourrez saisir son planning dès maintenant, puis compléter son identité lors de l'embauche.
             </div>
+            <Field label="Date de début *">
+              <input type="date" value={recruitForm.start_date}
+                onChange={e => setRecruitForm(p => ({ ...p, start_date: e.target.value }))}
+                className="input" />
+            </Field>
             <Field label="Libellé temporaire">
               <input type="text" value={recruitForm.label}
                 onChange={e => setRecruitForm(p => ({ ...p, label: e.target.value }))}
@@ -1360,7 +1367,7 @@ export default function EmployesPage() {
           </div>
           <div className="flex justify-end gap-3 mt-6">
             <button onClick={() => setShowRecruitModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Annuler</button>
-            <button onClick={handleCreateRecruit} disabled={recruitSaving || !recruitForm.statut || recruitForm.selectedTeamIds.length === 0}
+            <button onClick={handleCreateRecruit} disabled={recruitSaving || !recruitForm.statut || recruitForm.selectedTeamIds.length === 0 || !recruitForm.start_date}
               className="px-4 py-2 text-sm font-medium text-white bg-amber-500 rounded-lg hover:bg-amber-600 disabled:opacity-50">
               {recruitSaving ? 'Création…' : 'Créer le poste'}
             </button>
