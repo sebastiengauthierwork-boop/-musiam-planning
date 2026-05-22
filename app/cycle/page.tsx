@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useState, Fragment } from 'react'
+import { useCallback, useEffect, useRef, useMemo, useState, Fragment } from 'react'
 import { supabase } from '@/lib/supabase'
 import { teamLabel } from '@/lib/teamUtils'
 import { getCodeColors, SHIFT_PALETTE, REPOS_COLOR, ABSENCE_COLOR } from '@/lib/codeColors'
@@ -16,15 +16,19 @@ type AllCode = { code: string; label: string; kind: 'shift' | 'absence'; start_t
 
 const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
 const DAY_LABELS = ['L', 'Ma', 'Me', 'J', 'V', 'S', 'D']
+const REPOS_CODES_SET = new Set(['R', 'REP', 'FER'])
 
-function CycleCell({ code, shiftCodes, absenceCodes, onSave }: {
+function CycleCell({ code, cellKey, shiftCodes, absenceCodes, onSave, onNavigate }: {
   code: string
+  cellKey: string
   shiftCodes: ShiftCode[]
   absenceCodes: AbsenceCode[]
   onSave: (code: string) => void
+  onNavigate: (dir: 'up' | 'down' | 'left' | 'right') => void
 }) {
   const [val, setVal] = useState(code)
   const [open, setOpen] = useState(false)
+  const [selectedIdx, setSelectedIdx] = useState(-1)
   useEffect(() => { setVal(code) }, [code])
 
   const allCodes: AllCode[] = [
@@ -33,39 +37,60 @@ function CycleCell({ code, shiftCodes, absenceCodes, onSave }: {
   ]
   const allValidCodes = new Set([...shiftCodes.map(c => c.code), ...absenceCodes.map(c => c.code)])
   const suggestions = allCodes.filter(c => val.length === 0 || c.code.startsWith(val.toUpperCase()))
+  const shiftSuggestions = suggestions.filter(c => c.kind === 'shift')
+  const absenceSuggestions = suggestions.filter(c => c.kind === 'absence')
 
   function commit(v: string) {
     const upper = v.trim().toUpperCase()
     if (upper === '' || allValidCodes.has(upper)) { setVal(upper); onSave(upper) }
     else setVal(code)
     setOpen(false)
+    setSelectedIdx(-1)
   }
 
   const colors = val ? getCodeColors(val, shiftCodes, absenceCodes) : null
   const bgStyle = colors ? { background: colors.bg, color: colors.text } : {}
 
   return (
-    <div className="relative w-full h-full" style={bgStyle}>
+    <div data-cell={cellKey} className="relative w-full h-full" style={bgStyle}>
       <input
         value={val}
-        onChange={e => { setVal(e.target.value.toUpperCase()); setOpen(true) }}
+        onChange={e => { setVal(e.target.value.toUpperCase()); setOpen(true); setSelectedIdx(-1) }}
         onFocus={() => setOpen(true)}
         onBlur={() => { setTimeout(() => setOpen(false), 130); commit(val) }}
         onKeyDown={e => {
-          if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); commit(val) }
-          if (e.key === 'Escape') { setVal(code); setOpen(false) }
+          if (open) {
+            if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, suggestions.length - 1)) }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, -1)) }
+            else if (e.key === 'Enter') {
+              e.preventDefault()
+              const chosen = selectedIdx >= 0 ? suggestions[selectedIdx]?.code : val
+              commit(chosen ?? val)
+              onNavigate('down')
+            }
+            else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); setSelectedIdx(-1) }
+            else if (e.key === 'Tab') { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
+          } else {
+            if (e.key === 'ArrowUp')    { e.preventDefault(); commit(val); onNavigate('up') }
+            else if (e.key === 'ArrowDown')  { e.preventDefault(); commit(val); onNavigate('down') }
+            else if (e.key === 'ArrowLeft')  { e.preventDefault(); commit(val); onNavigate('left') }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); commit(val); onNavigate('right') }
+            else if (e.key === 'Enter')  { e.preventDefault(); setOpen(true); setSelectedIdx(-1) }
+            else if (e.key === 'Tab')    { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
+            else if (e.key === 'Escape') { setVal(code); setOpen(false) }
+          }
         }}
         className="w-full h-7 text-center text-xs font-mono bg-transparent focus:outline-none uppercase"
         maxLength={5}
       />
       {open && suggestions.length > 0 && (
         <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
-          {suggestions.some(c => c.kind === 'shift') && (
+          {shiftSuggestions.length > 0 && (
             <>
               <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Codes horaires</div>
-              {suggestions.filter(c => c.kind === 'shift').map(c => (
-                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left">
+              {shiftSuggestions.map((c, i) => (
+                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false); setSelectedIdx(-1) }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left ${i === selectedIdx ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
                   <span className="font-mono font-bold w-10 shrink-0 text-blue-600">{c.code}</span>
                   <span className="text-gray-500 truncate flex-1">{c.label}</span>
                   {c.start_time && <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>}
@@ -73,12 +98,12 @@ function CycleCell({ code, shiftCodes, absenceCodes, onSave }: {
               ))}
             </>
           )}
-          {suggestions.some(c => c.kind === 'absence') && (
+          {absenceSuggestions.length > 0 && (
             <>
               <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Absences</div>
-              {suggestions.filter(c => c.kind === 'absence').map(c => (
-                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false) }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-blue-50 text-left">
+              {absenceSuggestions.map((c, i) => (
+                <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false); setSelectedIdx(-1) }}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left ${shiftSuggestions.length + i === selectedIdx ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
                   <span className="font-mono font-bold w-10 shrink-0 text-gray-500">{c.code}</span>
                   <span className="text-gray-500 truncate flex-1">{c.label}</span>
                 </button>
@@ -102,6 +127,8 @@ export default function CyclePage() {
   const [entries, setEntries] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const tableRef = useRef<HTMLTableElement>(null)
 
   // Manage employees modal
   const [manageModal, setManageModal] = useState(false)
@@ -245,6 +272,41 @@ export default function CyclePage() {
   const cycleWeeks = (currentTeam?.cycle_weeks ?? 6) || 6
   const weeks = Array.from({ length: cycleWeeks }, (_, i) => i + 1)
 
+  function navigateCell(empId: string, weekNum: number, dayOfWeek: number, dir: 'up' | 'down' | 'left' | 'right') {
+    const empIdx = cycleEmployees.findIndex(e => e.id === empId)
+    const totalCols = cycleWeeks * 7
+    const colIdx = (weekNum - 1) * 7 + (dayOfWeek - 1)
+    let nextEmpIdx = empIdx
+    let nextColIdx = colIdx
+    if (dir === 'up')    nextEmpIdx = Math.max(0, empIdx - 1)
+    if (dir === 'down')  nextEmpIdx = Math.min(cycleEmployees.length - 1, empIdx + 1)
+    if (dir === 'left')  nextColIdx = Math.max(0, colIdx - 1)
+    if (dir === 'right') nextColIdx = Math.min(totalCols - 1, colIdx + 1)
+    const nextEmp = cycleEmployees[nextEmpIdx]
+    if (!nextEmp) return
+    const nextWeek = Math.floor(nextColIdx / 7) + 1
+    const nextDay = (nextColIdx % 7) + 1
+    setTimeout(() => {
+      const key = `${nextEmp.id}|${nextWeek}|${nextDay}`
+      tableRef.current?.querySelector<HTMLInputElement>(`[data-cell="${key}"] input`)?.focus()
+    }, 0)
+  }
+
+  const absenceCodeSet = useMemo(() => new Set(absenceCodes.map(a => a.code)), [absenceCodes])
+
+  const presentsByDay = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (let w = 1; w <= cycleWeeks; w++) {
+      for (let d = 1; d <= 7; d++) {
+        map[`${w}|${d}`] = cycleEmployees.filter(emp => {
+          const code = entries[`${emp.id}|${w}|${d}`] ?? ''
+          return code && !REPOS_CODES_SET.has(code) && !absenceCodeSet.has(code)
+        }).length
+      }
+    }
+    return map
+  }, [cycleEmployees, entries, cycleWeeks, absenceCodeSet])
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -284,7 +346,7 @@ export default function CyclePage() {
             </button>
           </div>
         ) : (
-          <table className="border-collapse text-xs w-max min-w-full">
+          <table ref={tableRef} className="border-collapse text-xs w-max min-w-full">
             <thead className="sticky top-0 z-20 bg-white">
               <tr>
                 <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-44 min-w-[176px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
@@ -301,6 +363,23 @@ export default function CyclePage() {
                           : <div className="leading-none mb-0.5 invisible text-[9px]">·</div>
                         }
                         <div className={`text-[10px] ${isWE ? 'text-slate-400' : 'text-gray-500'}`}>{d}</div>
+                      </th>
+                    )
+                  })
+                )}
+              </tr>
+              <tr>
+                <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 px-3 py-1 text-left text-gray-400 text-[10px] font-normal">
+                  Présents
+                </th>
+                {weeks.map(w =>
+                  DAY_LABELS.map((_, di) => {
+                    const dayOfWeek = di + 1
+                    const count = presentsByDay[`${w}|${dayOfWeek}`] ?? 0
+                    const isWE = di >= 5
+                    return (
+                      <th key={`${w}-${di}`} className={`border-b border-r border-gray-100 py-1 text-center text-[10px] font-semibold${isWE ? ' text-slate-300' : ' text-indigo-500'}`}>
+                        {count > 0 ? count : ''}
                       </th>
                     )
                   })
@@ -325,9 +404,11 @@ export default function CyclePage() {
                         <td key={`${w}-${di}`} className={`border-b border-r border-gray-100 p-0 h-7 relative${isWE ? ' bg-gray-50/30' : ''}`}>
                           <CycleCell
                             code={code}
+                            cellKey={key}
                             shiftCodes={shiftCodes}
                             absenceCodes={absenceCodes}
                             onSave={v => saveEntry(emp.id, w, dayOfWeek, v)}
+                            onNavigate={dir => navigateCell(emp.id, w, dayOfWeek, dir)}
                           />
                         </td>
                       )
