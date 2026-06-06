@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
 import { buildStructHoursMap, computeMonthBudget, fmtHMin } from '@/lib/budgetUtils'
+import * as XLSX from 'xlsx'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -757,8 +758,41 @@ export function Calendrier() {
     setShowFill(false)
   }
 
+  function exportBudgetExcel() {
+    const teamName = teams.find(t => t.id === teamId)?.name ?? 'Equipe'
+    const sheetName = `Budget heures ${year}`.slice(0, 31)
+    const headers = ['Jour', ...MONTHS_FR, 'TOTAL ANNUEL']
+    const rows: (string | number | null)[][] = []
+    for (let day = 1; day <= 31; day++) {
+      const row: (string | number | null)[] = [day]
+      let rowTotal = 0
+      for (let m = 0; m < 12; m++) {
+        const nDays = new Date(year, m + 1, 0).getDate()
+        if (day > nDays) {
+          row.push(null)
+        } else {
+          const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+          const structId = calMap[dateStr]
+          const h = structId ? (structHoursMap[structId] ?? 0) : 0
+          row.push(h)
+          rowTotal += h
+        }
+      }
+      row.push(rowTotal)
+      rows.push(row)
+    }
+    const totalRow: (string | number)[] = ['TOTAL', ...allMonthBudgets, annualBudget]
+    const aoa = [headers, ...rows, totalRow]
+    const ws = XLSX.utils.aoa_to_sheet(aoa)
+    ws['!cols'] = [{ wch: 6 }, ...Array(12).fill({ wch: 11 }), { wch: 14 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    XLSX.writeFile(wb, `Budget_Heures_${teamName.replace(/\s+/g, '_')}_${year}.xlsx`)
+  }
+
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i)
   const DAY_LABELS_LONG = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+  const DAY_LABELS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
   if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
 
@@ -778,6 +812,13 @@ export function Calendrier() {
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-200">
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
+          <button onClick={exportBudgetExcel}
+            className="inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exporter Excel
+          </button>
           <button onClick={() => setShowFill(v => !v)}
             className={`inline-flex items-center gap-2 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${showFill ? 'bg-indigo-700 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -857,9 +898,14 @@ export function Calendrier() {
               <div className="flex items-baseline gap-1.5 mb-2">
                 <span className="text-xs font-semibold text-gray-700">{MONTHS_FR[m]}</span>
                 <span className="text-gray-200">|</span>
-                <span className="text-[10px] text-gray-400 tabular-nums">
-                  {mBudget > 0 ? `${fmtHMin(mBudget)} budget` : '— h budget'}
-                </span>
+                {mBudget > 0 ? (
+                  <>
+                    <span className="text-[10px] font-semibold text-indigo-700 tabular-nums">{fmtHMin(mBudget)}</span>
+                    <span className="text-[10px] text-gray-400">budget</span>
+                  </>
+                ) : (
+                  <span className="text-[10px] text-gray-300">— h budget</span>
+                )}
               </div>
               <div className="grid grid-cols-7 gap-px">
                 {['L', 'Ma', 'Me', 'J', 'V', 'S', 'D'].map(d => (
@@ -918,40 +964,51 @@ export function Calendrier() {
       {popoverMonth !== null && (() => {
         const pm = popoverMonth
         const nDays = new Date(year, pm + 1, 0).getDate()
-        const weekMap = new Map<number, number>()
+        const weekGroups = new Map<number, { label: string; h: number }[]>()
         for (let d = 1; d <= nDays; d++) {
           const date = new Date(year, pm, d)
           const structId = calMap[toISO(date)]
-          if (!structId) continue
-          const h = structHoursMap[structId] ?? 0
+          const h = structId ? (structHoursMap[structId] ?? 0) : 0
           const w = getISOWeek(date)
-          weekMap.set(w, (weekMap.get(w) ?? 0) + h)
+          const label = `${DAY_LABELS_SHORT[date.getDay()]} ${String(d).padStart(2, '0')}/${String(pm + 1).padStart(2, '0')}`
+          if (!weekGroups.has(w)) weekGroups.set(w, [])
+          weekGroups.get(w)!.push({ label, h })
         }
-        const weekEntries = [...weekMap.entries()].sort((a, b) => a[0] - b[0])
-        const monthTotal = weekEntries.reduce((s, [, h]) => s + h, 0)
+        const sortedWeeks = [...weekGroups.entries()].sort((a, b) => a[0] - b[0])
+        const monthTotal = sortedWeeks.reduce((s, [, days]) => s + days.reduce((ss, d) => ss + d.h, 0), 0)
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setPopoverMonth(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-96 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
                 <h3 className="text-sm font-bold text-gray-900">{MONTHS_FR[pm]} {year} — Budget heures</h3>
-                <button onClick={() => setPopoverMonth(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+                <button onClick={() => setPopoverMonth(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
               </div>
-              {weekEntries.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">Aucune structure appliquée ce mois.</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {weekEntries.map(([w, h]) => (
-                    <div key={w} className="flex items-baseline justify-between">
-                      <span className="text-xs text-gray-500">Semaine {w}</span>
-                      <span className="text-xs font-semibold text-gray-800 tabular-nums">{fmtHMin(h)}</span>
+              <div className="overflow-y-auto px-5 py-3 space-y-4">
+                {sortedWeeks.map(([w, days]) => {
+                  const weekTotal = days.reduce((s, d) => s + d.h, 0)
+                  return (
+                    <div key={w}>
+                      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Semaine {w}</div>
+                      <div className="space-y-0.5">
+                        {days.map(day => (
+                          <div key={day.label} className="flex items-baseline justify-between">
+                            <span className="text-xs text-gray-500 w-24">{day.label}</span>
+                            <span className={`text-xs tabular-nums ${day.h > 0 ? 'text-gray-700' : 'text-gray-300'}`}>{fmtHMin(day.h)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-baseline justify-between mt-1 pt-1 border-t border-gray-100">
+                        <span className="text-xs text-gray-400">Sous-total</span>
+                        <span className="text-xs font-bold text-gray-700 tabular-nums">{fmtHMin(weekTotal)}</span>
+                      </div>
                     </div>
-                  ))}
-                  <div className="border-t border-gray-100 pt-1.5 flex items-baseline justify-between">
-                    <span className="text-xs font-bold text-gray-700">Total</span>
-                    <span className="text-sm font-bold text-gray-900 tabular-nums">{fmtHMin(monthTotal)}</span>
-                  </div>
-                </div>
-              )}
+                  )
+                })}
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 border-t-2 border-gray-200 shrink-0 bg-gray-50 rounded-b-2xl">
+                <span className="text-sm font-bold text-gray-700 uppercase tracking-wide">Total {MONTHS_FR[pm]}</span>
+                <span className="text-base font-bold text-gray-900 tabular-nums">{fmtHMin(monthTotal)}</span>
+              </div>
             </div>
           </div>
         )
