@@ -152,7 +152,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showOld ? 'text' : 'password'} value={oldPwd} onChange={e => setOldPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowOld(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showOld} /></button>
+                <button type="button" onClick={() => setShowOld(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showOld} /></button>
               </div>
             </div>
             <div>
@@ -160,7 +160,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showNew ? 'text' : 'password'} value={newPwd} onChange={e => setNewPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowNew(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showNew} /></button>
+                <button type="button" onClick={() => setShowNew(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showNew} /></button>
               </div>
             </div>
             <div>
@@ -168,7 +168,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showConfirm ? 'text' : 'password'} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowConfirm(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showConfirm} /></button>
+                <button type="button" onClick={() => setShowConfirm(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showConfirm} /></button>
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-1">

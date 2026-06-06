@@ -87,14 +87,14 @@ export default function SitesPage() {
     await loadSites()
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
+  if (loading) return <div className="flex items-center justify-center h-full text-gray-600 text-sm">Chargement…</div>
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sites</h1>
-          <p className="text-gray-500 text-sm mt-1">{sites.length} site{sites.length !== 1 ? 's' : ''}</p>
+          <p className="text-gray-700 text-sm mt-1">{sites.length} site{sites.length !== 1 ? 's' : ''}</p>
         </div>
         <button onClick={openAdd}
           className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
@@ -111,36 +111,36 @@ export default function SitesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Préfixe CDPF</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Adresse</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Préfixe CDPF</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Adresse</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
               <th className="px-5 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {sites.length === 0 && (
-              <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-400">Aucun site</td></tr>
+              <tr><td colSpan={5} className="px-5 py-10 text-center text-gray-600">Aucun site</td></tr>
             )}
             {sites.map(site => (
               <tr key={site.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-5 py-3.5 font-medium text-gray-900">{site.name}</td>
-                <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{site.cdpf_prefix ?? <span className="text-gray-300">—</span>}</td>
-                <td className="px-5 py-3.5 text-gray-500 max-w-xs truncate">{site.address ?? '—'}</td>
+                <td className="px-5 py-3.5 font-mono text-xs text-gray-700">{site.cdpf_prefix ?? <span className="text-gray-700">—</span>}</td>
+                <td className="px-5 py-3.5 text-gray-700 max-w-xs truncate">{site.address ?? '—'}</td>
                 <td className="px-5 py-3.5">
                   {site.is_active
                     ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">Actif</span>
-                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Inactif</span>}
+                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">Inactif</span>}
                 </td>
                 <td className="px-5 py-3.5">
                   <div className="flex items-center justify-end gap-2">
-                    <button onClick={() => openEdit(site)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button onClick={() => openEdit(site)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
                     {isAdmin(role) && (
-                      <button onClick={() => setConfirmDeleteId(site.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <button onClick={() => setConfirmDeleteId(site.id)} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
@@ -181,7 +181,7 @@ export default function SitesPage() {
               <input type="number" min={0} max={60} value={formData.dressing_minutes_per_day}
                 onChange={e => setFormData({ ...formData, dressing_minutes_per_day: Math.max(0, parseInt(e.target.value) || 0) })}
                 className="input" placeholder="10" />
-              <p className="text-xs text-gray-400 mt-1">Mettre 0 pour ne pas afficher la mention sur les plannings.</p>
+              <p className="text-xs text-gray-600 mt-1">Mettre 0 pour ne pas afficher la mention sur les plannings.</p>
             </Field>
           </div>
           <div className="flex justify-end gap-3 mt-6">
@@ -220,7 +220,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

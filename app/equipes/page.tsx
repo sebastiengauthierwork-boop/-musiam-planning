@@ -149,7 +149,7 @@ export default function EquipesPage() {
     await loadTeams()
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
+  if (loading) return <div className="flex items-center justify-center h-full text-gray-600 text-sm">Chargement…</div>
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -157,7 +157,7 @@ export default function EquipesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Équipes</h1>
-          <p className="text-gray-500 text-sm mt-1">{teams.length} équipe{teams.length !== 1 ? 's' : ''}</p>
+          <p className="text-gray-700 text-sm mt-1">{teams.length} équipe{teams.length !== 1 ? 's' : ''}</p>
         </div>
         <button onClick={openAdd}
           className="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-4 py-2.5 rounded-lg transition-colors">
@@ -181,7 +181,7 @@ export default function EquipesPage() {
             </div>
           ))}
           {grouped.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 px-5 py-10 text-center text-gray-400">Aucune équipe</div>
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-10 text-center text-gray-600">Aucune équipe</div>
           )}
         </div>
       ) : (
@@ -285,42 +285,42 @@ function TeamsTable({ teams, showSite, onEdit, onDelete }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50">
-            {showSite && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Site</th>}
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Lettre</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">CDPF</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-            <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Salariés</th>
+            {showSite && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Site</th>}
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Nom</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Lettre</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">CDPF</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Type</th>
+            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Description</th>
+            <th className="text-right px-5 py-3 text-xs font-semibold text-gray-700 uppercase tracking-wider">Salariés</th>
             <th className="px-5 py-3"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {teams.length === 0 && (
-            <tr><td colSpan={showSite ? 8 : 7} className="px-5 py-10 text-center text-gray-400">Aucune équipe</td></tr>
+            <tr><td colSpan={showSite ? 8 : 7} className="px-5 py-10 text-center text-gray-600">Aucune équipe</td></tr>
           )}
           {teams.map(team => (
             <tr key={team.id} className="hover:bg-gray-50 transition-colors">
-              {showSite && <td className="px-5 py-3.5 text-gray-500 text-xs">{team.site_name ?? '—'}</td>}
+              {showSite && <td className="px-5 py-3.5 text-gray-700 text-xs">{team.site_name ?? '—'}</td>}
               <td className="px-5 py-3.5 font-medium text-gray-900">{team.name}</td>
               <td className="px-5 py-3.5">
                 {team.letter
                   ? <span className="font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-xs">{team.letter}</span>
-                  : <span className="text-gray-300 text-xs">—</span>}
+                  : <span className="text-gray-700 text-xs">—</span>}
               </td>
-              <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{team.cdpf ?? <span className="text-gray-300">—</span>}</td>
+              <td className="px-5 py-3.5 font-mono text-xs text-gray-700">{team.cdpf ?? <span className="text-gray-700">—</span>}</td>
               <td className="px-5 py-3.5"><TypeBadge type={team.type} /></td>
-              <td className="px-5 py-3.5 text-gray-500 max-w-xs truncate">{team.description ?? '—'}</td>
+              <td className="px-5 py-3.5 text-gray-700 max-w-xs truncate">{team.description ?? '—'}</td>
               <td className="px-5 py-3.5 text-right text-gray-600">{team.employeeCount}</td>
               <td className="px-5 py-3.5">
                 <div className="flex items-center justify-end gap-2">
-                  <button onClick={() => onEdit(team)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                  <button onClick={() => onEdit(team)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
                   {onDelete && (
-                    <button onClick={() => onDelete(team.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => onDelete(team.id)} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -351,7 +351,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

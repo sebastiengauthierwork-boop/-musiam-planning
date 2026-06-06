@@ -28,7 +28,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -45,7 +45,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
     <div>
       <label className="block text-xs font-medium text-gray-700 mb-1.5">{label}</label>
       {children}
-      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-600 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -144,7 +144,7 @@ function GanttPanel({
 
       <div className="no-print flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50">
         <span className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
           </svg>
           Diagramme de Gantt
@@ -157,7 +157,7 @@ function GanttPanel({
             </svg>
             Imprimer / PDF
           </button>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-1.5 text-gray-600 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -415,14 +415,14 @@ export function Structures() {
     return `${Math.floor(h)}h${h % 1 ? String(Math.round((h % 1) * 60)).padStart(2, '0') : ''}`
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <h2 className="text-base font-semibold text-gray-900">
-            Structures de staffing <span className="text-gray-400 font-normal text-sm">({structures.length})</span>
+            Structures de staffing <span className="text-gray-600 font-normal text-sm">({structures.length})</span>
           </h2>
           {teams.length > 0 && (
             <select
@@ -443,7 +443,7 @@ export function Structures() {
 
       <div className="space-y-3">
         {structures.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-gray-400 text-sm">
+          <div className="bg-white rounded-xl border border-gray-200 px-4 py-8 text-center text-gray-600 text-sm">
             Aucune structure. Créez-en une pour définir les besoins en effectif par jour.
           </div>
         )}
@@ -460,7 +460,7 @@ export function Structures() {
                     className="flex items-center gap-2 flex-1 text-left min-w-0 group"
                   >
                     <svg
-                      xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 shrink-0 transition-transform duration-150"
+                      xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600 shrink-0 transition-transform duration-150"
                       style={{ transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
                       fill="none" viewBox="0 0 24 24" stroke="currentColor"
                     >
@@ -473,16 +473,16 @@ export function Structures() {
                       </span>
                     )}
                     {pos.length > 0 && (
-                      <span className="text-[10px] text-gray-400 ml-1 hidden group-hover:inline">
+                      <span className="text-[10px] text-gray-600 ml-1 hidden group-hover:inline">
                         Cliquer pour voir le Gantt
                       </span>
                     )}
                   </button>
                   <div className="flex items-center gap-1 shrink-0 ml-2">
-                    <button onClick={() => openEdit(s)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button onClick={() => openEdit(s)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
-                    <button onClick={() => setDeletingId(s.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => setDeletingId(s.id)} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
@@ -502,7 +502,7 @@ export function Structures() {
                     })}
                   </div>
                 ) : (
-                  <span className="text-xs text-gray-400">Aucun code horaire défini</span>
+                  <span className="text-xs text-gray-600">Aucun code horaire défini</span>
                 )}
               </div>
 
@@ -530,9 +530,9 @@ export function Structures() {
               <label className="block text-xs font-medium text-gray-700 mb-2">Codes horaires requis</label>
 
               <div className="grid grid-cols-[1fr_80px_80px_28px] gap-2 mb-1 px-1">
-                <div className="text-[11px] text-gray-400 font-medium">Code horaire</div>
-                <div className="text-[11px] text-gray-400 font-medium text-center">Effectif</div>
-                <div className="text-[11px] text-gray-400 font-medium text-center">Heures</div>
+                <div className="text-[11px] text-gray-600 font-medium">Code horaire</div>
+                <div className="text-[11px] text-gray-600 font-medium text-center">Effectif</div>
+                <div className="text-[11px] text-gray-600 font-medium text-center">Heures</div>
                 <div />
               </div>
 
@@ -565,15 +565,15 @@ export function Structures() {
                       />
                       <div className="text-center text-xs font-mono">
                         {sc && h > 0 ? (
-                          <span className={lineTotal > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'}>
+                          <span className={lineTotal > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-600'}>
                             {lineTotal > 0 ? fmtH(lineTotal) : fmtH(h)}
                           </span>
                         ) : (
-                          <span className="text-gray-300">—</span>
+                          <span className="text-gray-700">—</span>
                         )}
                       </div>
                       <button onClick={() => setPosLines(prev => prev.filter((_, j) => j !== i))}
-                        className="p-1 text-gray-300 hover:text-red-500 rounded transition-colors">
+                        className="p-1 text-gray-700 hover:text-red-500 rounded transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
@@ -794,14 +794,14 @@ export function Calendrier() {
   const DAY_LABELS_LONG = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
   const DAY_LABELS_SHORT = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Calendrier annuel</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Cliquez sur un jour pour lui affecter une structure de staffing</p>
+          <p className="text-xs text-gray-600 mt-0.5">Cliquez sur un jour pour lui affecter une structure de staffing</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={teamId} onChange={e => setTeamId(e.target.value)}
@@ -833,7 +833,7 @@ export function Calendrier() {
         {structures.map((s, i) => (
           <span key={s.id} className={`px-2 py-0.5 rounded border text-xs font-medium ${STRUCT_COLORS[i % STRUCT_COLORS.length]}`}>{s.name}</span>
         ))}
-        {structures.length === 0 && <span className="text-xs text-gray-400">Créez d'abord des structures</span>}
+        {structures.length === 0 && <span className="text-xs text-gray-600">Créez d'abord des structures</span>}
       </div>
 
       {showFill && (
@@ -861,7 +861,7 @@ export function Calendrier() {
                 {DAY_LABELS_LONG.map((d, i) => (
                   <button key={i} type="button"
                     onClick={() => setFillDays(prev => prev.map((v, j) => j === i ? !v : v))}
-                    className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${fillDays[i] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-500 border-gray-300 hover:border-indigo-300'}`}>
+                    className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${fillDays[i] ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-300'}`}>
                     {d.slice(0, 2)}
                   </button>
                 ))}
@@ -901,15 +901,15 @@ export function Calendrier() {
                 {mBudget > 0 ? (
                   <>
                     <span className="text-[10px] font-semibold text-indigo-700 tabular-nums">{fmtHMin(mBudget)}</span>
-                    <span className="text-[10px] text-gray-400">budget</span>
+                    <span className="text-[10px] text-gray-600">budget</span>
                   </>
                 ) : (
-                  <span className="text-[10px] text-gray-300">— h budget</span>
+                  <span className="text-[10px] text-gray-700">— h budget</span>
                 )}
               </div>
               <div className="grid grid-cols-7 gap-px">
                 {['L', 'Ma', 'Me', 'J', 'V', 'S', 'D'].map(d => (
-                  <div key={d} className="text-[9px] text-center text-gray-400 font-medium pb-1">{d}</div>
+                  <div key={d} className="text-[9px] text-center text-gray-600 font-medium pb-1">{d}</div>
                 ))}
                 {Array.from({ length: firstDow }, (_, i) => <div key={`e-${i}`} />)}
                 {Array.from({ length: nDays }, (_, i) => {
@@ -930,7 +930,7 @@ export function Calendrier() {
                       </div>
                       {isPending && (
                         <div onClick={e => e.stopPropagation()} className="absolute top-full left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[150px] py-1 mt-0.5">
-                          <div className="px-2 py-1 text-[10px] text-gray-400 font-medium border-b border-gray-100">{dateStr}</div>
+                          <div className="px-2 py-1 text-[10px] text-gray-600 font-medium border-b border-gray-100">{dateStr}</div>
                           {structures.map(s => (
                             <button key={s.id} onMouseDown={e => { e.preventDefault(); assign(dateStr, s.id) }}
                               className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 ${sId === s.id ? 'font-semibold text-blue-600' : 'text-gray-700'}`}>
@@ -955,7 +955,7 @@ export function Calendrier() {
       </div>
 
       <div className="mt-4 flex items-center justify-between px-1">
-        <span className="text-xs text-gray-400">Total annuel {year}</span>
+        <span className="text-xs text-gray-600">Total annuel {year}</span>
         <span className="text-sm font-bold text-gray-700 tabular-nums">
           {annualBudget > 0 ? `${fmtHMin(annualBudget)} budget` : '—'}
         </span>
@@ -981,24 +981,24 @@ export function Calendrier() {
             <div className="bg-white rounded-2xl shadow-2xl w-96 max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 shrink-0">
                 <h3 className="text-sm font-bold text-gray-900">{MONTHS_FR[pm]} {year} — Budget heures</h3>
-                <button onClick={() => setPopoverMonth(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+                <button onClick={() => setPopoverMonth(null)} className="text-gray-600 hover:text-gray-600 text-xl leading-none">×</button>
               </div>
               <div className="overflow-y-auto px-5 py-3 space-y-4">
                 {sortedWeeks.map(([w, days]) => {
                   const weekTotal = days.reduce((s, d) => s + d.h, 0)
                   return (
                     <div key={w}>
-                      <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1">Semaine {w}</div>
+                      <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide mb-1">Semaine {w}</div>
                       <div className="space-y-0.5">
                         {days.map(day => (
                           <div key={day.label} className="flex items-baseline justify-between">
-                            <span className="text-xs text-gray-500 w-24">{day.label}</span>
-                            <span className={`text-xs tabular-nums ${day.h > 0 ? 'text-gray-700' : 'text-gray-300'}`}>{fmtHMin(day.h)}</span>
+                            <span className="text-xs text-gray-700 w-24">{day.label}</span>
+                            <span className={`text-xs tabular-nums ${day.h > 0 ? 'text-gray-700' : 'text-gray-700'}`}>{fmtHMin(day.h)}</span>
                           </div>
                         ))}
                       </div>
                       <div className="flex items-baseline justify-between mt-1 pt-1 border-t border-gray-100">
-                        <span className="text-xs text-gray-400">Sous-total</span>
+                        <span className="text-xs text-gray-600">Sous-total</span>
                         <span className="text-xs font-bold text-gray-700 tabular-nums">{fmtHMin(weekTotal)}</span>
                       </div>
                     </div>

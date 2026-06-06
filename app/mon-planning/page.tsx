@@ -92,7 +92,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showOld ? 'text' : 'password'} value={oldPwd} onChange={e => setOldPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowOld(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showOld} /></button>
+                <button type="button" onClick={() => setShowOld(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showOld} /></button>
               </div>
             </div>
             <div>
@@ -100,7 +100,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showNew ? 'text' : 'password'} value={newPwd} onChange={e => setNewPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowNew(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showNew} /></button>
+                <button type="button" onClick={() => setShowNew(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showNew} /></button>
               </div>
             </div>
             <div>
@@ -108,7 +108,7 @@ function PasswordModal({ onClose }: { onClose: () => void }) {
               <div className="relative">
                 <input type={showConfirm ? 'text' : 'password'} value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} required disabled={saving}
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50" />
-                <button type="button" onClick={() => setShowConfirm(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><EyeIcon show={showConfirm} /></button>
+                <button type="button" onClick={() => setShowConfirm(p => !p)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"><EyeIcon show={showConfirm} /></button>
               </div>
             </div>
             <div className="flex gap-3 pt-1">
@@ -147,9 +147,9 @@ function TeamGrid({ employees, schedules, dates, todayKey, highlightId, shiftCod
       <table className="border-collapse" style={{ fontSize: 11 }}>
         <thead>
           <tr className="border-b border-gray-100 bg-white sticky top-0 z-10">
-            <th className="sticky left-0 bg-white z-20 px-4 py-3 text-left text-xs font-semibold text-gray-500 min-w-[130px] whitespace-nowrap border-r border-gray-100">Salarié</th>
+            <th className="sticky left-0 bg-white z-20 px-4 py-3 text-left text-xs font-semibold text-gray-700 min-w-[130px] whitespace-nowrap border-r border-gray-100">Salarié</th>
             {dates.map(({ ds, day, dow }) => (
-              <th key={ds} className={`w-8 px-0.5 py-3 text-center font-semibold ${ds === todayKey ? 'text-slate-900' : dow === 0 || dow === 6 ? 'text-rose-400' : 'text-gray-400'}`}>
+              <th key={ds} className={`w-8 px-0.5 py-3 text-center font-semibold ${ds === todayKey ? 'text-slate-900' : dow === 0 || dow === 6 ? 'text-rose-400' : 'text-gray-600'}`}>
                 {day}
               </th>
             ))}
@@ -187,7 +187,7 @@ function TeamGrid({ employees, schedules, dates, todayKey, highlightId, shiftCod
           })}
           {employees.length === 0 && (
             <tr>
-              <td colSpan={dates.length + 1} className="px-4 py-8 text-center text-gray-400 text-sm">Aucun membre d'équipe trouvé.</td>
+              <td colSpan={dates.length + 1} className="px-4 py-8 text-center text-gray-600 text-sm">Aucun membre d'équipe trouvé.</td>
             </tr>
           )}
         </tbody>
@@ -207,7 +207,7 @@ function MonthSelector({ offset, setOffset, year, month, loading }: {
         className="min-h-[44px] px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 disabled:opacity-25 active:bg-gray-100">← Actuel</button>
       <span className="text-base font-bold text-gray-900">
         {MONTHS[month]} {year}
-        {loading && <span className="ml-2 text-xs text-gray-400 font-normal">…</span>}
+        {loading && <span className="ml-2 text-xs text-gray-600 font-normal">…</span>}
       </span>
       <button onClick={() => setOffset(1)} disabled={offset === 1}
         className="min-h-[44px] px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 disabled:opacity-25 active:bg-gray-100">Suivant →</button>
@@ -231,7 +231,7 @@ function MobileGantt({ entries, shiftCodes, absenceCodes }: {
   const BAR_H = 28
 
   if (entries.length === 0) {
-    return <p className="text-sm text-gray-400 italic text-center py-10">Aucun salarié planifié aujourd'hui.</p>
+    return <p className="text-sm text-gray-600 italic text-center py-10">Aucun salarié planifié aujourd'hui.</p>
   }
 
   return (
@@ -243,7 +243,7 @@ function MobileGantt({ entries, shiftCodes, absenceCodes }: {
           {ticks.map(h => {
             const pct = ((h * 60 - START_MIN) / SPAN) * 100
             return (
-              <span key={h} className="absolute text-gray-400 -translate-x-1/2" style={{ left: `${pct}%`, top: 4, fontSize: 9 }}>
+              <span key={h} className="absolute text-gray-600 -translate-x-1/2" style={{ left: `${pct}%`, top: 4, fontSize: 9 }}>
                 {h}h
               </span>
             )
@@ -624,7 +624,7 @@ export default function MonPlanningPage() {
   if (authLoading || (!isMgmt && loadingStatic)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <p className="text-gray-400 text-base">Chargement…</p>
+        <p className="text-gray-600 text-base">Chargement…</p>
       </div>
     )
   }
@@ -634,7 +634,7 @@ export default function MonPlanningPage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50 px-6">
         <div className="text-center">
           <p className="text-base font-semibold text-gray-800">Compte non lié à un salarié</p>
-          <p className="text-sm text-gray-400 mt-1">Contactez votre administrateur.</p>
+          <p className="text-sm text-gray-600 mt-1">Contactez votre administrateur.</p>
           <button onClick={signOut} className="mt-6 w-full py-3.5 bg-slate-900 text-white rounded-2xl text-base font-semibold">Se déconnecter</button>
         </div>
       </div>
@@ -693,7 +693,7 @@ export default function MonPlanningPage() {
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { setShowExportModal(false); setExportPwd(''); setExportError(null) }} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
             <h2 className="text-base font-bold text-gray-900 mb-1">Exporter mes données</h2>
-            <p className="text-sm text-gray-500 mb-4">Confirmez votre identité pour télécharger vos données personnelles au format JSON.</p>
+            <p className="text-sm text-gray-700 mb-4">Confirmez votre identité pour télécharger vos données personnelles au format JSON.</p>
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Mot de passe</label>
@@ -764,7 +764,7 @@ export default function MonPlanningPage() {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 py-4 text-base font-semibold border-b-2 transition-colors ${
-                tab === t.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-400'
+                tab === t.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-600'
               }`}>
               {t.label}
             </button>
@@ -779,7 +779,7 @@ export default function MonPlanningPage() {
           <div className="bg-white border-b border-gray-100 px-4 py-3 space-y-2.5 shrink-0">
             {role !== 'manager' && sites.length > 0 && (
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-gray-500 w-12 shrink-0">Site</span>
+                <span className="text-xs font-semibold text-gray-700 w-12 shrink-0">Site</span>
                 <select value={selectedSiteId} onChange={e => setSelectedSiteId(e.target.value)}
                   className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
                   {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -787,7 +787,7 @@ export default function MonPlanningPage() {
               </div>
             )}
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-gray-500 w-12 shrink-0">Équipe</span>
+              <span className="text-xs font-semibold text-gray-700 w-12 shrink-0">Équipe</span>
               <select value={browsedTeamId} onChange={e => setBrowsedTeamId(e.target.value)}
                 className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-200">
                 {teamsForSite.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` · ${t.cdpf}` : ''}</option>)}
@@ -800,9 +800,9 @@ export default function MonPlanningPage() {
 
           <div className="flex-1 overflow-y-auto">
             {loadingBrowse ? (
-              <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Chargement…</div>
+              <div className="flex items-center justify-center py-20 text-gray-600 text-sm">Chargement…</div>
             ) : !browsedTeamId ? (
-              <div className="flex items-center justify-center py-20 text-gray-400 text-sm">Sélectionnez une équipe.</div>
+              <div className="flex items-center justify-center py-20 text-gray-600 text-sm">Sélectionnez une équipe.</div>
             ) : (
               <TeamGrid employees={browsedEmployees} schedules={browsedSchedules} dates={dates} todayKey={todayKey} highlightId={employeeId} shiftCodes={shiftCodes} absenceCodes={absenceCodes} />
             )}
@@ -818,14 +818,14 @@ export default function MonPlanningPage() {
             {nextMonthBlocked === true ? (
               <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                 <p className="text-gray-600 text-base font-medium">Le planning de {MONTHS[month]} {year} n'est pas encore disponible.</p>
-                {!isMgmt && <p className="text-sm text-gray-400 mt-2">Il sera visible dès sa publication par votre responsable.</p>}
+                {!isMgmt && <p className="text-sm text-gray-600 mt-2">Il sera visible dès sa publication par votre responsable.</p>}
               </div>
             ) : (
               <div className="p-4 space-y-2 pb-10">
                 {days.map(({ d, ds, code, colors, sc, isToday, isWE }) => (
                   <div key={ds} className={`rounded-2xl border bg-white flex items-center gap-4 px-4 py-3.5 ${isToday ? 'border-slate-900 shadow-sm' : 'border-gray-100'}`}>
                     <div className="min-w-[52px] flex-shrink-0 text-center">
-                      <div className={`text-xs font-bold uppercase tracking-wide ${isWE ? 'text-rose-400' : 'text-gray-400'}`}>{DAYS[d.getDay()].slice(0, 3)}</div>
+                      <div className={`text-xs font-bold uppercase tracking-wide ${isWE ? 'text-rose-400' : 'text-gray-600'}`}>{DAYS[d.getDay()].slice(0, 3)}</div>
                       <div className={`text-3xl font-bold leading-none mt-0.5 ${isToday ? 'text-slate-900' : 'text-gray-800'}`}>{d.getDate()}</div>
                     </div>
                     <div className="w-px self-stretch bg-gray-100 flex-shrink-0" />
@@ -833,17 +833,17 @@ export default function MonPlanningPage() {
                       {code ? (
                         <>
                           <span className="flex-shrink-0 px-3 py-1.5 rounded-xl text-base font-bold" style={{ background: colors?.bg, color: colors?.text }}>{code}</span>
-                          {sc?.start_time && <span className="text-sm text-gray-500 font-medium">{sc.start_time.slice(0, 5)}&nbsp;–&nbsp;{(sc as any).end_time?.slice(0, 5)}</span>}
+                          {sc?.start_time && <span className="text-sm text-gray-700 font-medium">{sc.start_time.slice(0, 5)}&nbsp;–&nbsp;{(sc as any).end_time?.slice(0, 5)}</span>}
                         </>
                       ) : (
-                        <span className="text-gray-300 text-sm italic">Non planifié</span>
+                        <span className="text-gray-700 text-sm italic">Non planifié</span>
                       )}
                     </div>
                     {isToday && <span className="flex-shrink-0 text-xs font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-full">Auj.</span>}
                   </div>
                 ))}
                 {dressingMinutes > 0 && (
-                  <p className="text-xs text-gray-400 text-center pt-2 px-2">
+                  <p className="text-xs text-gray-600 text-center pt-2 px-2">
                     Les horaires indiqués correspondent à la prise de poste en tenue. Un temps d&apos;habillage de {dressingMinutes} minutes par jour est comptabilisé en sus des horaires affichés.
                   </p>
                 )}
@@ -880,7 +880,7 @@ export default function MonPlanningPage() {
             <div className="bg-white border-b border-gray-100 px-3 py-2 space-y-1.5 shrink-0">
               {role !== 'manager' && sites.length > 1 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 w-10 shrink-0">Site</span>
+                  <span className="text-xs font-semibold text-gray-700 w-10 shrink-0">Site</span>
                   <select value={dashboardSiteId} onChange={e => setDashboardSiteId(e.target.value)}
                     className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none">
                     {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -889,7 +889,7 @@ export default function MonPlanningPage() {
               )}
               {dashboardTeamsForSite.length > 1 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 w-10 shrink-0">Équipe</span>
+                  <span className="text-xs font-semibold text-gray-700 w-10 shrink-0">Équipe</span>
                   <select value={dashboardTeamId} onChange={e => setDashboardTeamId(e.target.value)}
                     className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none">
                     {dashboardTeamsForSite.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` · ${t.cdpf}` : ''}</option>)}
@@ -900,7 +900,7 @@ export default function MonPlanningPage() {
           )}
           <div className="bg-white border-b border-gray-100 px-4 py-3 shrink-0">
             <p className="text-sm font-bold text-gray-900">Effectifs du jour</p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-gray-600 mt-0.5">
               {DAYS[now.getDay()]} {now.getDate()} {MONTHS[now.getMonth()]} {now.getFullYear()}
               {!loadingDashboard && (
                 <span className="ml-2">· {dashboardEntries.length} présent{dashboardEntries.length > 1 ? 's' : ''}</span>
@@ -908,7 +908,7 @@ export default function MonPlanningPage() {
             </p>
           </div>
           {loadingDashboard ? (
-            <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Chargement…</div>
+            <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
           ) : (
             <div className="px-3 pt-2 pb-10">
               <MobileGantt entries={dashboardEntries} shiftCodes={shiftCodes} absenceCodes={absenceCodes} />

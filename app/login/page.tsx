@@ -61,8 +61,8 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-md w-full max-w-sm p-8">
         <div className="text-center mb-8">
           <h1 style={{ fontSize: 28 }} className="font-bold text-gray-900 leading-tight">Musiam Planning</h1>
-          <p style={{ fontSize: 14 }} className="text-gray-400 italic mt-1">by Planekipe</p>
-          <p style={{ fontSize: 12 }} className="text-gray-400 mt-0.5">Logiciel de planification RH</p>
+          <p style={{ fontSize: 14 }} className="text-gray-600 italic mt-1">by Planekipe</p>
+          <p style={{ fontSize: 12 }} className="text-gray-600 mt-0.5">Logiciel de planification RH</p>
         </div>
 
         {inactivityMsg && (
@@ -98,7 +98,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(p => !p)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600"
                 tabIndex={-1}
               >
                 <EyeIcon show={showPassword} />
@@ -121,14 +121,14 @@ export default function LoginPage() {
           </button>
         </form>
       </div>
-      <p className="mt-6 text-center text-gray-400" style={{ fontSize: '11px' }}>
+      <p className="mt-6 text-center text-gray-600" style={{ fontSize: '11px' }}>
         Musiam Planning fonctionne avec Planekipe v1.2 © Sebastien Gauthier
       </p>
-      <p className="mt-1 text-center text-gray-400" style={{ fontSize: '11px' }}>
+      <p className="mt-1 text-center text-gray-600" style={{ fontSize: '11px' }}>
         Base de données et application web hébergées en France<FlagFR />
       </p>
       <p className="mt-2 text-center" style={{ fontSize: '11px' }}>
-        <a href="/mentions-legales" className="text-gray-400 hover:text-gray-600 underline">Mentions légales</a>
+        <a href="/mentions-legales" className="text-gray-600 hover:text-gray-600 underline">Mentions légales</a>
       </p>
     </div>
   )

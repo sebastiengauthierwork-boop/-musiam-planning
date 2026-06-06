@@ -7,7 +7,7 @@ export default function MentionsLegalesPage() {
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-start px-4 py-12">
       <div className="bg-white rounded-2xl shadow-md w-full max-w-2xl p-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Mentions légales</h1>
-        <p className="text-sm text-gray-400 italic mb-8">Musiam Planning — by Planekipe</p>
+        <p className="text-sm text-gray-600 italic mb-8">Musiam Planning — by Planekipe</p>
 
         <section className="mb-6">
           <h2 className="text-base font-semibold text-gray-800 mb-2">Responsable du traitement</h2>
@@ -60,7 +60,7 @@ export default function MentionsLegalesPage() {
           <a href="/login" className="text-sm text-blue-600 hover:underline">← Retour à la connexion</a>
         </div>
       </div>
-      <p className="mt-6 text-center text-gray-400 text-xs">Musiam Planning v1.2 © Sébastien Gauthier</p>
+      <p className="mt-6 text-center text-gray-600 text-xs">Musiam Planning v1.2 © Sébastien Gauthier</p>
     </div>
   )
 }

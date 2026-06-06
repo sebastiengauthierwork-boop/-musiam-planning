@@ -87,25 +87,25 @@ function CycleCell({ code, cellKey, shiftCodes, absenceCodes, onSave, onNavigate
         <div className="absolute top-full left-0 z-[9999] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[260px] max-h-[300px] overflow-y-auto">
           {shiftSuggestions.length > 0 && (
             <>
-              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Codes horaires</div>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Codes horaires</div>
               {shiftSuggestions.map((c, i) => (
                 <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false); setSelectedIdx(-1) }}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left ${i === selectedIdx ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
                   <span className="font-mono font-bold w-10 shrink-0 text-blue-600">{c.code}</span>
-                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
-                  {c.start_time && <span className="text-gray-400 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>}
+                  <span className="text-gray-700 truncate flex-1">{c.label}</span>
+                  {c.start_time && <span className="text-gray-600 shrink-0">{c.start_time.slice(0, 5)}–{c.end_time?.slice(0, 5)}</span>}
                 </button>
               ))}
             </>
           )}
           {absenceSuggestions.length > 0 && (
             <>
-              <div className="px-3 py-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Absences</div>
+              <div className="px-3 py-1 text-[10px] font-semibold text-gray-600 uppercase tracking-wider bg-gray-50 border-b border-gray-100 sticky top-0">Absences</div>
               {absenceSuggestions.map((c, i) => (
                 <button key={c.code} onMouseDown={e => { e.preventDefault(); setVal(c.code); onSave(c.code); setOpen(false); setSelectedIdx(-1) }}
                   className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left ${shiftSuggestions.length + i === selectedIdx ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
-                  <span className="font-mono font-bold w-10 shrink-0 text-gray-500">{c.code}</span>
-                  <span className="text-gray-500 truncate flex-1">{c.label}</span>
+                  <span className="font-mono font-bold w-10 shrink-0 text-gray-700">{c.code}</span>
+                  <span className="text-gray-700 truncate flex-1">{c.label}</span>
                 </button>
               ))}
             </>
@@ -327,17 +327,17 @@ export default function CyclePage() {
         </button>
         {saving && <span className="text-xs text-blue-400 animate-pulse">Sauvegarde…</span>}
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-gray-400">S1–S{cycleWeeks} = semaines du cycle · L=lundi … D=dimanche</span>
+          <span className="text-xs text-gray-600">S1–S{cycleWeeks} = semaines du cycle · L=lundi … D=dimanche</span>
         </div>
       </div>
 
       {/* Grid */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
+          <div className="flex items-center justify-center h-full text-gray-600 text-sm">Chargement…</div>
         ) : cycleEmployees.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
-            <p className="text-gray-400 text-sm">Aucun salarié dans ce cycle.</p>
+            <p className="text-gray-600 text-sm">Aucun salarié dans ce cycle.</p>
             <button
               onClick={() => { setRemoveConfirmId(null); setManageModal(true) }}
               className="px-4 py-2 text-sm font-medium bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
@@ -349,7 +349,7 @@ export default function CyclePage() {
           <table ref={tableRef} className="border-collapse text-xs w-max min-w-full">
             <thead className="sticky top-0 z-20 bg-white">
               <tr>
-                <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-44 min-w-[176px] px-3 py-2 text-left text-gray-500 font-semibold text-xs uppercase tracking-wider">
+                <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-200 w-44 min-w-[176px] px-3 py-2 text-left text-gray-700 font-semibold text-xs uppercase tracking-wider">
                   Salarié
                 </th>
                 {weeks.map(w =>
@@ -362,14 +362,14 @@ export default function CyclePage() {
                           ? <div className="text-[9px] font-bold text-indigo-500 leading-none mb-0.5">S{w}</div>
                           : <div className="leading-none mb-0.5 invisible text-[9px]">·</div>
                         }
-                        <div className={`text-[10px] ${isWE ? 'text-slate-400' : 'text-gray-500'}`}>{d}</div>
+                        <div className={`text-[10px] ${isWE ? 'text-slate-400' : 'text-gray-700'}`}>{d}</div>
                       </th>
                     )
                   })
                 )}
               </tr>
               <tr>
-                <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 px-3 py-1 text-left text-gray-400 text-[10px] font-normal">
+                <th className="sticky left-0 z-30 bg-white border-b border-r border-gray-100 px-3 py-1 text-left text-gray-600 text-[10px] font-normal">
                   Présents
                 </th>
                 {weeks.map(w =>
@@ -391,8 +391,8 @@ export default function CyclePage() {
                 <tr key={emp.id} className="group hover:bg-blue-50/20">
                   <td className="sticky left-0 z-10 bg-white group-hover:bg-blue-50/20 border-b border-r border-gray-100 px-3 py-0 h-7 whitespace-nowrap">
                     <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
-                    <span className="text-gray-500">{emp.first_name}</span>
-                    {emp.fonction && <span className="ml-1.5 text-gray-400 text-[10px]">· {emp.fonction}</span>}
+                    <span className="text-gray-700">{emp.first_name}</span>
+                    {emp.fonction && <span className="ml-1.5 text-gray-600 text-[10px]">· {emp.fonction}</span>}
                   </td>
                   {weeks.map(w =>
                     DAY_LABELS.map((_, di) => {
@@ -422,7 +422,7 @@ export default function CyclePage() {
       </div>
 
       {/* Legend */}
-      <div className="shrink-0 flex items-center gap-5 px-4 py-2 border-t border-gray-100 bg-white text-xs text-gray-400">
+      <div className="shrink-0 flex items-center gap-5 px-4 py-2 border-t border-gray-100 bg-white text-xs text-gray-600">
         <span className="inline-flex items-center gap-1">
           {SHIFT_PALETTE.slice(0, 4).map(c => (
             <span key={c.bg} className="w-3 h-3 rounded" style={{ background: c.bg, border: '1px solid #cbd5e1' }} />
@@ -447,7 +447,7 @@ export default function CyclePage() {
             <div className="flex items-center justify-between mb-4 shrink-0">
               <h2 className="text-base font-semibold text-gray-900">Gérer les salariés du cycle</h2>
               <button onClick={() => setManageModal(false)} disabled={removeLoading}
-                className="text-gray-400 hover:text-gray-600 disabled:opacity-50">
+                className="text-gray-600 hover:text-gray-600 disabled:opacity-50">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -456,12 +456,12 @@ export default function CyclePage() {
             <div className="grid grid-cols-2 gap-4 flex-1 overflow-hidden">
               {/* Left: in cycle */}
               <div className="flex flex-col overflow-hidden">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 shrink-0">
+                <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2 shrink-0">
                   Dans le cycle ({cycleEmployees.length})
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1">
                   {cycleEmployees.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">Aucun salarié</p>
+                    <p className="text-sm text-gray-600 italic">Aucun salarié</p>
                   ) : cycleEmployees.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-gray-50 group">
                       <span className="text-sm text-gray-800 truncate">
@@ -488,7 +488,7 @@ export default function CyclePage() {
                       ) : (
                         <button
                           onClick={() => setRemoveConfirmId(emp.id)}
-                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:bg-red-50 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                           title="Retirer du cycle"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -503,12 +503,12 @@ export default function CyclePage() {
 
               {/* Right: available */}
               <div className="flex flex-col overflow-hidden border-l border-gray-100 pl-4">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 shrink-0">
+                <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2 shrink-0">
                   À ajouter ({available.length})
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-1">
                   {available.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">Tous les salariés CDI/CDD sont déjà dans le cycle.</p>
+                    <p className="text-sm text-gray-600 italic">Tous les salariés CDI/CDD sont déjà dans le cycle.</p>
                   ) : available.map(emp => (
                     <div key={emp.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 group">
                       <span className="text-sm text-gray-800 truncate">
@@ -516,7 +516,7 @@ export default function CyclePage() {
                       </span>
                       <button
                         onClick={() => addToCycle(emp)}
-                        className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:bg-green-50 hover:text-green-600 transition-colors"
+                        className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:bg-green-50 hover:text-green-600 transition-colors"
                         title="Ajouter au cycle"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

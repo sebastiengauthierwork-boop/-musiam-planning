@@ -22,14 +22,14 @@ type Team = { id: string; name: string; cdpf: string | null; site_id: string | n
 type CellEntry = { teamId: string; code: string }
 
 function ecartTextClass(planned: number, budget: number): string {
-  if (budget === 0) return 'text-gray-400'
+  if (budget === 0) return 'text-gray-600'
   const pct = (planned - budget) / budget * 100
   if (pct <= 0) return 'text-green-600'
   if (pct <= 5) return 'text-orange-500'
   return 'text-red-600'
 }
 function ecartLightClass(planned: number, budget: number): string {
-  if (budget === 0) return 'text-gray-400'
+  if (budget === 0) return 'text-gray-600'
   const pct = (planned - budget) / budget * 100
   if (pct <= 0) return 'text-green-300'
   if (pct <= 5) return 'text-orange-300'
@@ -263,7 +263,7 @@ export default function ControleDeGestionPage() {
   if (role && !canView) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-gray-500">Accès non autorisé.</p>
+        <p className="text-sm text-gray-700">Accès non autorisé.</p>
       </div>
     )
   }
@@ -314,19 +314,19 @@ export default function ControleDeGestionPage() {
       {/* ── Tabs ── */}
       <div className="shrink-0 bg-white border-b border-gray-200 px-4 flex gap-0">
         <button onClick={() => setActiveTab('structures')}
-          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'structures' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'structures' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'}`}>
           Structures
         </button>
         <button onClick={() => setActiveTab('calendrier')}
-          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'calendrier' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'calendrier' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'}`}>
           Calendrier annuel
         </button>
         <button onClick={() => setActiveTab('compteur')}
-          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'compteur' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'compteur' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'}`}>
           Compteur d'heures
         </button>
         <button onClick={() => setActiveTab('consolidation')}
-          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'consolidation' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+          className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${activeTab === 'consolidation' ? 'border-slate-900 text-slate-900' : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'}`}>
           Consolidation
         </button>
       </div>
@@ -375,11 +375,11 @@ export default function ControleDeGestionPage() {
 
             <div className="flex-1 overflow-auto p-4 space-y-6">
               {loadingBudget && (
-                <div className="text-sm text-gray-400 animate-pulse">Chargement…</div>
+                <div className="text-sm text-gray-600 animate-pulse">Chargement…</div>
               )}
 
               {!loadingBudget && selectedTeams.length === 0 && (
-                <div className="flex items-center justify-center py-16 text-gray-400 text-sm">
+                <div className="flex items-center justify-center py-16 text-gray-600 text-sm">
                   Sélectionnez au moins une équipe.
                 </div>
               )}

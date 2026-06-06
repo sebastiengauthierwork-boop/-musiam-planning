@@ -291,13 +291,13 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
         <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-1">
           <button
             onClick={() => setSubTab('resume')}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'resume' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'resume' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-700'}`}
           >
             Résumé par jour
           </button>
           <button
             onClick={() => setSubTab('detail')}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'detail' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${subTab === 'detail' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-700'}`}
           >
             Détail par employé
           </button>
@@ -332,7 +332,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
             ))}
           </div>
         ) : selectedTeamIds.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Sélectionnez au moins une équipe.</div>
+          <div className="flex items-center justify-center h-32 text-gray-600 text-sm">Sélectionnez au moins une équipe.</div>
         ) : (
           <div className="p-6 space-y-10">
 
@@ -378,22 +378,22 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                               return (
                                 <tr key={dateStr} className={`border-t border-gray-100 ${isWE ? 'bg-slate-50/70' : 'hover:bg-yellow-50/20'}`}>
                                   <td className={`px-3 py-1.5 font-medium ${isWE ? 'text-slate-400' : 'text-gray-700'}`}>
-                                    <span className="mr-1 text-[10px] text-gray-400">{DAY_LETTER[d.getDay()]}</span>
+                                    <span className="mr-1 text-[10px] text-gray-600">{DAY_LETTER[d.getDay()]}</span>
                                     {d.getDate()}
                                   </td>
                                   <td className="px-3 py-1.5 text-right font-mono text-gray-700">
                                     {total > 0 ? fmtDecimal(total) : ''}
                                   </td>
-                                  <td className="px-3 py-1.5 text-right font-mono text-gray-400">
+                                  <td className="px-3 py-1.5 text-right font-mono text-gray-600">
                                     {structBudget > 0 ? fmtDecimal(structBudget) : ''}
                                   </td>
-                                  <td className={`px-3 py-1.5 text-right font-mono font-semibold ${ecart === null ? '' : ecart > 0 ? 'text-red-500' : ecart < 0 ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                  <td className={`px-3 py-1.5 text-right font-mono font-semibold ${ecart === null ? '' : ecart > 0 ? 'text-red-500' : ecart < 0 ? 'text-emerald-600' : 'text-gray-600'}`}>
                                     {ecart === null ? '' : ecart === 0 ? '=' : ecart > 0 ? `+${fmtDecimal(ecart)}` : `−${fmtDecimal(Math.abs(ecart))}`}
                                   </td>
                                   <td className="px-3 py-1.5 text-right text-gray-600">
                                     {nbPersonnes > 0 ? nbPersonnes : ''}
                                   </td>
-                                  <td className="px-3 py-1.5 text-right font-mono text-gray-500">
+                                  <td className="px-3 py-1.5 text-right font-mono text-gray-700">
                                     {moy > 0 ? fmtDecimal(moy) : ''}
                                   </td>
                                 </tr>
@@ -448,7 +448,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                       </div>
 
                       {activeEmps.length === 0 ? (
-                        <div className="flex items-center justify-center h-16 text-gray-400 text-xs">
+                        <div className="flex items-center justify-center h-16 text-gray-600 text-xs">
                           Aucune donnée pour cette équipe ce mois-ci.
                         </div>
                       ) : (
@@ -482,7 +482,7 @@ export default function TabCompteur({ shiftCodes, year, month, teamId, teams = [
                                   <tr key={emp.id} className={`${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-yellow-50 group`}>
                                     <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-3 py-1.5 whitespace-nowrap group-hover:bg-yellow-50 ${empIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                                       <span className="font-semibold text-gray-800">{emp.last_name}</span>{' '}
-                                      <span className="text-gray-500">{emp.first_name}</span>
+                                      <span className="text-gray-700">{emp.first_name}</span>
                                     </td>
                                     {days.map(d => {
                                       const dateStr = toISO(d)

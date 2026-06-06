@@ -101,7 +101,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -118,7 +118,7 @@ function Field({ label, children, hint }: { label: string; children: React.React
     <div>
       <label className="block text-xs font-medium text-gray-700 mb-1.5">{label}</label>
       {children}
-      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-600 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -306,13 +306,13 @@ function CodesHoraires() {
     ? `${form.code}${form.start_time ? ' ' + form.start_time : ''}${form.end_time ? ' → ' + form.end_time : ''}`
     : null
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">
-          Codes horaires <span className="text-gray-400 font-normal text-sm">({codes.length})</span>
+          Codes horaires <span className="text-gray-600 font-normal text-sm">({codes.length})</span>
         </h2>
         <div className="flex items-center gap-2">
           <ImportExcel
@@ -399,14 +399,14 @@ function CodesHoraires() {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               {['Code', 'Label', 'Arrivée', 'Prise de poste', 'Fin de poste', 'Départ', 'Repas', 'Habill.', 'Pause repas', 'Payées'].map(h => (
-                <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                <th key={h} className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">{h}</th>
               ))}
               <th className="px-3 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {codes.length === 0 && (
-              <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-400">Aucun code horaire</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center text-gray-600">Aucun code horaire</td></tr>
             )}
             {codes.map(c => {
               return (
@@ -419,29 +419,29 @@ function CodesHoraires() {
                     )})()}
                   </td>
                   <td className="px-3 py-2.5 text-gray-700 max-w-[180px] truncate">{c.label}</td>
-                  <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{c.arrival_time?.slice(0, 5) ?? '—'}</td>
+                  <td className="px-3 py-2.5 text-gray-600 font-mono text-xs">{c.arrival_time?.slice(0, 5) ?? '—'}</td>
                   <td className="px-3 py-2.5 text-gray-700 font-mono text-xs font-semibold">{c.start_time?.slice(0, 5) ?? '—'}</td>
                   <td className="px-3 py-2.5 text-gray-700 font-mono text-xs font-semibold">{c.end_time?.slice(0, 5) ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-gray-400 font-mono text-xs">{c.departure_time?.slice(0, 5) ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-gray-500 text-xs">{c.break_minutes}min</td>
-                  <td className="px-3 py-2.5 text-gray-500 text-xs">{c.dressing_minutes}min</td>
+                  <td className="px-3 py-2.5 text-gray-600 font-mono text-xs">{c.departure_time?.slice(0, 5) ?? '—'}</td>
+                  <td className="px-3 py-2.5 text-gray-700 text-xs">{c.break_minutes}min</td>
+                  <td className="px-3 py-2.5 text-gray-700 text-xs">{c.dressing_minutes}min</td>
                   <td className="px-3 py-2.5 text-center text-xs">
-                    {c.meal_included ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-gray-300">—</span>}
+                    {c.meal_included ? <span className="text-emerald-600 font-bold">✓</span> : <span className="text-gray-700">—</span>}
                   </td>
                   <td className="px-3 py-2.5 font-semibold text-emerald-700 text-xs">
                     {c.paid_hours != null ? decimalToHMin(c.paid_hours) : '—'}
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => openDuplicate(c)} title="Dupliquer" className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                      <button onClick={() => openDuplicate(c)} title="Dupliquer" className="p-1.5 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                       </button>
-                      <button onClick={() => openEdit(c)} title="Modifier" className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                      <button onClick={() => openEdit(c)} title="Modifier" className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
-                      <button onClick={() => setDeletingId(c.id)} title="Supprimer" className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                      <button onClick={() => setDeletingId(c.id)} title="Supprimer" className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
@@ -526,7 +526,7 @@ function CodesHoraires() {
                 )}
                 {form.color && (
                   <button type="button" onClick={() => { updateForm({ color: '' }); setIgnoreColorConflict(false) }}
-                    className="text-xs text-gray-400 hover:text-red-500 underline">Supprimer</button>
+                    className="text-xs text-gray-600 hover:text-red-500 underline">Supprimer</button>
                 )}
               </div>
               {colorConflictCode && (
@@ -590,16 +590,16 @@ function CodesHoraires() {
                 <p className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider mb-2">Calculé automatiquement</p>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-[10px] text-gray-400 mb-0.5">Arrivée salarié</p>
-                    <input readOnly value={form.arrival_time} className="input bg-gray-100 text-gray-500 font-mono cursor-not-allowed" tabIndex={-1} />
+                    <p className="text-[10px] text-gray-600 mb-0.5">Arrivée salarié</p>
+                    <input readOnly value={form.arrival_time} className="input bg-gray-100 text-gray-700 font-mono cursor-not-allowed" tabIndex={-1} />
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 mb-0.5">Fin de poste</p>
+                    <p className="text-[10px] text-gray-600 mb-0.5">Fin de poste</p>
                     <input readOnly value={form.end_time} className="input bg-blue-50 text-blue-700 font-mono font-semibold cursor-not-allowed" tabIndex={-1} />
                   </div>
                   <div>
-                    <p className="text-[10px] text-gray-400 mb-0.5">Départ salarié</p>
-                    <input readOnly value={form.departure_time} className="input bg-gray-100 text-gray-500 font-mono cursor-not-allowed" tabIndex={-1} />
+                    <p className="text-[10px] text-gray-600 mb-0.5">Départ salarié</p>
+                    <input readOnly value={form.departure_time} className="input bg-gray-100 text-gray-700 font-mono cursor-not-allowed" tabIndex={-1} />
                   </div>
                 </div>
               </div>
@@ -649,7 +649,7 @@ function CodesHoraires() {
                   style={{ background: bulkColor, color: autoText(bulkColor) }}>
                   Aperçu
                 </span>
-                <span className="text-xs text-gray-400 font-mono">{bulkColor}</span>
+                <span className="text-xs text-gray-600 font-mono">{bulkColor}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -667,10 +667,10 @@ function CodesHoraires() {
               </button>
               <button type="button"
                 onClick={() => setBulkSelected(new Set())}
-                className="px-2.5 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
                 Aucun
               </button>
-              <span className="ml-auto text-xs text-gray-500 font-medium">{bulkSelected.size} code{bulkSelected.size !== 1 ? 's' : ''} sélectionné{bulkSelected.size !== 1 ? 's' : ''}</span>
+              <span className="ml-auto text-xs text-gray-700 font-medium">{bulkSelected.size} code{bulkSelected.size !== 1 ? 's' : ''} sélectionné{bulkSelected.size !== 1 ? 's' : ''}</span>
             </div>
             <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-64">
               {codes.map(c => (
@@ -771,12 +771,12 @@ function CodesAbsence() {
     setDeletingId(null); await load()
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">Codes absence <span className="text-gray-400 font-normal text-sm">({codes.length})</span></h2>
+        <h2 className="text-base font-semibold text-gray-900">Codes absence <span className="text-gray-600 font-normal text-sm">({codes.length})</span></h2>
         <div className="flex items-center gap-2">
           <button onClick={() => { setShowBulkColorAbs(true); setBulkSelectedAbs(new Set()); setBulkResultAbs(null) }}
             className="inline-flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors">
@@ -832,14 +832,14 @@ function CodesAbsence() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Code</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Label</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payé</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Code</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Label</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Payé</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {codes.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Aucun code absence</td></tr>}
+            {codes.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-600">Aucun code absence</td></tr>}
             {codes.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5">
@@ -851,14 +851,14 @@ function CodesAbsence() {
                 <td className="px-4 py-2.5">
                   {c.is_paid
                     ? <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-50 text-emerald-700">Oui</span>
-                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">Non</span>}
+                    : <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">Non</span>}
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-1.5 justify-end">
-                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button onClick={() => openEdit(c)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
-                    <button onClick={() => setDeletingId(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => setDeletingId(c.id)} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
@@ -904,7 +904,7 @@ function CodesAbsence() {
                 )}
                 {form.color && (
                   <button type="button" onClick={() => { setForm(f => ({ ...f, color: '' })); setIgnoreColorConflictAbs(false) }}
-                    className="text-xs text-gray-400 hover:text-red-500 underline">Supprimer</button>
+                    className="text-xs text-gray-600 hover:text-red-500 underline">Supprimer</button>
                 )}
               </div>
               {colorConflictAbs && (
@@ -946,7 +946,7 @@ function CodesAbsence() {
                   style={{ background: bulkColorAbs, color: autoText(bulkColorAbs) }}>
                   Aperçu
                 </span>
-                <span className="text-xs text-gray-400 font-mono">{bulkColorAbs}</span>
+                <span className="text-xs text-gray-600 font-mono">{bulkColorAbs}</span>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -957,10 +957,10 @@ function CodesAbsence() {
               </button>
               <button type="button"
                 onClick={() => setBulkSelectedAbs(new Set())}
-                className="px-2.5 py-1 text-xs font-medium text-gray-400 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50">
                 Aucun
               </button>
-              <span className="ml-auto text-xs text-gray-500 font-medium">{bulkSelectedAbs.size} code{bulkSelectedAbs.size !== 1 ? 's' : ''} sélectionné{bulkSelectedAbs.size !== 1 ? 's' : ''}</span>
+              <span className="ml-auto text-xs text-gray-700 font-medium">{bulkSelectedAbs.size} code{bulkSelectedAbs.size !== 1 ? 's' : ''} sélectionné{bulkSelectedAbs.size !== 1 ? 's' : ''}</span>
             </div>
             <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-64">
               {codes.map(c => (
@@ -1042,13 +1042,13 @@ function Fonctions() {
     await load()
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-semibold text-gray-900">
-          Fonctions <span className="text-gray-400 font-normal text-sm">({functions.length})</span>
+          Fonctions <span className="text-gray-600 font-normal text-sm">({functions.length})</span>
         </h2>
         <div className="flex items-center gap-2">
           <ImportExcel
@@ -1081,35 +1081,35 @@ function Fonctions() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-20">Code</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Nom</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider w-20">Code</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {functions.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">Aucune fonction</td></tr>}
+            {functions.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-600">Aucune fonction</td></tr>}
             {functions.map(f => (
               <tr key={f.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5 font-medium text-gray-800">{f.name}</td>
                 <td className="px-4 py-2.5">
                   {f.code
                     ? <span className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-bold font-mono">{f.code}</span>
-                    : <span className="text-gray-300 text-xs">{f.name.slice(0,3).toUpperCase()}</span>
+                    : <span className="text-gray-700 text-xs">{f.name.slice(0,3).toUpperCase()}</span>
                   }
                 </td>
                 <td className="px-4 py-2.5">
                   <button onClick={() => toggleActive(f)}
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium cursor-pointer ${f.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium cursor-pointer ${f.is_active ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                     {f.is_active ? 'Active' : 'Inactive'}
                   </button>
                 </td>
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-1.5 justify-end">
-                    <button onClick={() => openEdit(f)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button onClick={() => openEdit(f)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                     </button>
-                    <button onClick={() => setDeletingId(f.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => setDeletingId(f.id)} className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
@@ -1240,7 +1240,7 @@ function ContactsUtiles() {
     finally { setSaving(false) }
   }
 
-  if (loading) return <div className="text-sm text-gray-400 py-4">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600 py-4">Chargement…</div>
 
   return (
     <div>
@@ -1261,7 +1261,7 @@ function ContactsUtiles() {
       {sqlVisible && (
         <div className="mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-gray-500">SQL à exécuter dans Supabase (une seule fois)</span>
+            <span className="text-xs font-semibold text-gray-700">SQL à exécuter dans Supabase (une seule fois)</span>
             <button onClick={() => navigator.clipboard.writeText(CONTACTS_SQL)}
               className="text-xs text-blue-600 hover:underline">Copier</button>
           </div>
@@ -1280,10 +1280,10 @@ function ContactsUtiles() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-52">Rôle</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500">Nom</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-40">Téléphone</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 w-52">Email</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 w-52">Rôle</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Nom</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 w-40">Téléphone</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 w-52">Email</th>
               <th className="px-4 py-2.5 w-8" />
             </tr>
           </thead>
@@ -1321,7 +1321,7 @@ function ContactsUtiles() {
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-400">Aucun contact.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-600">Aucun contact.</td></tr>
             )}
           </tbody>
         </table>
@@ -1503,14 +1503,14 @@ function RolesAcces() {
     if (error) { setSaveError(error.message) } else { setSaved(true); setTimeout(() => setSaved(false), 3000) }
   }
 
-  if (loading) return <div className="text-sm text-gray-400">Chargement…</div>
+  if (loading) return <div className="text-sm text-gray-600">Chargement…</div>
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-semibold text-gray-900">Rôles et accès</h2>
-          <p className="text-xs text-gray-500 mt-0.5">L'administrateur a toujours toutes les permissions (non modifiable).</p>
+          <p className="text-xs text-gray-700 mt-0.5">L'administrateur a toujours toutes les permissions (non modifiable).</p>
         </div>
         <div className="flex items-center gap-3">
           {saved && <span className="text-sm text-emerald-600 font-medium">Permissions mises à jour ✓</span>}
@@ -1526,7 +1526,7 @@ function RolesAcces() {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className="text-left px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-500 text-xs uppercase tracking-wider w-72">
+              <th className="text-left px-4 py-3 bg-gray-50 border-b border-gray-200 font-medium text-gray-700 text-xs uppercase tracking-wider w-72">
                 Permission
               </th>
               {PERM_ROLES_LIST.map(r => (
@@ -1639,7 +1639,7 @@ function JournalAudit() {
     <div>
       <div className="flex flex-wrap gap-3 mb-5 items-end">
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Utilisateur</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Utilisateur</label>
           <input
             type="text"
             value={filterUser}
@@ -1650,7 +1650,7 @@ function JournalAudit() {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Action</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Action</label>
           <select value={filterAction} onChange={e => setFilterAction(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="">Toutes</option>
@@ -1658,7 +1658,7 @@ function JournalAudit() {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Période</label>
+          <label className="block text-xs font-semibold text-gray-700 mb-1">Période</label>
           <select value={filterDays} onChange={e => setFilterDays(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="7">7 derniers jours</option>
@@ -1673,38 +1673,38 @@ function JournalAudit() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-400 py-8 text-center">Chargement…</p>
+        <p className="text-sm text-gray-600 py-8 text-center">Chargement…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-gray-400 py-8 text-center">Aucune entrée pour cette période.</p>
+        <p className="text-sm text-gray-600 py-8 text-center">Aucune entrée pour cette période.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200">
           <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">Date / Heure</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Utilisateur</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500">Détail</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 whitespace-nowrap">Date / Heure</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Utilisateur</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Action</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Détail</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {rows.map(row => (
                 <tr key={row.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap font-mono text-xs">{formatDate(row.created_at)}</td>
+                  <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap font-mono text-xs">{formatDate(row.created_at)}</td>
                   <td className="px-4 py-2.5 text-gray-700 font-medium whitespace-nowrap">{userLabel(row)}</td>
                   <td className="px-4 py-2.5 whitespace-nowrap">
                     <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
                       {ACTION_LABELS[row.action_type] ?? row.action_type}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{row.detail ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-gray-700 text-xs max-w-xs truncate">{row.detail ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      <p className="text-xs text-gray-400 mt-3">{rows.length} entrée{rows.length > 1 ? 's' : ''} affichée{rows.length > 1 ? 's' : ''}</p>
+      <p className="text-xs text-gray-600 mt-3">{rows.length} entrée{rows.length > 1 ? 's' : ''} affichée{rows.length > 1 ? 's' : ''}</p>
     </div>
   )
 }
@@ -1767,7 +1767,7 @@ export default function ParametragePage() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Paramétrage</h1>
-        <p className="text-gray-500 text-sm mt-1">Codes horaires, codes absence, fonctions</p>
+        <p className="text-gray-700 text-sm mt-1">Codes horaires, codes absence, fonctions</p>
       </div>
 
       <div className="flex gap-0 border-b border-gray-200 mb-8 flex-wrap">
@@ -1776,7 +1776,7 @@ export default function ParametragePage() {
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               section === s.id
                 ? 'border-slate-900 text-slate-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
             }`}>
             {s.label}
           </button>

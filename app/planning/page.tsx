@@ -262,7 +262,7 @@ export default function PlanningPage() {
         {/* Refresh */}
         <button onClick={loadEmployeesAndSchedules} title="Rafraîchir"
           className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors ml-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
         </button>
@@ -286,7 +286,7 @@ export default function PlanningPage() {
           </button>
         )}
 
-        <div className="ml-auto text-xs text-gray-400">
+        <div className="ml-auto text-xs text-gray-600">
           {employees.length} employé{employees.length !== 1 ? 's' : ''}
         </div>
       </div>
@@ -298,7 +298,7 @@ export default function PlanningPage() {
             className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
               tab === t.id
                 ? 'border-slate-900 text-slate-900'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                : 'border-transparent text-gray-700 hover:text-gray-700 hover:border-gray-300'
             }`}>
             {t.label}
           </button>
@@ -361,7 +361,7 @@ export default function PlanningPage() {
             </div>
           </div>
         ) : employees.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+          <div className="flex items-center justify-center h-full text-gray-600 text-sm">
             Aucun salarié actif pour cette équipe. Vérifiez les affectations dans <strong className="mx-1">Salariés</strong>.
           </div>
         ) : (

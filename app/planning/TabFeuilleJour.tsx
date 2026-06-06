@@ -164,7 +164,7 @@ export default function TabFeuilleJour({
           onChange={e => setSelectedDate(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
         />
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-700">
           {presentEmployees.length} présent{presentEmployees.length !== 1 ? 's' : ''}
         </span>
         <div className="ml-auto">

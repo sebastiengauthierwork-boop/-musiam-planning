@@ -252,7 +252,7 @@ export default function TableauDeBord() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-bold text-gray-900">Tableau de bord</h1>
-        <p className="text-gray-400 text-sm mt-0.5 capitalize">
+        <p className="text-gray-600 text-sm mt-0.5 capitalize">
           {now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>
       </div>
@@ -281,7 +281,7 @@ export default function TableauDeBord() {
             const diff = day.theoretical !== null ? day.planned - day.theoretical : null
             return (
               <div key={day.date} className="border border-gray-100 rounded-lg py-1 px-2 text-center">
-                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{day.label}</div>
+                <div className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide leading-none">{day.label}</div>
                 <div className="text-[20px] font-bold leading-none mt-0.5 text-gray-900">
                   {day.planned}
                 </div>
@@ -290,10 +290,10 @@ export default function TableauDeBord() {
                     <div className={`text-[18px] font-bold leading-none mt-0.5 ${diff! >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {diff! > 0 ? `+${diff}` : diff === 0 ? '=' : `${diff}`}
                     </div>
-                    <div className="text-[10px] text-gray-400 leading-none mt-0.5">{day.theoretical} requis</div>
+                    <div className="text-[10px] text-gray-600 leading-none mt-0.5">{day.theoretical} requis</div>
                   </>
                 ) : (
-                  <div className="text-[9px] text-gray-300 mt-0.5">—</div>
+                  <div className="text-[9px] text-gray-700 mt-0.5">—</div>
                 )}
               </div>
             )
@@ -304,7 +304,7 @@ export default function TableauDeBord() {
       {/* Suivi budgétaire */}
       <Card title={`Suivi budgétaire — ${monthLabel}`}>
         {budget.budget === 0 ? (
-          <p className="text-xs text-gray-400 italic">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
+          <p className="text-xs text-gray-600 italic">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
         ) : (
           <div className="space-y-4">
             {/* Écart en avant-plan */}
@@ -332,9 +332,9 @@ export default function TableauDeBord() {
                 { label: 'Budget',       value: fmtHMin(budget.budget),   sub: 'structures × calendrier' },
               ] as { label: string; value: string; sub: string }[]).map(col => (
                 <div key={col.label}>
-                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{col.label}</div>
+                  <div className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide leading-none">{col.label}</div>
                   <div className="text-base font-semibold text-gray-900 tabular-nums mt-1 leading-none">{col.value}</div>
-                  {col.sub && <div className="text-[10px] text-gray-300 mt-1">{col.sub}</div>}
+                  {col.sub && <div className="text-[10px] text-gray-700 mt-1">{col.sub}</div>}
                 </div>
               ))}
             </div>
@@ -374,7 +374,7 @@ function Card({ title, badge, children }: { title: string; badge?: string; child
     <div className="bg-white border border-gray-100 rounded-xl p-5">
       <div className="flex items-baseline gap-2 mb-3">
         <h2 className="text-sm font-bold text-gray-900">{title}</h2>
-        {badge && <span className="text-xs text-gray-400">{badge}</span>}
+        {badge && <span className="text-xs text-gray-600">{badge}</span>}
       </div>
       {children}
     </div>
@@ -383,7 +383,7 @@ function Card({ title, badge, children }: { title: string; badge?: string; child
 
 function GanttChart({ entries, shiftCodes, absenceCodes }: { entries: GanttEntry[]; shiftCodes: { code: string; color?: string | null }[]; absenceCodes: { code: string; color?: string | null }[] }) {
   if (entries.length === 0) {
-    return <p className="text-xs text-gray-400 italic">Aucun salarié planifié aujourd'hui.</p>
+    return <p className="text-xs text-gray-600 italic">Aucun salarié planifié aujourd'hui.</p>
   }
   const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
   const allMins = entries.flatMap(e => [toMin(e.start), toMin(e.end)])
@@ -399,7 +399,7 @@ function GanttChart({ entries, shiftCodes, absenceCodes }: { entries: GanttEntry
         const color = getCodeColor(e.code, shiftCodes, absenceCodes)
         return (
           <div key={e.employee_id} className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 w-24 shrink-0 truncate">{e.name}</span>
+            <span className="text-[10px] text-gray-700 w-24 shrink-0 truncate">{e.name}</span>
             <div className="flex-1 relative h-4 bg-gray-100 rounded">
               <div
                 className="absolute top-0.5 bottom-0.5 rounded flex items-center px-1"
@@ -420,7 +420,7 @@ function GanttChart({ entries, shiftCodes, absenceCodes }: { entries: GanttEntry
 function BudgetStat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
     <div>
-      <div className="text-xs text-gray-400 mb-0.5">{label}</div>
+      <div className="text-xs text-gray-600 mb-0.5">{label}</div>
       <div className={`tabular-nums ${accent ? 'text-xl font-bold text-gray-900' : 'text-lg font-semibold text-gray-600'}`}>
         {(() => {
           const abs = Math.abs(value)
@@ -436,7 +436,7 @@ function BudgetStat({ label, value, accent }: { label: string; value: number; ac
 function QuickStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 flex items-center justify-between">
-      <span className="text-sm text-gray-500">{label}</span>
+      <span className="text-sm text-gray-700">{label}</span>
       <span className="text-2xl font-bold text-gray-900 tabular-nums">{value}</span>
     </div>
   )

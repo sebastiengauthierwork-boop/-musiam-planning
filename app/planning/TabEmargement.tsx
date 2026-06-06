@@ -234,7 +234,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
 
       {/* ── Toolbar (masquée à l'impression) ── */}
       <div className="emargement-no-print flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 bg-white shrink-0">
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-gray-600">
           Format A4 portrait · {days.length} jours
         </span>
         <button
@@ -271,7 +271,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
                 Aucun
               </button>
             </div>
-            <div className="text-[11px] text-gray-400 text-center">
+            <div className="text-[11px] text-gray-600 text-center">
               {selectedEmpIds.size} / {nonCadreEmployees.length} sélectionnés
             </div>
           </div>
@@ -313,7 +313,7 @@ export default function TabEmargement({ employees, schedules, shiftCodes, absenc
               {renderSheetContent(previewEmp)}
             </div>
           ) : (
-            <div className="emargement-no-print p-6 text-gray-400 text-sm">
+            <div className="emargement-no-print p-6 text-gray-600 text-sm">
               Sélectionnez un salarié dans la liste.
             </div>
           )}

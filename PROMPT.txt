@@ -1,27 +1,72 @@
-Ajout du choix de couleur dans les parametres des codes horaires et codes absence :
+Amélioration de la mise en forme du fichier Excel exporté depuis 
+la page Calendrier des structures.
 
-1. COLONNES EN BASE : genere le SQL et copie avec clip :
-ALTER TABLE shift_codes ADD COLUMN IF NOT EXISTS color VARCHAR(7);
-ALTER TABLE absence_codes ADD COLUMN IF NOT EXISTS color VARCHAR(7);
+Le fichier est généré avec SheetJS (xlsx). Il faut passer à 
+xlsx-style ou utiliser les options de style de SheetJS Pro —
+vérifie quelle librairie est actuellement utilisée et adapte.
 
-2. FORMULAIRE CODES HORAIRES (parametrage) :
-- Ajouter un champ "Couleur" avec un color picker (input type="color")
-- A cote du color picker, afficher un apercu du code avec la couleur choisie (fond = couleur, texte = noir ou blanc selon contraste)
-- Quand une couleur est selectionnee, verifier si cette couleur est deja utilisee par un autre code du meme site
-- Si oui, afficher un message orange : "Cette couleur est deja utilisee par le code [CODE] ([LABEL]). Voulez-vous quand meme l'utiliser ?"
-- Deux boutons : "Changer de couleur" et "Utiliser quand meme"
-- Ne PAS bloquer la sauvegarde, c'est juste informatif
+Si xlsx de base est utilisé (sans styles), remplacer par 
+exceljs qui supporte nativement les styles :
+  npm install exceljs
 
-3. FORMULAIRE CODES ABSENCE (parametrage) :
-- Meme logique : color picker + verification doublon
+─────────────────────────────────────────
+1. NOMBRES — RÉDUIRE LES DÉCIMALES
+─────────────────────────────────────────
+Les valeurs d'heures ont trop de décimales.
+- Arrondir à 2 chiffres maximum après la virgule
+- Format des cellules numériques : '0.00'
+- Exemple : 58.5 s'affiche 58.50, pas 58.4999999...
 
-4. FONCTION getCodeColor MISE A JOUR :
-- Dans lib/utils.ts, modifier getCodeColor pour :
-  a) D'abord chercher si le code a une couleur personnalisee en base (colonne color)
-  b) Si oui, utiliser cette couleur
-  c) Si non, utiliser la couleur par defaut calculee par la nomenclature (M=bleu, E=vert, etc.)
-- Passer les shift_codes et absence_codes avec leur couleur au composant pour eviter une requete supplementaire
+─────────────────────────────────────────
+2. LIGNE D'EN-TÊTE (ligne 1 : Jour, Janvier... Décembre, TOTAL)
+─────────────────────────────────────────
+- Fond : bleu foncé (#1E3A5F)
+- Texte : blanc (#FFFFFF), gras
+- Hauteur de ligne : 25px
+- Texte centré horizontalement
 
-5. Les couleurs personnalisees s'appliquent sur TOUTES les pages (saisie, planning imprimable, feuille emargement, compteur, feuille du jour, mon-planning)
+─────────────────────────────────────────
+3. COLONNE "Jour" (colonne A)
+─────────────────────────────────────────
+- Fond : gris clair (#F0F0F0)
+- Texte : gris foncé (#333333), gras
+- Centré horizontalement
+- Largeur fixe : 8 caractères
 
-git add . && git commit -m "feat: couleur personnalisable par code horaire" && git push origin main
+─────────────────────────────────────────
+4. CELLULES DE DONNÉES (jours × mois)
+─────────────────────────────────────────
+- Fond blanc par défaut
+- Alterner une légère teinte sur les lignes paires :
+  lignes paires → fond #F8F9FA (gris très très clair)
+  lignes impaires → fond blanc #FFFFFF
+- Texte centré
+- Cellules vides (jour inexistant dans ce mois) : fond #EEEEEE
+
+─────────────────────────────────────────
+5. LIGNE "TOTAL" (dernière ligne)
+─────────────────────────────────────────
+- Fond : bleu foncé (#1E3A5F)
+- Texte : blanc (#FFFFFF), gras
+- Même style que la ligne d'en-tête
+- Hauteur de ligne : 25px
+
+─────────────────────────────────────────
+6. COLONNE "TOTAL ANNUEL" (dernière colonne)
+─────────────────────────────────────────
+- Fond : bleu clair (#D6E4F0) sur toutes les cellules de données
+- Texte : bleu foncé (#1E3A5F), gras
+- La cellule intersection TOTAL × TOTAL ANNUEL :
+  fond bleu foncé (#1E3A5F), texte blanc, gras
+
+─────────────────────────────────────────
+7. MISE EN PAGE GÉNÉRALE
+─────────────────────────────────────────
+- Largeur colonne A (Jour) : 8 caractères
+- Largeur colonnes mois (B à M) : 12 caractères
+- Largeur colonne TOTAL ANNUEL : 15 caractères
+- Figer la première ligne (en-tête) et la première colonne (jours) :
+  freeze pane sur B2 pour pouvoir scroller sans perdre les repères
+- Bordures fines (#CCCCCC) sur toutes les cellules
+
+git add . && git commit -m "style: mise en forme Excel export calendrier budget heures" && git push origin main

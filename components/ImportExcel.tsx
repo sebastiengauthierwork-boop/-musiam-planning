@@ -343,7 +343,7 @@ export default function ImportExcel<T extends ImportRow>({
                     })}
                     {preview.valid.length > 8 && (
                       <tr>
-                        <td colSpan={99} className="px-2 py-1 text-gray-400 italic">
+                        <td colSpan={99} className="px-2 py-1 text-gray-600 italic">
                           …et {preview.valid.length - 8} autres lignes
                         </td>
                       </tr>

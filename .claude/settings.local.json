@@ -30,7 +30,31 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\MUSIAM-planning\" -Recurse -Force)",
       "Bash(Select-Object FullName, PSIsContainer)",
       "Bash(Sort-Object FullName)",
-      "Bash(xargs wc *)"
+      "Bash(xargs wc *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20 FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'app|parametrage|settings' } | Select-Object -First 30 FullName)",
+      "Bash(Select-Object -First 20)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Directory | Select-Object -First 20 | ForEach-Object { $_.FullName })",
+      "Bash(Get-Content \"C:\\\\Users\\\\sebas\\\\musiam-planning\\\\dressing_minutes.sql\")",
+      "Bash(npx eslint *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Filter \"*.vue\" -o \"*.jsx\" -o \"*.tsx\" -o \"*.ts\" -o \"*.js\")",
+      "Bash(Format-Table FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\MUSIAM-PLANNING\" -Recurse -Include \"*.tsx\", \"*.ts\", \"*.jsx\", \"*.js\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(findstr -i \"grid\\\\|dropdown\\\\|code\")",
+      "Bash(npx supabase *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Include \"*planning*\", \"*grid*\", \"*schedule*\" -Directory)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sebas\\\\musiam-planning\" -Recurse -Directory -Name)",
+      "PowerShell(head *)",
+      "Bash(git rm *)",
+      "PowerShell(Get-Content *)",
+      "Bash(Get-Content *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)"
     ]
   }
 }

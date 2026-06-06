@@ -134,7 +134,7 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
       <div className="shrink-0 px-6 py-3 border-b border-gray-200 bg-white flex items-center gap-3">
         <div>
           <h2 className="text-sm font-semibold text-gray-800">Archives — {teamName}</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Plannings archivés, du plus récent au plus ancien</p>
+          <p className="text-xs text-gray-600 mt-0.5">Plannings archivés, du plus récent au plus ancien</p>
         </div>
       </div>
 
@@ -222,8 +222,8 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
             </svg>
-            <p className="text-sm text-gray-400 font-medium">Aucune archive</p>
-            <p className="text-xs text-gray-300">Les plannings archivés apparaîtront ici.</p>
+            <p className="text-sm text-gray-600 font-medium">Aucune archive</p>
+            <p className="text-xs text-gray-700">Les plannings archivés apparaîtront ici.</p>
           </div>
         ) : (
           <>
@@ -242,7 +242,7 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
                   </div>
                   <button
                     onClick={() => setViewingArchive(null)}
-                    className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
+                    className="text-xs text-gray-600 hover:text-gray-700 transition-colors"
                   >
                     ✕ Fermer
                   </button>
@@ -287,7 +287,7 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
                         {fmtDate(archive.archived_at)}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {archive.archived_by ?? <span className="text-gray-300 italic">—</span>}
+                        {archive.archived_by ?? <span className="text-gray-700 italic">—</span>}
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={archive.status} />
@@ -341,7 +341,7 @@ export default function TabArchives({ teamId, teamName, year, month, onViewArchi
               </table>
             </div>
 
-            <p className="mt-3 text-xs text-gray-400">{archives.length} archive{archives.length > 1 ? 's' : ''}</p>
+            <p className="mt-3 text-xs text-gray-600">{archives.length} archive{archives.length > 1 ? 's' : ''}</p>
           </>
         )}
       </div>

@@ -71,7 +71,7 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
       <div className="flex-1 overflow-auto p-6">
         <div className="mb-5">
           <h2 className="text-base font-semibold text-gray-900">{teamName} · {MONTHS[month]} {year}</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Contrat mensuel = heures hebdo × 52 / 12</p>
+          <p className="text-xs text-gray-600 mt-0.5">Contrat mensuel = heures hebdo × 52 / 12</p>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -79,7 +79,7 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
                 {['Salarié', 'Contrat hebdo', 'Contrat mois', 'Planifié', 'Écart', 'Statut', 'Coût écart'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider first:text-left [&:not(:first-child)]:text-center">
+                  <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider first:text-left [&:not(:first-child)]:text-center">
                     {h}
                   </th>
                 ))}
@@ -90,10 +90,10 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
                 <tr key={row.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2.5">
                     <span className="font-semibold text-gray-800">{row.name.split(' ')[0]}</span>{' '}
-                    <span className="text-gray-500">{row.name.split(' ').slice(1).join(' ')}</span>
-                    {row.fonction && <span className="ml-2 text-gray-400 text-xs">· {row.fonction}</span>}
+                    <span className="text-gray-700">{row.name.split(' ').slice(1).join(' ')}</span>
+                    {row.fonction && <span className="ml-2 text-gray-600 text-xs">· {row.fonction}</span>}
                   </td>
-                  <td className="px-4 py-2.5 text-center text-gray-500 font-mono text-xs">{row.weeklyH}h/sem</td>
+                  <td className="px-4 py-2.5 text-center text-gray-700 font-mono text-xs">{row.weeklyH}h/sem</td>
                   <td className="px-4 py-2.5 text-center text-gray-600 font-mono text-xs">{fmtH(row.contractH)}</td>
                   <td className="px-4 py-2.5 text-center font-semibold text-gray-800 font-mono text-xs">{fmtH(row.plannedH)}</td>
                   <td className={`px-4 py-2.5 text-center font-semibold font-mono text-xs ${ecartClass(row.ecart)}`}>
@@ -106,10 +106,10 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
                   </td>
                   <td className="px-4 py-2.5 text-center text-xs font-mono">
                     {row.cost !== null ? (
-                      <span className={row.cost > 0 ? 'text-amber-600 font-semibold' : row.cost < 0 ? 'text-red-600 font-semibold' : 'text-gray-400'}>
+                      <span className={row.cost > 0 ? 'text-amber-600 font-semibold' : row.cost < 0 ? 'text-red-600 font-semibold' : 'text-gray-600'}>
                         {row.cost >= 0 ? '+' : ''}{row.cost.toFixed(2)} €
                       </span>
-                    ) : <span className="text-gray-300">—</span>}
+                    ) : <span className="text-gray-700">—</span>}
                   </td>
                 </tr>
               ))}
@@ -128,17 +128,17 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
                 <td />
                 <td className="px-4 py-2.5 text-center font-bold font-mono text-xs">
                   {totalCost !== null ? (
-                    <span className={totalCost > 0 ? 'text-amber-600' : totalCost < 0 ? 'text-red-600' : 'text-gray-400'}>
+                    <span className={totalCost > 0 ? 'text-amber-600' : totalCost < 0 ? 'text-red-600' : 'text-gray-600'}>
                       {totalCost >= 0 ? '+' : ''}{totalCost.toFixed(2)} €
                     </span>
-                  ) : <span className="text-gray-300">—</span>}
+                  ) : <span className="text-gray-700">—</span>}
                 </td>
               </tr>
             </tfoot>
           </table>
         </div>
 
-        <div className="flex items-center gap-5 mt-4 text-xs text-gray-400">
+        <div className="flex items-center gap-5 mt-4 text-xs text-gray-600">
           <span className="inline-flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-full bg-emerald-100 border border-emerald-200" />
             N = Normal (écart ≤ 1h)
@@ -152,7 +152,7 @@ export default function TabHeuresSup({ employees, schedules, shiftCodes, year, m
             S = Surplus (heures supplémentaires)
           </span>
           {!hasCost && (
-            <span className="ml-auto text-gray-300">Coût écart : renseignez le taux horaire dans Salariés</span>
+            <span className="ml-auto text-gray-700">Coût écart : renseignez le taux horaire dans Salariés</span>
           )}
         </div>
       </div>

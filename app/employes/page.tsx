@@ -569,7 +569,7 @@ export default function EmployesPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">Chargement…</div>
+  if (loading) return <div className="flex items-center justify-center h-full text-gray-600 text-sm">Chargement…</div>
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -577,7 +577,7 @@ export default function EmployesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Salariés</h1>
-          <p className="text-gray-500 text-sm mt-1">{employees.length} salarié{employees.length !== 1 ? 's' : ''}</p>
+          <p className="text-gray-700 text-sm mt-1">{employees.length} salarié{employees.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <ImportExcel
@@ -731,21 +731,21 @@ export default function EmployesPage() {
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nom</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Matricule</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider" style={{ maxWidth: 50 }}>Fnct</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contrat</th>
-              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/sem</th>
-              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">J/sem</th>
-              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">H/j</th>
-              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Équipes</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">Nom</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">Matricule</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider" style={{ maxWidth: 50 }}>Fnct</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">Statut</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">Contrat</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">H/sem</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">J/sem</th>
+              <th className="text-right px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">H/j</th>
+              <th className="text-left px-4 py-2 text-xs font-semibold text-gray-700 uppercase tracking-wider">Équipes</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {employees.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-400">Aucun salarié</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-600">Aucun salarié</td></tr>
             )}
             {(() => {
               const { permanents, temporaires } = sortEmployees(employees)
@@ -758,7 +758,7 @@ export default function EmployesPage() {
                   <Fragment key={emp.id}>
                     {needsSep && (
                       <tr>
-                        <td colSpan={10} className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-500 uppercase tracking-widest text-center">
+                        <td colSpan={10} className="bg-gray-100 border-t border-b border-gray-200 px-4 py-1 text-[10px] font-semibold text-gray-700 uppercase tracking-widest text-center">
                           Temporaires · Extras &amp; Intérimaires
                         </td>
                       </tr>
@@ -777,13 +777,13 @@ export default function EmployesPage() {
                     </>
                   )}
                 </td>
-                <td className="px-4 py-1.5 text-gray-500 font-mono">
-                  {emp.matricule || <span className="text-gray-300">—</span>}
+                <td className="px-4 py-1.5 text-gray-700 font-mono">
+                  {emp.matricule || <span className="text-gray-700">—</span>}
                 </td>
                 <td className="px-4 py-1.5 text-gray-600 font-mono" style={{ maxWidth: 50, overflow: 'hidden' }}>
                   {emp.fonction
                     ? <span title={emp.fonction}>{getFnCode(emp.fonction, jobFunctions)}</span>
-                    : <span className="text-gray-300">—</span>}
+                    : <span className="text-gray-700">—</span>}
                 </td>
                 <td className="px-4 py-1.5"><StatutBadge statut={emp.statut} /></td>
                 <td className="px-4 py-1.5"><ContractBadge type={emp.contract_type} /></td>
@@ -798,9 +798,9 @@ export default function EmployesPage() {
                 </td>
                 <td className="px-4 py-1.5">
                   <div className="flex flex-wrap gap-1">
-                    {emp.teams.length === 0 && <span className="text-gray-400">—</span>}
+                    {emp.teams.length === 0 && <span className="text-gray-600">—</span>}
                     {emp.teams.map((t) => (
-                      <span key={t.team_id} className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${t.is_primary ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <span key={t.team_id} className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${t.is_primary ? 'bg-slate-100 text-slate-700' : 'bg-gray-100 text-gray-700'}`}>
                         {teamLabel(t)}
                       </span>
                     ))}
@@ -821,7 +821,7 @@ export default function EmployesPage() {
                           </svg>
                         </button>
                       ) : (
-                        <button onClick={() => openCreateAccess(emp)} title="Créer un accès" className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
+                        <button onClick={() => openCreateAccess(emp)} title="Créer un accès" className="p-1 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                           </svg>
@@ -829,18 +829,18 @@ export default function EmployesPage() {
                       )
                     )}
                     {(isAdmin(role) || role === 'responsable') && (
-                      <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
+                      <button onClick={() => openHistory(emp.id)} className="p-1 text-gray-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors" title="Historique">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </button>
                     )}
-                    <button onClick={() => openEdit(emp)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <button onClick={() => openEdit(emp)} className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
                     </button>
-                    <button onClick={() => setConfirmDeleteId(emp.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                    <button onClick={() => setConfirmDeleteId(emp.id)} className="p-1 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
@@ -885,7 +885,7 @@ export default function EmployesPage() {
                     <td className="px-4 py-2"><ContractBadge type={emp.contract_type} /></td>
                     <td className="px-4 py-2">
                       <div className="flex flex-wrap gap-1">
-                        {emp.teams.length === 0 ? <span className="text-gray-400">—</span> : emp.teams.map(t => (
+                        {emp.teams.length === 0 ? <span className="text-gray-600">—</span> : emp.teams.map(t => (
                           <span key={t.team_id} className="px-1.5 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">{teamLabel(t)}</span>
                         ))}
                       </div>
@@ -915,7 +915,7 @@ export default function EmployesPage() {
                               className="px-2.5 py-1 text-xs font-medium text-amber-700 border border-amber-300 bg-amber-50 rounded-lg hover:bg-amber-100">
                               Affecter
                             </button>
-                            <button onClick={() => openEdit(emp)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
+                            <button onClick={() => openEdit(emp)} className="p-1 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Modifier">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
@@ -1015,7 +1015,7 @@ export default function EmployesPage() {
                 </select>
               </Field>
               <Field label="Heures / semaine">
-                <input type="number" value={formData.weekly_contract_hours} onChange={(e) => setFormData({ ...formData, weekly_contract_hours: e.target.value })} className="input disabled:bg-gray-50 disabled:text-gray-400" placeholder="35" disabled={formData.contract_type === 'extra'} min={1} max={48} step={0.5} />
+                <input type="number" value={formData.weekly_contract_hours} onChange={(e) => setFormData({ ...formData, weekly_contract_hours: e.target.value })} className="input disabled:bg-gray-50 disabled:text-gray-600" placeholder="35" disabled={formData.contract_type === 'extra'} min={1} max={48} step={0.5} />
               </Field>
             </div>
 
@@ -1032,7 +1032,7 @@ export default function EmployesPage() {
             {/* Équipes */}
             <Field label="Équipes">
               <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
-                {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucune équipe disponible</p>}
+                {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-600">Aucune équipe disponible</p>}
                 {allTeams.map((team) => (
                   <label key={team.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
                     <input type="checkbox" checked={formData.selectedTeamIds.includes(team.id)} onChange={() => toggleTeam(team.id)} className="rounded border-gray-300 text-slate-900" />
@@ -1045,7 +1045,7 @@ export default function EmployesPage() {
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-1">La première équipe cochée sera l'équipe principale.</p>
+              <p className="text-xs text-gray-600 mt-1">La première équipe cochée sera l'équipe principale.</p>
             </Field>
           </div>
 
@@ -1076,14 +1076,14 @@ export default function EmployesPage() {
                 <input type="radio" checked={historyModal.option === 'beginning'} onChange={() => setHistoryModal({ ...historyModal, option: 'beginning' })} className="mt-0.5 accent-slate-700" />
                 <div>
                   <div className="text-sm font-medium text-gray-900">Depuis le début</div>
-                  <div className="text-xs text-gray-500">Écrase la valeur directement, sans conserver l'historique.</div>
+                  <div className="text-xs text-gray-700">Écrase la valeur directement, sans conserver l'historique.</div>
                 </div>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="radio" checked={historyModal.option === 'from_date'} onChange={() => setHistoryModal({ ...historyModal, option: 'from_date' })} className="mt-0.5 accent-slate-700" />
                 <div className="flex-1">
                   <div className="text-sm font-medium text-gray-900">À partir du</div>
-                  <div className="text-xs text-gray-500 mb-2">L'ancienne valeur sera conservée dans l'historique. Les plannings imprimés afficheront la bonne valeur selon la date.</div>
+                  <div className="text-xs text-gray-700 mb-2">L'ancienne valeur sera conservée dans l'historique. Les plannings imprimés afficheront la bonne valeur selon la date.</div>
                   <input
                     type="date"
                     value={historyModal.effectiveDate}
@@ -1125,27 +1125,27 @@ export default function EmployesPage() {
           onClose={() => setViewHistoryEmpId(null)}
         >
           {historyLoading ? (
-            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Chargement…</div>
+            <div className="flex items-center justify-center h-24 text-gray-600 text-sm">Chargement…</div>
           ) : empHistory.length === 0 ? (
-            <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Aucun historique enregistré.</div>
+            <div className="flex items-center justify-center h-24 text-gray-600 text-sm">Aucun historique enregistré.</div>
           ) : (
             <div className="divide-y divide-gray-100">
               {empHistory.map(h => (
                 <div key={h.id} className="py-3 flex items-start gap-4">
-                  <div className="flex-shrink-0 w-24 text-xs font-mono text-gray-500 pt-0.5">
+                  <div className="flex-shrink-0 w-24 text-xs font-mono text-gray-700 pt-0.5">
                     {new Date(h.effective_date).toLocaleDateString('fr-FR')}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-gray-700 mb-1">{FIELD_LABELS[h.field_name] ?? h.field_name}</div>
                     <div className="flex items-center gap-2 text-xs">
                       <span className="px-2 py-0.5 rounded bg-red-50 text-red-700 font-mono">{formatHistoryValue(h.field_name, h.old_value)}</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                       <span className="px-2 py-0.5 rounded bg-green-50 text-green-700 font-mono">{formatHistoryValue(h.field_name, h.new_value)}</span>
                     </div>
                   </div>
-                  <div className="flex-shrink-0 text-[10px] text-gray-400 pt-0.5">
+                  <div className="flex-shrink-0 text-[10px] text-gray-600 pt-0.5">
                     {new Date(h.created_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
@@ -1194,7 +1194,7 @@ export default function EmployesPage() {
               <Field label="Mot de passe *">
                 <div className="relative">
                   <input type={showCreatePassword ? 'text' : 'password'} value={createAccessForm.password} onChange={e => setCreateAccessForm(p => ({ ...p, password: e.target.value }))} className="input pr-10" placeholder="Min. 6 caractères" />
-                  <button type="button" onClick={() => setShowCreatePassword(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowCreatePassword(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600">
                     {showCreatePassword ? (
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
                     ) : (
@@ -1214,7 +1214,7 @@ export default function EmployesPage() {
               {createAccessForm.role === 'manager' && (
                 <Field label="Équipes autorisées">
                   <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-36 overflow-y-auto">
-                    {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucune équipe disponible</p>}
+                    {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-600">Aucune équipe disponible</p>}
                     {allTeams.map(t => (
                       <label key={t.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
                         <input type="checkbox" checked={createAccessForm.allowedTeams.includes(t.id)}
@@ -1291,7 +1291,7 @@ export default function EmployesPage() {
                     className="input pr-10"
                     placeholder="Min. 6 caractères"
                   />
-                  <button type="button" onClick={() => setShowResetPassword(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowResetPassword(p => !p)} tabIndex={-1} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showResetPassword ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
                     </svg>
@@ -1347,7 +1347,7 @@ export default function EmployesPage() {
             )}
             <Field label="Équipe(s) *">
               <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-44 overflow-y-auto">
-                {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-400">Aucune équipe disponible</p>}
+                {allTeams.length === 0 && <p className="px-3 py-2 text-xs text-gray-600">Aucune équipe disponible</p>}
                 {allTeams.map(team => (
                   <label key={team.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer">
                     <input type="checkbox" checked={recruitForm.selectedTeamIds.includes(team.id)}
@@ -1382,7 +1382,7 @@ export default function EmployesPage() {
             <div className="px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-600">
               Poste : <span className="font-semibold">{finalizeEmp.last_name}</span>
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-700">
               Le planning existant sera conservé. Le salarié sera activé avec son vrai nom.
             </p>
             <div className="grid grid-cols-2 gap-4">
@@ -1414,7 +1414,7 @@ export default function EmployesPage() {
       {/* Delete confirmation — 2 options */}
       {confirmDeleteId && (
         <Modal title="Gérer le salarié" onClose={() => setConfirmDeleteId(null)}>
-          <p className="text-sm text-gray-500 mb-4">Choisissez une action pour ce salarié :</p>
+          <p className="text-sm text-gray-700 mb-4">Choisissez une action pour ce salarié :</p>
           <div className="space-y-3 mb-5">
             <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
               <p className="text-sm font-semibold text-amber-800">Désactiver</p>
@@ -1443,7 +1443,7 @@ export default function EmployesPage() {
 }
 
 function StatutBadge({ statut }: { statut: string | null }) {
-  if (!statut) return <span className="text-gray-300">—</span>
+  if (!statut) return <span className="text-gray-700">—</span>
   const styles: Record<string, string> = {
     cadre: 'bg-purple-50 text-purple-700',
     agent_de_maitrise: 'bg-blue-50 text-blue-700',
@@ -1483,7 +1483,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

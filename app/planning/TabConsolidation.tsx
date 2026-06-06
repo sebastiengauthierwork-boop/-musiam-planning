@@ -147,15 +147,15 @@ export default function TabConsolidation({ teams = [], shiftCodes, absenceCodes,
           selectedIds={selectedTeamIds}
           onChange={setSelectedTeamIds}
         />
-        {loading && <span className="text-xs text-gray-400 animate-pulse ml-2">Chargement…</span>}
+        {loading && <span className="text-xs text-gray-600 animate-pulse ml-2">Chargement…</span>}
       </div>
 
       {/* Grid */}
       <div className="flex-1 overflow-auto">
         {selectedTeamIds.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Sélectionnez au moins une équipe.</div>
+          <div className="flex items-center justify-center h-32 text-gray-600 text-sm">Sélectionnez au moins une équipe.</div>
         ) : !loading && sortedEmployees.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">Aucun salarié trouvé.</div>
+          <div className="flex items-center justify-center h-32 text-gray-600 text-sm">Aucun salarié trouvé.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="text-xs border-collapse" style={{ minWidth: `${COL_NOM + COL_PRENOM + COL_EQ + days.length * 38 + 64}px` }}>

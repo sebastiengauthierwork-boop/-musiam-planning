@@ -51,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-white">
-        <p className="text-sm text-gray-400">Chargement…</p>
+        <p className="text-sm text-gray-600">Chargement…</p>
       </div>
     )
   }

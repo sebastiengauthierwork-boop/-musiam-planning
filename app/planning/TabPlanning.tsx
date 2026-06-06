@@ -292,7 +292,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
 
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-200 bg-white shrink-0 flex-wrap">
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-gray-700">
           {a4Mode === 'off'
             ? 'Format A3 paysage · couleurs fidèles à l\'impression'
             : `Format A4 paysage · ${a4Mode === '1page' ? '1 page (2 quinzaines)' : '2 pages'} · ${employees.length} salarié${employees.length !== 1 ? 's' : ''}`}
@@ -306,7 +306,7 @@ export default function TabPlanning({ employees, schedules, shiftCodes, absenceC
                 key={mode}
                 onClick={() => setA4Mode(mode)}
                 className={`px-2.5 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  a4Mode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  a4Mode === mode ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-700 hover:text-gray-700'
                 }`}
               >
                 {mode === 'off' ? 'A3' : mode === '1page' ? 'A4 · 1 page' : 'A4 · 2 pages'}
