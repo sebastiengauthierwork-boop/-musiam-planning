@@ -24,9 +24,9 @@ function fmtH(h: number): string {
   return h < 0 ? `−${str}` : str
 }
 
-type GanttEntry = { employee_id: string; name: string; start: string; end: string; code: string; statut: string; team_id: string }
 type DayVigilance = { date: string; label: string; planned: number; theoretical: number | null }
 type BudgetData = { realized: number; forecast: number; budget: number }
+type SlideEntry = { employee_id: string; name: string; statut: string; team_id: string; byDate: Record<string, string> }
 
 const CADRE_INDICATIVE_DASH: Record<string, [string, string]> = {
   'P/O': ['05:00', '14:00'],
@@ -45,7 +45,6 @@ export default function TableauDeBord() {
   const [loading, setLoading] = useState(true)
   const [contacts, setContacts] = useState<ContactUtile[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [ganttEntries, setGanttEntries] = useState<GanttEntry[]>([])
   const [vigilance, setVigilance] = useState<DayVigilance[]>([])
   const [budget, setBudget] = useState<BudgetData>({ realized: 0, forecast: 0, budget: 0 })
   const [teamCount, setTeamCount] = useState(0)
@@ -54,8 +53,61 @@ export default function TableauDeBord() {
   const [ganttTeamId, setGanttTeamId] = useState<string>('')
   const [shiftCodesForGantt, setShiftCodesForGantt] = useState<{ code: string; color?: string | null }[]>([])
   const [absenceCodesForGantt, setAbsenceCodesForGantt] = useState<{ code: string; color?: string | null }[]>([])
+  const [ganttOffset, setGanttOffset] = useState(0)
+  const [ganttWindowRows, setGanttWindowRows] = useState<SlideEntry[]>([])
+  const [ganttWindowLoading, setGanttWindowLoading] = useState(false)
+  const [teamIdsForGantt, setTeamIdsForGantt] = useState<string[]>([])
+  const [windowDays, setWindowDays] = useState(7)
 
   useEffect(() => { load() }, [selectedSiteId])
+
+  useEffect(() => {
+    const update = () => setWindowDays(window.innerWidth <= 768 ? 5 : 7)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  useEffect(() => {
+    if (!teamIdsForGantt.length) return
+    loadGanttWindow(ganttOffset, windowDays, teamIdsForGantt, ganttTeamId)
+  }, [ganttOffset, windowDays, teamIdsForGantt, ganttTeamId])
+
+  async function loadGanttWindow(offset: number, days: number, allIds: string[], filterTeam: string) {
+    setGanttWindowLoading(true)
+    const base = new Date()
+    const dates = Array.from({ length: days }, (_, i) => {
+      const d = new Date(base); d.setDate(d.getDate() + offset + i); return toISO(d)
+    })
+    const ids = filterTeam ? [filterTeam] : allIds
+    const { data } = await supabase
+      .from('schedules')
+      .select('date, code, employee_id, team_id, employees(first_name, last_name, statut)')
+      .in('team_id', ids)
+      .in('date', dates)
+    const REPOS = new Set(['R', 'REP', 'FER'])
+    const empMap = new Map<string, SlideEntry>()
+    for (const row of (data ?? []) as any[]) {
+      const code = row.code ?? ''
+      if (!code) continue
+      let entry = empMap.get(row.employee_id)
+      if (!entry) {
+        const emp = row.employees
+        const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : row.employee_id
+        entry = { employee_id: row.employee_id, name, statut: emp?.statut ?? '', team_id: row.team_id ?? '', byDate: {} }
+        empMap.set(row.employee_id, entry)
+      }
+      entry.byDate[row.date] = code
+    }
+    const sorted = [...empMap.values()]
+      .filter(e => Object.values(e.byDate).some(c => !REPOS.has(c)))
+      .sort((a, b) => {
+        const oa = STATUT_ORD[a.statut] ?? 3, ob = STATUT_ORD[b.statut] ?? 3
+        return oa !== ob ? oa - ob : a.name.localeCompare(b.name)
+      })
+    setGanttWindowRows(sorted)
+    setGanttWindowLoading(false)
+  }
 
   useEffect(() => {
     const canSee = isAdmin(role) || role === 'responsable' || role === 'manager'
@@ -83,6 +135,7 @@ export default function TableauDeBord() {
       setTeamCount(teams.length)
       setGanttTeams(teams.map((t: any) => ({ id: t.id, name: t.name ?? '', cdpf: t.cdpf ?? null })))
       setGanttTeamId('')
+      setTeamIdsForGantt(teamIds)
 
       if (!teamIds.length) { setLoading(false); return }
 
@@ -101,6 +154,8 @@ export default function TableauDeBord() {
         }
       }
       const absenceSet = new Set<string>((absRes.data ?? []).map((a: any) => a.code).filter(Boolean))
+      setShiftCodesForGantt(scRes.data ?? [])
+      setAbsenceCodesForGantt(absRes.data ?? [])
 
       // 3. Dates J+5
       const next5: Date[] = Array.from({ length: 5 }, (_, i) => {
@@ -114,12 +169,8 @@ export default function TableauDeBord() {
       const lastOfMonth = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${lastDay}`
 
       // 5. Requêtes parallèles — calRes couvre tout le mois (vigilance + budget)
-      const [todayRes, next5Res, monthRes, calRes, empRes] = await Promise.all([
-        supabase.from('schedules')
-          .select('employee_id, code, team_id, employees(first_name, last_name, statut)')
-          .in('team_id', teamIds).eq('date', todayStr),
-        supabase.from('schedules')
-          .select('date, employee_id, code')
+      const [next5Res, monthRes, calRes, empRes] = await Promise.all([
+        supabase.from('schedules').select('date, employee_id, code')
           .in('team_id', teamIds).in('date', next5Strs),
         supabase.from('schedules')
           .select('date, code, type')
@@ -134,40 +185,7 @@ export default function TableauDeBord() {
 
       setEmployeeCount(empRes.count ?? 0)
 
-      // 6. Effectifs du jour — Gantt (horaires depuis shift_codes, jamais depuis schedules)
-      const REPOS_CODES = new Set(['R', 'REP', 'FER'])
-      const seenEmp = new Set<string>()
-      const gantt: GanttEntry[] = []
-      for (const s of (todayRes.data ?? []) as any[]) {
-        if (seenEmp.has(s.employee_id)) continue
-        const code = s.code ?? ''
-        if (REPOS_CODES.has(code) || absenceSet.has(code)) continue
-        let startStr: string, endStr: string
-        if (scTimeMap[code]) {
-          startStr = scTimeMap[code].start
-          endStr = scTimeMap[code].end
-        } else if (code in CADRE_INDICATIVE_DASH) {
-          ;[startStr, endStr] = CADRE_INDICATIVE_DASH[code]
-        } else {
-          continue
-        }
-        seenEmp.add(s.employee_id)
-        const emp = s.employees
-        const name = emp ? `${emp.last_name ?? ''} ${emp.first_name ?? ''}`.trim() : s.employee_id
-        gantt.push({ employee_id: s.employee_id, name, start: startStr, end: endStr, code, statut: emp?.statut ?? '', team_id: s.team_id ?? '' })
-      }
-      gantt.sort((a, b) => {
-        const oa = STATUT_ORD[a.statut] ?? 3
-        const ob = STATUT_ORD[b.statut] ?? 3
-        if (oa !== ob) return oa - ob
-        return a.name.localeCompare(b.name)
-      })
-      if (loadId !== loadIdRef.current) return
-      setShiftCodesForGantt(scRes.data ?? [])
-      setAbsenceCodesForGantt(absRes.data ?? [])
-      setGanttEntries(gantt)
-
-      // 7. Structure positions (vigilance + budget, une seule requête)
+      // 6. Structure positions (vigilance + budget, une seule requête)
       const allStructureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
       const structureReq: Record<string, number> = {}   // pour vigilance (nb personnes)
       let structHoursMap: Record<string, number> = {}   // pour budget (heures payées)
@@ -182,7 +200,8 @@ export default function TableauDeBord() {
         structHoursMap = buildStructHoursMap(spData ?? [], scMap)
       }
 
-      // 8. Vigilance J+5 — présent = code dans scTimeMap ou cadre, pas repos ni absence
+      // 7. Vigilance J+5 — présent = code dans scTimeMap ou cadre, pas repos ni absence
+      const REPOS_CODES = new Set(['R', 'REP', 'FER'])
       const plannedByDay: Record<string, Set<string>> = {}
       for (const s of next5Res.data ?? []) {
         const c = s.code ?? ''
@@ -205,10 +224,10 @@ export default function TableauDeBord() {
         return { date: ds, label: `${DAYS_SHORT[d.getDay()]} ${d.getDate()}`, planned: plannedByDay[ds]?.size ?? 0, theoretical: theoreticalByDate[ds] ?? null }
       }))
 
-      // 9. Budget structure — somme paid_hours × effectif_requis pour chaque jour du mois
+      // 8. Budget structure — somme paid_hours × effectif_requis pour chaque jour du mois
       const structBudget = computeBudgetFromCalEntries(calRes.data ?? [], structHoursMap)
 
-      // 10. Heures planifiées (schedules du mois) — uniquement les codes avec paid_hours
+      // 9. Heures planifiées (schedules du mois) — uniquement les codes avec paid_hours
       let realized = 0, forecast = 0
       for (const s of monthRes.data ?? []) {
         const h = scMap[s.code] ?? 0
@@ -245,7 +264,12 @@ export default function TableauDeBord() {
     : atterrissage <= budget.budget ? 'Sous le budget'
     : ecartPct <= 5 ? 'Attention'
     : 'Dépassement'
-  const displayedGantt = ganttTeamId ? ganttEntries.filter(e => e.team_id === ganttTeamId) : ganttEntries
+  const windowDates = Array.from({ length: windowDays }, (_, i) => {
+    const d = new Date(now); d.setDate(d.getDate() + ganttOffset + i); return d
+  })
+  const windowLabel = windowDays > 0
+    ? `${pad(windowDates[0].getDate())}/${pad(windowDates[0].getMonth()+1)} – ${pad(windowDates[windowDays-1].getDate())}/${pad(windowDates[windowDays-1].getMonth()+1)}`
+    : ''
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
@@ -257,18 +281,93 @@ export default function TableauDeBord() {
         </p>
       </div>
 
-      {/* Effectifs du jour — Gantt */}
-      <Card title="Effectifs du jour" badge={`${displayedGantt.length} présent${displayedGantt.length !== 1 ? 's' : ''}`}>
-        {ganttTeams.length > 1 && (
-          <div className="mb-3">
+      {/* Effectifs — fenêtre glissante */}
+      <Card title="Effectifs" badge={windowLabel}>
+        {/* Filtres + navigation */}
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          {ganttTeams.length > 1 && (
             <select value={ganttTeamId} onChange={e => setGanttTeamId(e.target.value)}
               className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-slate-200">
               <option value="">Toutes les équipes</option>
               {ganttTeams.map(t => <option key={t.id} value={t.id}>{t.name}{t.cdpf ? ` · ${t.cdpf}` : ''}</option>)}
             </select>
+          )}
+          <div className="flex items-center gap-1 ml-auto">
+            <button onClick={() => setGanttOffset(o => o - 1)}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-base font-bold transition-colors">
+              ‹
+            </button>
+            <button onClick={() => setGanttOffset(0)}
+              title="Aujourd'hui"
+              className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border text-sm font-medium transition-colors ${ganttOffset === 0 ? 'border-indigo-400 text-indigo-700 bg-indigo-50' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+              ◎
+            </button>
+            <button onClick={() => setGanttOffset(o => o + 1)}
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-base font-bold transition-colors">
+              ›
+            </button>
+          </div>
+        </div>
+
+        {/* Grille 7 jours */}
+        {ganttWindowLoading ? (
+          <div className="h-16 flex items-center justify-center">
+            <div className="w-5 h-5 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+          </div>
+        ) : ganttWindowRows.length === 0 ? (
+          <p className="text-xs text-gray-600 italic py-2">Aucun salarié planifié sur cette période.</p>
+        ) : (
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full min-w-max text-xs border-collapse">
+              <thead>
+                <tr>
+                  <th className="text-left font-semibold text-gray-700 px-2 py-1 sticky left-0 bg-white z-10 min-w-[120px]">Salarié</th>
+                  {windowDates.map(d => {
+                    const ds = toISO(d)
+                    const isToday = ds === todayStr
+                    const isPast = ds < todayStr
+                    return (
+                      <th key={ds} className={`text-center px-1 py-1 min-w-[52px] ${isToday ? 'bg-indigo-50' : ''}`}>
+                        <div className={`text-[10px] font-bold leading-none ${isToday ? 'text-indigo-700' : isPast ? 'text-gray-400' : 'text-gray-700'}`}>
+                          {DAYS_SHORT[d.getDay()]}
+                        </div>
+                        <div className={`text-[10px] leading-none mt-0.5 ${isToday ? 'text-indigo-600 font-semibold underline decoration-indigo-400' : isPast ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {pad(d.getDate())}/{pad(d.getMonth()+1)}
+                        </div>
+                      </th>
+                    )
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {ganttWindowRows.map(emp => (
+                  <tr key={emp.employee_id} className="border-t border-gray-50 hover:bg-gray-50/60">
+                    <td className="px-2 py-1 font-medium text-gray-800 sticky left-0 bg-white z-10 truncate max-w-[120px]">{emp.name}</td>
+                    {windowDates.map(d => {
+                      const ds = toISO(d)
+                      const code = emp.byDate[ds]
+                      const isToday = ds === todayStr
+                      const color = code ? getCodeColor(code, shiftCodesForGantt, absenceCodesForGantt) : null
+                      return (
+                        <td key={ds} className={`text-center px-1 py-1 ${isToday ? 'bg-indigo-50/60' : ''}`}>
+                          {code ? (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold leading-none"
+                              style={{ background: color?.bg ?? '#e5e7eb', color: color?.text ?? '#374151' }}>
+                              {code}
+                            </span>
+                          ) : (
+                            <span className="text-gray-200">—</span>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-        <GanttChart entries={displayedGantt} shiftCodes={shiftCodesForGantt} absenceCodes={absenceCodesForGantt} />
+
         <div className="mt-3 text-right">
           <a href="/planning" className="text-xs text-blue-600 hover:underline">Voir détails →</a>
         </div>
@@ -381,41 +480,6 @@ function Card({ title, badge, children }: { title: string; badge?: string; child
   )
 }
 
-function GanttChart({ entries, shiftCodes, absenceCodes }: { entries: GanttEntry[]; shiftCodes: { code: string; color?: string | null }[]; absenceCodes: { code: string; color?: string | null }[] }) {
-  if (entries.length === 0) {
-    return <p className="text-xs text-gray-600 italic">Aucun salarié planifié aujourd'hui.</p>
-  }
-  const toMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-  const allMins = entries.flatMap(e => [toMin(e.start), toMin(e.end)])
-  const minH = Math.min(...allMins)
-  const maxH = Math.max(...allMins)
-  const span = maxH - minH || 1
-  return (
-    <div className="space-y-0.5">
-      {entries.map(e => {
-        const s = toMin(e.start), en = toMin(e.end)
-        const left = ((s - minH) / span) * 100
-        const width = Math.max(((en - s) / span) * 100, 2)
-        const color = getCodeColor(e.code, shiftCodes, absenceCodes)
-        return (
-          <div key={e.employee_id} className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-700 w-24 shrink-0 truncate">{e.name}</span>
-            <div className="flex-1 relative h-4 bg-gray-100 rounded">
-              <div
-                className="absolute top-0.5 bottom-0.5 rounded flex items-center px-1"
-                style={{ left: `${left}%`, width: `${width}%`, background: color.bg }}
-              >
-                <span className="text-[8px] font-medium whitespace-nowrap overflow-hidden leading-none" style={{ color: color.text }}>
-                  {e.code in CADRE_INDICATIVE_DASH ? e.code : `${e.code} ${e.start}–${e.end}`}
-                </span>
-              </div>
-            </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 function BudgetStat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
