@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
 import { buildStructHoursMap, computeMonthBudget, fmtHMin } from '@/lib/budgetUtils'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -758,36 +758,89 @@ export function Calendrier() {
     setShowFill(false)
   }
 
-  function exportBudgetExcel() {
+  async function exportBudgetExcel() {
     const teamName = teams.find(t => t.id === teamId)?.name ?? 'Equipe'
-    const sheetName = `Budget heures ${year}`.slice(0, 31)
-    const headers = ['Jour', ...MONTHS_FR, 'TOTAL ANNUEL']
-    const rows: (string | number | null)[][] = []
+    const workbook = new ExcelJS.Workbook()
+    const ws = workbook.addWorksheet(`Budget heures ${year}`.slice(0, 31))
+
+    ws.columns = [
+      { width: 8 },
+      ...Array(12).fill(null).map(() => ({ width: 12 })),
+      { width: 15 },
+    ]
+    ws.views = [{ state: 'frozen', xSplit: 1, ySplit: 1, topLeftCell: 'B2', activeCell: 'B2' } as any]
+
+    const hdrFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } } as any
+    const dayFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } } as any
+    const totFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } } as any
+    const empFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEEEEE' } } as any
+    const whtFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } } as any
+    const altFill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F9FA' } } as any
+    const border   = { style: 'thin', color: { argb: 'FFCCCCCC' } } as any
+    const borders  = { top: border, left: border, bottom: border, right: border }
+    const center   = { horizontal: 'center', vertical: 'middle' } as any
+
+    function styleCell(cell: ExcelJS.Cell, fill: any, fontOpts: Partial<ExcelJS.Font>, numFmt?: string) {
+      cell.fill = fill
+      cell.font = fontOpts
+      cell.alignment = center
+      cell.border = borders
+      if (numFmt) cell.numFmt = numFmt
+    }
+
+    // Row 1 — en-tête
+    const hdrRow = ws.addRow(['Jour', ...MONTHS_FR, 'TOTAL ANNUEL'])
+    hdrRow.height = 25
+    hdrRow.eachCell((cell: ExcelJS.Cell) =>
+      styleCell(cell, hdrFill, { bold: true, color: { argb: 'FFFFFFFF' } }))
+
+    // Lignes 2–32 — jours
     for (let day = 1; day <= 31; day++) {
-      const row: (string | number | null)[] = [day]
+      const rowVals: (number | string | null)[] = [day]
+      const emptyCols: number[] = []
       let rowTotal = 0
       for (let m = 0; m < 12; m++) {
         const nDays = new Date(year, m + 1, 0).getDate()
         if (day > nDays) {
-          row.push(null)
+          rowVals.push(null); emptyCols.push(m + 2)
         } else {
           const dateStr = `${year}-${String(m + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
           const structId = calMap[dateStr]
-          const h = structId ? (structHoursMap[structId] ?? 0) : 0
-          row.push(h)
-          rowTotal += h
+          const h = Math.round((structId ? (structHoursMap[structId] ?? 0) : 0) * 100) / 100
+          rowVals.push(h); rowTotal += h
         }
       }
-      row.push(rowTotal)
-      rows.push(row)
+      rowVals.push(Math.round(rowTotal * 100) / 100)
+      const row = ws.addRow(rowVals)
+      const isEven = day % 2 === 0
+      row.eachCell({ includeEmpty: true }, (cell: ExcelJS.Cell, col: number) => {
+        if (col === 1) {
+          styleCell(cell, dayFill, { bold: true, color: { argb: 'FF333333' } })
+        } else if (col === 14) {
+          styleCell(cell, totFill, { bold: true, color: { argb: 'FF1E3A5F' } }, typeof cell.value === 'number' ? '0.00' : undefined)
+        } else if (emptyCols.includes(col)) {
+          styleCell(cell, empFill, {})
+        } else {
+          styleCell(cell, isEven ? altFill : whtFill, {}, typeof cell.value === 'number' ? '0.00' : undefined)
+        }
+      })
     }
-    const totalRow: (string | number)[] = ['TOTAL', ...allMonthBudgets, annualBudget]
-    const aoa = [headers, ...rows, totalRow]
-    const ws = XLSX.utils.aoa_to_sheet(aoa)
-    ws['!cols'] = [{ wch: 6 }, ...Array(12).fill({ wch: 11 }), { wch: 14 }]
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, sheetName)
-    XLSX.writeFile(wb, `Budget_Heures_${teamName.replace(/\s+/g, '_')}_${year}.xlsx`)
+
+    // Ligne 33 — TOTAL
+    const totRowData = ['TOTAL', ...allMonthBudgets.map(h => Math.round(h * 100) / 100), Math.round(annualBudget * 100) / 100]
+    const totRow = ws.addRow(totRowData)
+    totRow.height = 25
+    totRow.eachCell({ includeEmpty: true }, (cell: ExcelJS.Cell) =>
+      styleCell(cell, hdrFill, { bold: true, color: { argb: 'FFFFFFFF' } }, typeof cell.value === 'number' ? '0.00' : undefined))
+
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `Budget_Heures_${teamName.replace(/\s+/g, '_')}_${year}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i)

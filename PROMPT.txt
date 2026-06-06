@@ -1,72 +1,69 @@
-Amélioration de la mise en forme du fichier Excel exporté depuis 
-la page Calendrier des structures.
+Amélioration du diagramme de Gantt du tableau de bord (PC et mobile).
 
-Le fichier est généré avec SheetJS (xlsx). Il faut passer à 
-xlsx-style ou utiliser les options de style de SheetJS Pro —
-vérifie quelle librairie est actuellement utilisée et adapte.
-
-Si xlsx de base est utilisé (sans styles), remplacer par 
-exceljs qui supporte nativement les styles :
-  npm install exceljs
+OBJECTIF : permettre de naviguer jour par jour sur une fenêtre 
+glissante de 7 jours, avec des flèches gauche/droite.
 
 ─────────────────────────────────────────
-1. NOMBRES — RÉDUIRE LES DÉCIMALES
+1. FENÊTRE GLISSANTE 7 JOURS
 ─────────────────────────────────────────
-Les valeurs d'heures ont trop de décimales.
-- Arrondir à 2 chiffres maximum après la virgule
-- Format des cellules numériques : '0.00'
-- Exemple : 58.5 s'affiche 58.50, pas 58.4999999...
+Actuellement le Gantt affiche une période fixe.
+Passer à une fenêtre glissante de 7 jours :
+
+- Par défaut : afficher les 7 jours à partir d'aujourd'hui
+  (aujourd'hui = jour 1, puis J+1 ... J+6)
+- Flèche gauche < : reculer d'1 jour (fenêtre glisse vers le passé)
+- Flèche droite > : avancer d'1 jour (fenêtre glisse vers le futur)
+- Le jour en cours (aujourd'hui) est toujours mis en évidence :
+  colonne avec fond légèrement coloré (même couleur primaire 
+  que le reste de l'interface, opacity réduite)
 
 ─────────────────────────────────────────
-2. LIGNE D'EN-TÊTE (ligne 1 : Jour, Janvier... Décembre, TOTAL)
+2. EN-TÊTE DES COLONNES JOURS
 ─────────────────────────────────────────
-- Fond : bleu foncé (#1E3A5F)
-- Texte : blanc (#FFFFFF), gras
-- Hauteur de ligne : 25px
-- Texte centré horizontalement
+Pour chaque jour de la fenêtre, afficher sur 2 lignes :
+  Lun        ← jour abrégé (3 lettres)
+  02/06      ← date courte
+
+- Aujourd'hui : texte en gras + indicateur visuel (point ou 
+  soulignement de couleur)
+- Jours passés : texte en gris (opacity réduite)
+- Jours futurs : texte normal
 
 ─────────────────────────────────────────
-3. COLONNE "Jour" (colonne A)
+3. CONTRÔLES DE NAVIGATION
 ─────────────────────────────────────────
-- Fond : gris clair (#F0F0F0)
-- Texte : gris foncé (#333333), gras
-- Centré horizontalement
-- Largeur fixe : 8 caractères
+Placer les flèches de part et d'autre du Gantt :
+
+  [<]  Lun 02  Mar 03  Mer 04  Jeu 05  Ven 06  Sam 07  Dim 08  [>]
+
+- Boutons < et > bien visibles, cliquables, avec hover effect
+- Sur mobile : boutons suffisamment larges pour être tapables 
+  (min 44×44px zone tactile)
+- Ajouter aussi un bouton "Aujourd'hui" (ou "◎") entre les deux 
+  flèches pour revenir immédiatement à la fenêtre par défaut 
+  (J à J+6) en un clic
 
 ─────────────────────────────────────────
-4. CELLULES DE DONNÉES (jours × mois)
+4. COMPORTEMENT DES DONNÉES
 ─────────────────────────────────────────
-- Fond blanc par défaut
-- Alterner une légère teinte sur les lignes paires :
-  lignes paires → fond #F8F9FA (gris très très clair)
-  lignes impaires → fond blanc #FFFFFF
-- Texte centré
-- Cellules vides (jour inexistant dans ce mois) : fond #EEEEEE
+- Les codes horaires affichés dans le Gantt doivent se mettre 
+  à jour en fonction de la fenêtre affichée
+- Recharger les données depuis schedules pour la plage de dates 
+  affichée (ne pas tout charger en mémoire)
+- Afficher un loader léger pendant le chargement si la navigation 
+  est rapide
 
 ─────────────────────────────────────────
-5. LIGNE "TOTAL" (dernière ligne)
+5. RESPONSIVE MOBILE
 ─────────────────────────────────────────
-- Fond : bleu foncé (#1E3A5F)
-- Texte : blanc (#FFFFFF), gras
-- Même style que la ligne d'en-tête
-- Hauteur de ligne : 25px
+Sur mobile, la fenêtre peut être réduite à 5 jours si 7 jours 
+est trop serré (détecter la largeur disponible et adapter) :
+- > 768px : 7 jours
+- <= 768px : 5 jours
+Les flèches et le bouton "Aujourd'hui" restent présents dans 
+les deux cas.
 
-─────────────────────────────────────────
-6. COLONNE "TOTAL ANNUEL" (dernière colonne)
-─────────────────────────────────────────
-- Fond : bleu clair (#D6E4F0) sur toutes les cellules de données
-- Texte : bleu foncé (#1E3A5F), gras
-- La cellule intersection TOTAL × TOTAL ANNUEL :
-  fond bleu foncé (#1E3A5F), texte blanc, gras
+Ne pas modifier le reste du tableau de bord.
+Ne pas modifier budgetUtils.ts.
 
-─────────────────────────────────────────
-7. MISE EN PAGE GÉNÉRALE
-─────────────────────────────────────────
-- Largeur colonne A (Jour) : 8 caractères
-- Largeur colonnes mois (B à M) : 12 caractères
-- Largeur colonne TOTAL ANNUEL : 15 caractères
-- Figer la première ligne (en-tête) et la première colonne (jours) :
-  freeze pane sur B2 pour pouvoir scroller sans perdre les repères
-- Bordures fines (#CCCCCC) sur toutes les cellules
-
-git add . && git commit -m "style: mise en forme Excel export calendrier budget heures" && git push origin main
+git add . && git commit -m "feat: navigation glissante 7 jours sur Gantt tableau de bord" && git push origin main
