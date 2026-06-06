@@ -238,6 +238,9 @@ export default function TableauDeBord() {
     : atterrissage <= budget.budget ? 'text-emerald-600'
     : ecartPct <= 5 ? 'text-amber-500'
     : 'text-red-600'
+  const ecartEmoji = ecartPct === null || atterrissage <= budget.budget ? '✅'
+    : ecartPct <= 5 ? '⚠️'
+    : '🔴'
   const displayedGantt = ganttTeamId ? ganttEntries.filter(e => e.team_id === ganttTeamId) : ganttEntries
 
   return (
@@ -299,27 +302,30 @@ export default function TableauDeBord() {
         {budget.budget === 0 ? (
           <p className="text-xs text-gray-400 italic">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
         ) : (
-          <div className="space-y-2">
-            {([
-              { label: 'BUDGET',       value: fmtHMin(budget.budget),    sub: 'depuis structures × calendrier', color: 'text-gray-900' },
-              { label: 'PLANIFIÉ',     value: fmtHMin(planned),          sub: 'tous les jours du mois',         color: 'text-gray-900' },
-              { label: 'RÉALISÉ',      value: fmtHMin(budget.realized),  sub: `jours ≤ aujourd'hui`,            color: 'text-gray-900' },
-              { label: 'ATTERRISSAGE', value: fmtHMin(atterrissage),     sub: 'réalisé + planifié restant',     color: 'text-gray-900' },
-              {
-                label: 'ÉCART',
-                value: `${ecartH > 0 ? '+' : ecartH < 0 ? '' : ''}${fmtHMin(ecartH)}`,
-                sub: ecartPct !== null ? `${ecartPct > 0 ? '+' : ''}${ecartPct.toFixed(1).replace('.', ',')} %` : '',
-                color: ecartColor,
-              },
-            ] as { label: string; value: string; sub: string; color: string }[]).map(row => (
-              <div key={row.label} className={`flex items-baseline justify-between border-b border-gray-50 pb-1.5 last:border-0 last:pb-0`}>
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">{row.label}</span>
-                  {row.sub && <span className="ml-2 text-[10px] text-gray-300">{row.sub}</span>}
+          <div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4 mb-4">
+              {([
+                { label: 'Réalisé',      value: fmtHMin(budget.realized), sub: 'jours passés' },
+                { label: 'Planifié',     value: fmtHMin(budget.forecast), sub: 'jours restants' },
+                { label: 'Atterrissage', value: fmtHMin(atterrissage),    sub: 'total mois' },
+                { label: 'Budget',       value: fmtHMin(budget.budget),   sub: 'structures × calendrier' },
+              ] as { label: string; value: string; sub: string }[]).map(col => (
+                <div key={col.label}>
+                  <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{col.label}</div>
+                  <div className="text-xl font-bold text-gray-900 tabular-nums mt-1 leading-none">{col.value}</div>
+                  <div className="text-[10px] text-gray-300 mt-1">{col.sub}</div>
                 </div>
-                <span className={`text-sm font-bold tabular-nums ${row.color}`}>{row.value}</span>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className={`flex items-center gap-1.5 text-sm font-semibold ${ecartColor}`}>
+              <span>{ecartEmoji}</span>
+              <span>Écart : {ecartH > 0 ? '+' : ''}{fmtHMin(ecartH)}</span>
+              {ecartPct !== null && (
+                <span className="font-normal text-xs">
+                  {ecartH < 0 ? '▼' : '▲'} {Math.abs(ecartPct).toFixed(1).replace('.', ',')} % {atterrissage <= budget.budget ? 'sous le budget' : 'au-dessus du budget'}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </Card>
