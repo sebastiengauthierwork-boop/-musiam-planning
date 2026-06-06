@@ -646,7 +646,7 @@ export function Calendrier() {
   const [calMap, setCalMap] = useState<Record<string, string | null>>({})
   const [loading, setLoading] = useState(true)
   const [pendingDate, setPendingDate] = useState<string | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
+  const [popoverMonth, setPopoverMonth] = useState<number | null>(null)
   const [positions, setPositions] = useState<StructurePosition[]>([])
   const [shiftCodeHours, setShiftCodeHours] = useState<Record<string, number>>({})
   const [showFill, setShowFill] = useState(false)
@@ -659,10 +659,22 @@ export function Calendrier() {
   const colorOf = (id: string) => STRUCT_COLORS[structures.findIndex(s => s.id === id) % STRUCT_COLORS.length] ?? STRUCT_COLORS[0]
 
   const structHoursMap = useMemo(() => buildStructHoursMap(positions, shiftCodeHours), [positions, shiftCodeHours])
-  const monthBudget = useMemo(() => computeMonthBudget(calMap, structHoursMap, year, selectedMonth), [calMap, structHoursMap, year, selectedMonth])
+  const allMonthBudgets = useMemo(
+    () => Array.from({ length: 12 }, (_, m) => computeMonthBudget(calMap, structHoursMap, year, m)),
+    [calMap, structHoursMap, year]
+  )
+  const annualBudget = useMemo(() => allMonthBudgets.reduce((s, v) => s + v, 0), [allMonthBudgets])
 
   function toISO(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  function getISOWeek(date: Date): number {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+    const dayNum = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
   }
 
   useEffect(() => {
@@ -837,11 +849,18 @@ export function Calendrier() {
         {Array.from({ length: 12 }, (_, m) => {
           const nDays = new Date(year, m + 1, 0).getDate()
           const firstDow = (new Date(year, m, 1).getDay() + 6) % 7
+          const mBudget = allMonthBudgets[m]
           return (
             <div key={m}
-              onClick={() => setSelectedMonth(m)}
-              className={`bg-white rounded-xl border p-3 cursor-pointer transition-colors ${selectedMonth === m ? 'border-indigo-400 ring-1 ring-indigo-300' : 'border-gray-200 hover:border-gray-300'}`}>
-              <div className="text-xs font-semibold text-gray-700 mb-2">{MONTHS_FR[m]}</div>
+              onClick={() => setPopoverMonth(m)}
+              className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 p-3 cursor-pointer transition-colors">
+              <div className="flex items-baseline gap-1.5 mb-2">
+                <span className="text-xs font-semibold text-gray-700">{MONTHS_FR[m]}</span>
+                <span className="text-gray-200">|</span>
+                <span className="text-[10px] text-gray-400 tabular-nums">
+                  {mBudget > 0 ? `${fmtHMin(mBudget)} budget` : '— h budget'}
+                </span>
+              </div>
               <div className="grid grid-cols-7 gap-px">
                 {['L', 'Ma', 'Me', 'J', 'V', 'S', 'D'].map(d => (
                   <div key={d} className="text-[9px] text-center text-gray-400 font-medium pb-1">{d}</div>
@@ -857,14 +876,14 @@ export function Calendrier() {
                   return (
                     <div key={dateStr} className="relative">
                       <div
-                        onClick={() => setPendingDate(isPending ? null : dateStr)}
+                        onClick={e => { e.stopPropagation(); setPendingDate(isPending ? null : dateStr) }}
                         className={`text-[10px] text-center py-0.5 rounded cursor-pointer font-medium transition-colors ${baseClass} ${isPending ? 'ring-2 ring-slate-400' : ''}`}
                         title={sId ? structures.find(s => s.id === sId)?.name : undefined}
                       >
                         {i + 1}
                       </div>
                       {isPending && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[150px] py-1 mt-0.5">
+                        <div onClick={e => e.stopPropagation()} className="absolute top-full left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-lg shadow-xl min-w-[150px] py-1 mt-0.5">
                           <div className="px-2 py-1 text-[10px] text-gray-400 font-medium border-b border-gray-100">{dateStr}</div>
                           {structures.map(s => (
                             <button key={s.id} onMouseDown={e => { e.preventDefault(); assign(dateStr, s.id) }}
@@ -889,20 +908,54 @@ export function Calendrier() {
         })}
       </div>
 
-      <div className="mt-5 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Heures budget</div>
-            <div className="text-sm text-slate-600">
-              {MONTHS_FR[selectedMonth]} {year} — calculées depuis les structures appliquées
+      <div className="mt-4 flex items-center justify-between px-1">
+        <span className="text-xs text-gray-400">Total annuel {year}</span>
+        <span className="text-sm font-bold text-gray-700 tabular-nums">
+          {annualBudget > 0 ? `${fmtHMin(annualBudget)} budget` : '—'}
+        </span>
+      </div>
+
+      {popoverMonth !== null && (() => {
+        const pm = popoverMonth
+        const nDays = new Date(year, pm + 1, 0).getDate()
+        const weekMap = new Map<number, number>()
+        for (let d = 1; d <= nDays; d++) {
+          const date = new Date(year, pm, d)
+          const structId = calMap[toISO(date)]
+          if (!structId) continue
+          const h = structHoursMap[structId] ?? 0
+          const w = getISOWeek(date)
+          weekMap.set(w, (weekMap.get(w) ?? 0) + h)
+        }
+        const weekEntries = [...weekMap.entries()].sort((a, b) => a[0] - b[0])
+        const monthTotal = weekEntries.reduce((s, [, h]) => s + h, 0)
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={() => setPopoverMonth(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-80 p-5" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-gray-900">{MONTHS_FR[pm]} {year} — Budget heures</h3>
+                <button onClick={() => setPopoverMonth(null)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+              </div>
+              {weekEntries.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">Aucune structure appliquée ce mois.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {weekEntries.map(([w, h]) => (
+                    <div key={w} className="flex items-baseline justify-between">
+                      <span className="text-xs text-gray-500">Semaine {w}</span>
+                      <span className="text-xs font-semibold text-gray-800 tabular-nums">{fmtHMin(h)}</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-gray-100 pt-1.5 flex items-baseline justify-between">
+                    <span className="text-xs font-bold text-gray-700">Total</span>
+                    <span className="text-sm font-bold text-gray-900 tabular-nums">{fmtHMin(monthTotal)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className="text-2xl font-bold text-slate-900 tabular-nums">
-            {monthBudget > 0 ? fmtHMin(monthBudget) : <span className="text-base font-normal text-slate-400">Aucune structure ce mois</span>}
-          </div>
-        </div>
-        <p className="text-[11px] text-slate-400 mt-2">Cliquez sur un mois pour afficher son budget.</p>
-      </div>
+        )
+      })()}
     </div>
   )
 }
