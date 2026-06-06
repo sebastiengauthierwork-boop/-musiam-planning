@@ -234,13 +234,17 @@ export default function TableauDeBord() {
   const atterrissage = budget.realized + budget.forecast
   const ecartH = atterrissage - budget.budget
   const ecartPct = budget.budget > 0 ? (atterrissage / budget.budget - 1) * 100 : null
-  const ecartColor = ecartPct === null ? 'text-gray-400'
-    : atterrissage <= budget.budget ? 'text-emerald-600'
-    : ecartPct <= 5 ? 'text-amber-500'
-    : 'text-red-600'
   const ecartEmoji = ecartPct === null || atterrissage <= budget.budget ? '✅'
     : ecartPct <= 5 ? '⚠️'
     : '🔴'
+  const ecartBanner = ecartPct === null ? 'bg-gray-50 text-gray-600'
+    : atterrissage <= budget.budget ? 'bg-emerald-50 text-emerald-800'
+    : ecartPct <= 5 ? 'bg-amber-50 text-amber-800'
+    : 'bg-red-50 text-red-800'
+  const ecartSubLabel = ecartPct === null ? ''
+    : atterrissage <= budget.budget ? 'Sous le budget'
+    : ecartPct <= 5 ? 'Attention'
+    : 'Dépassement'
   const displayedGantt = ganttTeamId ? ganttEntries.filter(e => e.team_id === ganttTeamId) : ganttEntries
 
   return (
@@ -297,13 +301,30 @@ export default function TableauDeBord() {
         </div>
       </Card>
 
-      {/* Pilotage budgétaire */}
-      <Card title="Pilotage budgétaire" badge={monthLabel}>
+      {/* Suivi budgétaire */}
+      <Card title={`Suivi budgétaire — ${monthLabel}`}>
         {budget.budget === 0 ? (
           <p className="text-xs text-gray-400 italic">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
         ) : (
-          <div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4 mb-4">
+          <div className="space-y-4">
+            {/* Écart en avant-plan */}
+            <div className={`rounded-xl px-4 py-3 ${ecartBanner}`}>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-lg leading-none">{ecartEmoji}</span>
+                <span className="text-2xl font-bold tabular-nums leading-none">
+                  {ecartH > 0 ? '+' : ''}{fmtHMin(ecartH)}
+                </span>
+                {ecartPct !== null && (
+                  <span className="text-sm font-semibold tabular-nums">
+                    • {ecartH > 0 ? '+' : ''}{ecartPct.toFixed(1).replace('.', ',')}%
+                  </span>
+                )}
+              </div>
+              {ecartSubLabel && <div className="text-sm mt-1 font-medium">{ecartSubLabel}</div>}
+            </div>
+
+            {/* Détail 4 colonnes */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
               {([
                 { label: 'Réalisé',      value: fmtHMin(budget.realized), sub: 'jours passés' },
                 { label: 'Planifié',     value: fmtHMin(budget.forecast), sub: 'jours restants' },
@@ -312,19 +333,10 @@ export default function TableauDeBord() {
               ] as { label: string; value: string; sub: string }[]).map(col => (
                 <div key={col.label}>
                   <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-none">{col.label}</div>
-                  <div className="text-xl font-bold text-gray-900 tabular-nums mt-1 leading-none">{col.value}</div>
-                  <div className="text-[10px] text-gray-300 mt-1">{col.sub}</div>
+                  <div className="text-base font-semibold text-gray-900 tabular-nums mt-1 leading-none">{col.value}</div>
+                  {col.sub && <div className="text-[10px] text-gray-300 mt-1">{col.sub}</div>}
                 </div>
               ))}
-            </div>
-            <div className={`flex items-center gap-1.5 text-sm font-semibold ${ecartColor}`}>
-              <span>{ecartEmoji}</span>
-              <span>Écart : {ecartH > 0 ? '+' : ''}{fmtHMin(ecartH)}</span>
-              {ecartPct !== null && (
-                <span className="font-normal text-xs">
-                  {ecartH < 0 ? '▼' : '▲'} {Math.abs(ecartPct).toFixed(1).replace('.', ',')} % {atterrissage <= budget.budget ? 'sous le budget' : 'au-dessus du budget'}
-                </span>
-              )}
             </div>
           </div>
         )}
