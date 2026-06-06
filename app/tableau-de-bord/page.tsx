@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
 import { useAuth } from '@/lib/auth'
 import { getCodeColor, isAdmin } from '@/lib/utils'
+import { buildStructHoursMap, computeBudgetFromCalEntries, fmtHMin } from '@/lib/budgetUtils'
 
 type ContactUtile = { id: string; role_label: string; contact_name: string | null; phone: string | null; email: string | null }
 
@@ -169,7 +170,7 @@ export default function TableauDeBord() {
       // 7. Structure positions (vigilance + budget, une seule requête)
       const allStructureIds = [...new Set((calRes.data ?? []).map((c: any) => c.structure_id).filter(Boolean))]
       const structureReq: Record<string, number> = {}   // pour vigilance (nb personnes)
-      const structHoursMap: Record<string, number> = {} // pour budget (heures payées)
+      let structHoursMap: Record<string, number> = {}   // pour budget (heures payées)
 
       if (allStructureIds.length) {
         const { data: spData } = await supabase
@@ -177,9 +178,8 @@ export default function TableauDeBord() {
           .in('structure_id', allStructureIds)
         for (const sp of spData ?? []) {
           structureReq[sp.structure_id] = (structureReq[sp.structure_id] ?? 0) + sp.required_count
-          const paidH = scMap[sp.position_name] ?? 0
-          structHoursMap[sp.structure_id] = (structHoursMap[sp.structure_id] ?? 0) + paidH * sp.required_count
         }
+        structHoursMap = buildStructHoursMap(spData ?? [], scMap)
       }
 
       // 8. Vigilance J+5 — présent = code dans scTimeMap ou cadre, pas repos ni absence
@@ -206,10 +206,7 @@ export default function TableauDeBord() {
       }))
 
       // 9. Budget structure — somme paid_hours × effectif_requis pour chaque jour du mois
-      let structBudget = 0
-      for (const c of calRes.data ?? []) {
-        if (c.structure_id) structBudget += structHoursMap[c.structure_id] ?? 0
-      }
+      const structBudget = computeBudgetFromCalEntries(calRes.data ?? [], structHoursMap)
 
       // 10. Heures planifiées (schedules du mois) — uniquement les codes avec paid_hours
       let realized = 0, forecast = 0
@@ -234,11 +231,13 @@ export default function TableauDeBord() {
 
   const monthLabel = `${MONTHS_FR[now.getMonth()]} ${now.getFullYear()}`
   const planned = budget.realized + budget.forecast
-  const ecartH = planned - budget.budget
-  const pct = budget.budget > 0 ? Math.min(Math.round((planned / budget.budget) * 100), 999) : null
-  const barColor = pct === null ? 'bg-gray-300' : pct > 105 ? 'bg-red-500' : pct >= 90 ? 'bg-amber-400' : 'bg-emerald-500'
-  const pctColor = pct === null ? 'text-gray-400' : pct > 105 ? 'text-red-600' : pct >= 90 ? 'text-amber-500' : 'text-emerald-600'
-  const ecartColor = ecartH > 0 ? 'text-red-600' : ecartH < 0 ? 'text-emerald-600' : 'text-gray-500'
+  const atterrissage = budget.realized + budget.forecast
+  const ecartH = atterrissage - budget.budget
+  const ecartPct = budget.budget > 0 ? (atterrissage / budget.budget - 1) * 100 : null
+  const ecartColor = ecartPct === null ? 'text-gray-400'
+    : atterrissage <= budget.budget ? 'text-emerald-600'
+    : ecartPct <= 5 ? 'text-amber-500'
+    : 'text-red-600'
   const displayedGantt = ganttTeamId ? ganttEntries.filter(e => e.team_id === ganttTeamId) : ganttEntries
 
   return (
@@ -297,30 +296,32 @@ export default function TableauDeBord() {
 
       {/* Pilotage budgétaire */}
       <Card title="Pilotage budgétaire" badge={monthLabel}>
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-xs text-gray-400">Réalisé <span className="font-semibold text-gray-700">{fmtH(budget.realized)}</span></span>
-            <span className="text-xs text-gray-300">+</span>
-            <span className="text-xs text-gray-400">Prévu <span className="font-semibold text-gray-700">{fmtH(budget.forecast)}</span></span>
-            <span className="text-xs text-gray-300">=</span>
-            <span className="text-xs text-gray-400">Total <span className="text-base font-bold text-gray-900">{fmtH(planned)}</span></span>
-            {budget.budget > 0 && (
-              <>
-                <span className="text-xs text-gray-300">/</span>
-                <span className="text-xs text-gray-400">Budget <span className="font-semibold text-gray-700">{fmtH(budget.budget)}</span></span>
-                {pct !== null && <span className={`text-lg font-bold tabular-nums ${pctColor}`}>{pct}%</span>}
-                {ecartH !== 0 && <span className={`text-xs font-semibold ${ecartColor}`}>{ecartH > 0 ? '+' : ''}{fmtH(ecartH)} {ecartH > 0 ? 'dépassement' : 'économie'}</span>}
-              </>
-            )}
+        {budget.budget === 0 ? (
+          <p className="text-xs text-gray-400 italic">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
+        ) : (
+          <div className="space-y-2">
+            {([
+              { label: 'BUDGET',       value: fmtHMin(budget.budget),    sub: 'depuis structures × calendrier', color: 'text-gray-900' },
+              { label: 'PLANIFIÉ',     value: fmtHMin(planned),          sub: 'tous les jours du mois',         color: 'text-gray-900' },
+              { label: 'RÉALISÉ',      value: fmtHMin(budget.realized),  sub: `jours ≤ aujourd'hui`,            color: 'text-gray-900' },
+              { label: 'ATTERRISSAGE', value: fmtHMin(atterrissage),     sub: 'réalisé + planifié restant',     color: 'text-gray-900' },
+              {
+                label: 'ÉCART',
+                value: `${ecartH > 0 ? '+' : ecartH < 0 ? '' : ''}${fmtHMin(ecartH)}`,
+                sub: ecartPct !== null ? `${ecartPct > 0 ? '+' : ''}${ecartPct.toFixed(1).replace('.', ',')} %` : '',
+                color: ecartColor,
+              },
+            ] as { label: string; value: string; sub: string; color: string }[]).map(row => (
+              <div key={row.label} className={`flex items-baseline justify-between border-b border-gray-50 pb-1.5 last:border-0 last:pb-0`}>
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">{row.label}</span>
+                  {row.sub && <span className="ml-2 text-[10px] text-gray-300">{row.sub}</span>}
+                </div>
+                <span className={`text-sm font-bold tabular-nums ${row.color}`}>{row.value}</span>
+              </div>
+            ))}
           </div>
-          {budget.budget > 0 ? (
-            <div className="mt-2 w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(pct!, 100)}%` }} />
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 italic mt-1">Aucune structure configurée dans le calendrier annuel pour ce mois.</p>
-          )}
-        </div>
+        )}
       </Card>
 
       {/* Stats rapides */}

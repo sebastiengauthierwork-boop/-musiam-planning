@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSite } from '@/lib/site-context'
+import { buildStructHoursMap, computeMonthBudget, fmtHMin } from '@/lib/budgetUtils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -645,6 +646,9 @@ export function Calendrier() {
   const [calMap, setCalMap] = useState<Record<string, string | null>>({})
   const [loading, setLoading] = useState(true)
   const [pendingDate, setPendingDate] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth())
+  const [positions, setPositions] = useState<StructurePosition[]>([])
+  const [shiftCodeHours, setShiftCodeHours] = useState<Record<string, number>>({})
   const [showFill, setShowFill] = useState(false)
   const [fillStructId, setFillStructId] = useState<string>('')
   const [fillFrom, setFillFrom] = useState<string>(`${now.getFullYear()}-01-01`)
@@ -653,6 +657,9 @@ export function Calendrier() {
   const [filling, setFilling] = useState(false)
 
   const colorOf = (id: string) => STRUCT_COLORS[structures.findIndex(s => s.id === id) % STRUCT_COLORS.length] ?? STRUCT_COLORS[0]
+
+  const structHoursMap = useMemo(() => buildStructHoursMap(positions, shiftCodeHours), [positions, shiftCodeHours])
+  const monthBudget = useMemo(() => computeMonthBudget(calMap, structHoursMap, year, selectedMonth), [calMap, structHoursMap, year, selectedMonth])
 
   function toISO(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -676,17 +683,28 @@ export function Calendrier() {
   useEffect(() => {
     if (!teamId) return
     setLoading(true)
-    supabase.from('annual_calendar')
-      .select('date, structure_id')
-      .eq('team_id', teamId)
-      .gte('date', `${year}-01-01`)
-      .lte('date', `${year}-12-31`)
-      .then(({ data }: { data: any }) => {
-        const map: Record<string, string | null> = {}
-        for (const c of (data ?? [])) map[c.date] = c.structure_id
-        setCalMap(map)
-        setLoading(false)
-      })
+    Promise.all([
+      supabase.from('annual_calendar')
+        .select('date, structure_id')
+        .eq('team_id', teamId)
+        .gte('date', `${year}-01-01`)
+        .lte('date', `${year}-12-31`),
+      supabase.from('staffing_structure_positions')
+        .select('id, structure_id, position_name, required_count'),
+      supabase.from('shift_codes')
+        .select('code, paid_hours'),
+    ]).then(([calRes, posRes, scRes]) => {
+      const map: Record<string, string | null> = {}
+      for (const c of (calRes.data ?? [])) map[c.date] = c.structure_id
+      setCalMap(map)
+      setPositions(posRes.data ?? [])
+      const scHours: Record<string, number> = {}
+      for (const sc of scRes.data ?? []) {
+        if (sc.code && !(sc.code in scHours)) scHours[sc.code] = Number(sc.paid_hours ?? 0)
+      }
+      setShiftCodeHours(scHours)
+      setLoading(false)
+    })
   }, [teamId, year])
 
   async function assign(date: string, structureId: string | null) {
@@ -815,12 +833,14 @@ export function Calendrier() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4" id="cal-grid">
         {Array.from({ length: 12 }, (_, m) => {
           const nDays = new Date(year, m + 1, 0).getDate()
           const firstDow = (new Date(year, m, 1).getDay() + 6) % 7
           return (
-            <div key={m} className="bg-white rounded-xl border border-gray-200 p-3">
+            <div key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`bg-white rounded-xl border p-3 cursor-pointer transition-colors ${selectedMonth === m ? 'border-indigo-400 ring-1 ring-indigo-300' : 'border-gray-200 hover:border-gray-300'}`}>
               <div className="text-xs font-semibold text-gray-700 mb-2">{MONTHS_FR[m]}</div>
               <div className="grid grid-cols-7 gap-px">
                 {['L', 'Ma', 'Me', 'J', 'V', 'S', 'D'].map(d => (
@@ -867,6 +887,21 @@ export function Calendrier() {
             </div>
           )
         })}
+      </div>
+
+      <div className="mt-5 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-0.5">Heures budget</div>
+            <div className="text-sm text-slate-600">
+              {MONTHS_FR[selectedMonth]} {year} — calculées depuis les structures appliquées
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-slate-900 tabular-nums">
+            {monthBudget > 0 ? fmtHMin(monthBudget) : <span className="text-base font-normal text-slate-400">Aucune structure ce mois</span>}
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2">Cliquez sur un mois pour afficher son budget.</p>
       </div>
     </div>
   )
