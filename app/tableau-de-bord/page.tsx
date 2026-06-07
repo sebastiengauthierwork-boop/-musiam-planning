@@ -293,7 +293,7 @@ export default function TableauDeBord() {
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed text-lg font-bold transition-colors">
             ‹
           </button>
-          <div className="flex-1 text-center text-sm font-semibold text-gray-800 capitalize">{ganttDateLabel}</div>
+          <div className="flex-1 min-w-0 text-center text-sm font-semibold text-gray-800 capitalize">{ganttDateLabel}</div>
           <button
             onClick={() => setGanttOffset(0)}
             disabled={ganttOffset === 0}
