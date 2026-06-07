@@ -15,10 +15,7 @@ type CoverageNeed = {
   status: 'open' | 'assigned' | 'closed'
   assigned_to: string | null
   temp_worker_id: string | null
-  absence_requests: {
-    employee_id: string | null
-    employees: { first_name: string; last_name: string } | null
-  } | null
+  absence_requests: { employee_id: string | null } | null
   shift_codes: { code: string; label: string } | null
 }
 
@@ -72,10 +69,7 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
         .from('coverage_needs')
         .select(`
           *,
-          absence_requests (
-            employee_id,
-            employees (first_name, last_name)
-          ),
+          absence_requests ( employee_id ),
           shift_codes (code, label)
         `)
         .eq('team_id', teamId)
@@ -109,7 +103,7 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
   }
 
   function availableInternals(need: CoverageNeed): Employee[] {
-    const absentId = need.absence_requests?.employee_id ?? null
+    const absentId = need.absence_requests?.employee_id
     return employees.filter(e => e.id !== absentId)
   }
 
@@ -145,9 +139,10 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
   }
 
   const absentName = (need: CoverageNeed) => {
-    const emp = need.absence_requests?.employees
-    if (!emp) return '—'
-    return `${emp.last_name.toUpperCase()} ${emp.first_name}`
+    const empId = need.absence_requests?.employee_id
+    if (!empId) return '—'
+    const emp = employees.find(e => e.id === empId)
+    return emp ? `${emp.last_name.toUpperCase()} ${emp.first_name}` : '—'
   }
 
   const shiftCodeLabel = (need: CoverageNeed) => need.shift_codes?.code ?? null
