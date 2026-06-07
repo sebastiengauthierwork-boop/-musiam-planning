@@ -11,12 +11,15 @@ type CoverageNeed = {
   id: string
   date: string
   team_id: string
-  absent_employee_id: string | null
-  shift_code: string | null
   shift_code_id: string | null
   status: 'open' | 'assigned' | 'closed'
   assigned_to: string | null
   temp_worker_id: string | null
+  absence_requests: {
+    employee_id: string | null
+    employees: { first_name: string; last_name: string } | null
+  } | null
+  shift_codes: { code: string; label: string } | null
 }
 
 type TempWorker = {
@@ -67,7 +70,14 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
 
       const { data, error: err } = await supabase
         .from('coverage_needs')
-        .select('*')
+        .select(`
+          *,
+          absence_requests (
+            employee_id,
+            employees (first_name, last_name)
+          ),
+          shift_codes (code, label)
+        `)
         .eq('team_id', teamId)
         .gte('date', startDate)
         .lte('date', endDate)
@@ -98,13 +108,9 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
     setTempWorkers(data ?? [])
   }
 
-  // Employees not scheduled or on rest that day
   function availableInternals(need: CoverageNeed): Employee[] {
-    return employees.filter(e => {
-      // exclude absent employee
-      if (e.id === need.absent_employee_id) return false
-      return true
-    })
+    const absentId = need.absence_requests?.employee_id ?? null
+    return employees.filter(e => e.id !== absentId)
   }
 
   async function handleAssign() {
@@ -138,11 +144,13 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
     loadNeeds()
   }
 
-  const absentName = (id: string | null) => {
-    if (!id) return '—'
-    const e = employees.find(x => x.id === id)
-    return e ? `${e.last_name.toUpperCase()} ${e.first_name}` : '—'
+  const absentName = (need: CoverageNeed) => {
+    const emp = need.absence_requests?.employees
+    if (!emp) return '—'
+    return `${emp.last_name.toUpperCase()} ${emp.first_name}`
   }
+
+  const shiftCodeLabel = (need: CoverageNeed) => need.shift_codes?.code ?? null
 
   const assignedName = (need: CoverageNeed) => {
     if (need.assigned_to) {
@@ -217,11 +225,11 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
                 {needs.map(need => (
                   <tr key={need.id} className="hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-xs text-gray-700 font-mono whitespace-nowrap">{fmtDate(need.date)}</td>
-                    <td className="px-4 py-2.5 text-xs text-gray-800 font-medium">{absentName(need.absent_employee_id)}</td>
+                    <td className="px-4 py-2.5 text-xs text-gray-800 font-medium">{absentName(need)}</td>
                     <td className="px-4 py-2.5">
-                      {need.shift_code && (
+                      {shiftCodeLabel(need) && (
                         <span className="inline-block px-2 py-0.5 rounded text-xs font-mono font-bold bg-blue-50 text-blue-700 border border-blue-100">
-                          {need.shift_code}
+                          {shiftCodeLabel(need)}
                         </span>
                       )}
                     </td>
@@ -256,8 +264,8 @@ export default function TabCouverture({ employees, year, month, teamId, teams }:
           <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
             <h2 className="text-base font-semibold text-gray-900 mb-1">Assigner la couverture</h2>
             <p className="text-xs text-gray-600 mb-4">
-              {fmtDate(assignModal.date)} · Absent : {absentName(assignModal.absent_employee_id)}
-              {assignModal.shift_code && <> · Code : <strong>{assignModal.shift_code}</strong></>}
+              {fmtDate(assignModal.date)} · Absent : {absentName(assignModal)}
+              {shiftCodeLabel(assignModal) && <> · Code : <strong>{shiftCodeLabel(assignModal)}</strong></>}
             </p>
 
             {/* Tabs internal / interim */}
