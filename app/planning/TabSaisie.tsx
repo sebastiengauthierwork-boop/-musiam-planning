@@ -615,7 +615,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           && !REPOS_CODES.has(existingCode)
           && !absenceCodeSet.has(existingCode)
         if (needsCoverage) {
-          const sc = shiftCodes.find(c => c.code === existingCode && (c.team_id === teamId || c.team_id === null))
+          const sc = shiftCodes.find(c => c.code === existingCode)
           const { error: cnErr } = await supabase.from('coverage_needs').insert({
             absence_request_id: absenceRequestId,
             team_id: teamId,
