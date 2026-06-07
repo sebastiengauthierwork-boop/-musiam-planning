@@ -1338,9 +1338,168 @@ function ContactsUtiles() {
   )
 }
 
+// ─── Intérimaires ─────────────────────────────────────────────────────────────
+
+type TempWorkerRow = { id: string; first_name: string; last_name: string; agency: string | null; phone: string | null; email: string | null; active: boolean; team_id: string }
+type TempWorkerForm = { first_name: string; last_name: string; agency: string; phone: string; email: string }
+const emptyTempWorkerForm: TempWorkerForm = { first_name: '', last_name: '', agency: '', phone: '', email: '' }
+
+function Interimaires() {
+  const { selectedSiteId } = useSite()
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([])
+  const [teamId, setTeamId] = useState('')
+  const [workers, setWorkers] = useState<TempWorkerRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState<TempWorkerForm>(emptyTempWorkerForm)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.from('teams').select('id, name, site_id').order('name').then(({ data }: { data: any }) => {
+      const all = data ?? []
+      const filtered = selectedSiteId ? all.filter((t: any) => t.site_id === selectedSiteId) : all
+      setTeams(filtered)
+      if (filtered.length > 0 && !teamId) setTeamId(filtered[0].id)
+    })
+  }, [selectedSiteId])
+
+  useEffect(() => {
+    if (!teamId) return
+    setLoading(true)
+    supabase.from('temp_workers').select('*').eq('team_id', teamId).order('last_name')
+      .then(({ data }: { data: any }) => { setWorkers(data ?? []); setLoading(false) })
+  }, [teamId])
+
+  async function handleAdd() {
+    if (!form.first_name.trim() && !form.last_name.trim()) return
+    setSaving(true); setError(null)
+    try {
+      const { error: err } = await supabase.from('temp_workers').insert({
+        team_id: teamId,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+        agency: form.agency.trim() || null,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        active: true,
+      })
+      if (err) throw err
+      setForm(emptyTempWorkerForm)
+      const { data } = await supabase.from('temp_workers').select('*').eq('team_id', teamId).order('last_name')
+      setWorkers(data ?? [])
+    } catch (e: any) {
+      setError(e?.message ?? String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleToggle(id: string, active: boolean) {
+    await supabase.from('temp_workers').update({ active: !active }).eq('id', id)
+    setWorkers(prev => prev.map(w => w.id === id ? { ...w, active: !active } : w))
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3 flex-wrap">
+        <select value={teamId} onChange={e => setTeamId(e.target.value)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        <span className="text-sm text-gray-600">{workers.filter(w => w.active).length} actif{workers.filter(w => w.active).length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {error && <div className="bg-red-50 text-red-700 rounded-lg px-4 py-2.5 text-sm">{error}</div>}
+
+      {/* Formulaire ajout */}
+      <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">
+        <h3 className="text-sm font-semibold text-gray-800 mb-4">Ajouter un intérimaire</h3>
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Prénom</label>
+            <input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Nom</label>
+            <input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Agence</label>
+            <input value={form.agency} onChange={e => setForm(f => ({ ...f, agency: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Téléphone</label>
+            <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button onClick={handleAdd} disabled={saving || (!form.first_name.trim() && !form.last_name.trim())}
+            className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors">
+            {saving ? 'Ajout…' : 'Ajouter'}
+          </button>
+        </div>
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div className="space-y-2 animate-pulse">{Array.from({ length: 3 }, (_, i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
+      ) : workers.length === 0 ? (
+        <p className="text-sm text-gray-600 italic">Aucun intérimaire pour cette équipe.</p>
+      ) : (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Nom</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Agence</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700">Contact</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-gray-700 w-24">Statut</th>
+                <th className="px-4 py-2.5 w-28" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {workers.map(w => (
+                <tr key={w.id} className={`hover:bg-gray-50 ${!w.active ? 'opacity-50' : ''}`}>
+                  <td className="px-4 py-2.5 text-xs font-medium text-gray-800">{w.last_name.toUpperCase()} {w.first_name}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-600">{w.agency ?? '—'}</td>
+                  <td className="px-4 py-2.5 text-xs text-gray-600">
+                    {w.phone && <div>{w.phone}</div>}
+                    {w.email && <div className="text-blue-600">{w.email}</div>}
+                    {!w.phone && !w.email && '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${w.active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {w.active ? 'Actif' : 'Inactif'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <button onClick={() => handleToggle(w.id, w.active)}
+                      className="px-3 py-1 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors">
+                      {w.active ? 'Désactiver' : 'Réactiver'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-type Section = 'horaires' | 'absence' | 'fonctions' | 'contacts' | 'roles' | 'journal'
+type Section = 'horaires' | 'absence' | 'fonctions' | 'contacts' | 'roles' | 'journal' | 'interimaires'
 
 // ─── Rôles et accès ───────────────────────────────────────────────────────────
 
@@ -1724,6 +1883,7 @@ export default function ParametragePage() {
     ...((isSuperAdmin(currentRole) || isAdmin(currentRole) || currentRole === 'responsable') ? [{ id: 'contacts' as Section, label: 'Contacts utiles' }] : []),
     ...(isSuperAdmin(currentRole) ? [{ id: 'roles' as Section, label: 'Rôles et accès' }] : []),
     ...(isSuperAdmin(currentRole) || isAdmin(currentRole) ? [{ id: 'journal' as Section, label: 'Journal' }] : []),
+    ...(isAdmin(currentRole) || currentRole === 'responsable' || currentRole === 'manager' ? [{ id: 'interimaires' as Section, label: 'Intérimaires' }] : []),
   ]
 
   // Corriger la section active si elle n'est plus visible (ex: changement de rôle)
@@ -1783,12 +1943,13 @@ export default function ParametragePage() {
         ))}
       </div>
 
-      {section === 'horaires'   && <CodesHoraires />}
-      {section === 'absence'    && <CodesAbsence />}
-      {section === 'fonctions'  && <Fonctions />}
-      {section === 'contacts'   && <ContactsUtiles />}
-      {section === 'roles'      && <RolesAcces />}
-      {section === 'journal'    && <JournalAudit />}
+      {section === 'horaires'     && <CodesHoraires />}
+      {section === 'absence'      && <CodesAbsence />}
+      {section === 'fonctions'    && <Fonctions />}
+      {section === 'contacts'     && <ContactsUtiles />}
+      {section === 'roles'        && <RolesAcces />}
+      {section === 'journal'      && <JournalAudit />}
+      {section === 'interimaires' && <Interimaires />}
     </div>
   )
 }

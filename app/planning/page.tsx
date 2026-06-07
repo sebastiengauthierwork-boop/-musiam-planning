@@ -13,6 +13,7 @@ import TabEmargement from './TabEmargement'
 import TabArchives from './TabArchives'
 import TabFeuilleJour from './TabFeuilleJour'
 import TabConsolidation from './TabConsolidation'
+import TabCouverture from './TabCouverture'
 import { useAuth } from '@/lib/auth'
 import { isAdmin } from '@/lib/utils'
 import { useSite } from '@/lib/site-context'
@@ -29,6 +30,7 @@ const TABS = [
   { id: 'feuille-jour',   label: 'Feuille du jour' },
   { id: 'archives',       label: 'Archives' },
   { id: 'consolidation',  label: 'Consolidation' },
+  { id: 'couverture',     label: 'Couverture' },
 ] as const
 type TabId = typeof TABS[number]['id']
 
@@ -38,6 +40,7 @@ const TAB_PERMISSIONS: Partial<Record<TabId, Permission>> = {
   compteur:     'view_hours_counter',
   emargement:   'print_emargement',
   archives:     'archive_planning',
+  couverture:   'edit_planning',
 }
 
 export default function PlanningPage() {
@@ -373,6 +376,7 @@ export default function PlanningPage() {
             {tab === 'feuille-jour'  && <TabFeuilleJour  {...tabProps} />}
             {tab === 'archives'      && <TabArchives     {...tabProps} />}
             {tab === 'consolidation' && <TabConsolidation {...tabProps} />}
+            {tab === 'couverture'    && <TabCouverture    {...tabProps} />}
           </>
         )}
       </div>

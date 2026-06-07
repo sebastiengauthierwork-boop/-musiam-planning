@@ -527,6 +527,98 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [loadingAvailable, setLoadingAvailable] = useState(false)
   const [interimAdding, setInterimAdding] = useState(false)
 
+  // ── Déclaration absence ──
+  const [absenceModal, setAbsenceModal] = useState<{ emp: Employee } | null>(null)
+  const [absenceForm, setAbsenceForm] = useState({ code: '', startDate: '', endDate: '', note: '' })
+  const [absenceSaving, setAbsenceSaving] = useState(false)
+  const [absenceResult, setAbsenceResult] = useState<string | null>(null)
+
+  async function submitAbsence() {
+    if (!absenceModal || !absenceForm.code || !absenceForm.startDate || !absenceForm.endDate) return
+    setAbsenceSaving(true)
+    setAbsenceResult(null)
+    try {
+      const emp = absenceModal.emp
+      // 1. Créer absence_request (status approved directement — saisie manager)
+      const { error: arErr } = await supabase.from('absence_requests').insert({
+        employee_id: emp.id,
+        team_id: teamId,
+        absence_code: absenceForm.code,
+        start_date: absenceForm.startDate,
+        end_date: absenceForm.endDate,
+        note: absenceForm.note || null,
+        status: 'approved',
+      })
+      if (arErr) throw arErr
+
+      // 2. Pour chaque jour de la période
+      const start = new Date(absenceForm.startDate + 'T00:00:00')
+      const end   = new Date(absenceForm.endDate   + 'T00:00:00')
+      const periodDays: string[] = []
+      const cur = new Date(start)
+      while (cur <= end) {
+        periodDays.push(toISO(cur))
+        cur.setDate(cur.getDate() + 1)
+      }
+
+      const ac = absenceCodes.find(c => c.code === absenceForm.code)
+      let coverageCount = 0
+
+      for (const dateStr of periodDays) {
+        const existingCode = cellValuesRef.current[`${emp.id}|${dateStr}`] ?? null
+        const isShift = existingCode && shiftCodes.some(c => c.code === existingCode)
+
+        if (existingCode) {
+          // a+b. Archiver dans employee_history
+          await supabase.from('employee_history').insert({
+            employee_id: emp.id,
+            field_name: 'schedule_overwrite_absence',
+            old_value: existingCode,
+            new_value: absenceForm.code,
+            effective_date: dateStr,
+          })
+        }
+
+        // c. Écraser le code dans schedules avec le code absence
+        const upsertPayload = {
+          employee_id: emp.id, team_id: teamId, date: dateStr,
+          code: absenceForm.code,
+          type: ac?.is_paid ? 'conge' : 'absence',
+          start_time: null, end_time: null, break_minutes: 0,
+          status: 'brouillon', notes: null,
+        }
+        const { error: schedErr } = await supabase.from('schedules')
+          .upsert(upsertPayload, { onConflict: 'employee_id,date' })
+        if (schedErr) throw schedErr
+
+        // d. Créer coverage_need si code horaire existait
+        if (isShift) {
+          const sc = shiftCodes.find(c => c.code === existingCode)
+          await supabase.from('coverage_needs').insert({
+            team_id: teamId,
+            date: dateStr,
+            absent_employee_id: emp.id,
+            shift_code_id: sc?.id ?? null,
+            shift_code: existingCode,
+            status: 'open',
+          })
+          coverageCount++
+        }
+
+        // Mettre à jour l'état local
+        setCellValues(cur => ({ ...cur, [`${emp.id}|${dateStr}`]: absenceForm.code }))
+      }
+
+      const msg = `Absence déclarée du ${absenceForm.startDate} au ${absenceForm.endDate}. ${coverageCount} besoin${coverageCount !== 1 ? 's' : ''} de couverture généré${coverageCount !== 1 ? 's' : ''}.`
+      setAbsenceResult(msg)
+      onRefresh?.()
+    } catch (err: any) {
+      setAbsenceResult('Erreur : ' + (err?.message ?? String(err)))
+    } finally {
+      setAbsenceSaving(false)
+    }
+  }
+
   // ── Conformité ──
   const [showComplianceModal, setShowComplianceModal] = useState(false)
   const [complianceReport, setComplianceReport] = useState<ConformiteReport | null>(null)
@@ -1733,11 +1825,22 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 <Fragment key={emp.id}>
                   <tr className={`group ${isRecruiting ? 'bg-slate-50/60 hover:bg-slate-100/60' : 'hover:bg-blue-50/20'}`}>
                     <td className={`sticky left-0 z-10 border-b border-r border-gray-100 px-2 py-0 h-6 ${isRecruiting ? 'bg-slate-50 group-hover:bg-slate-100' : 'bg-white group-hover:bg-blue-50'}`}>
-                      <div className="flex items-center gap-1 overflow-hidden max-w-[160px]">
+                      <div className="flex items-center gap-1 overflow-hidden max-w-[160px] w-full">
                         {isRecruiting && <span className="shrink-0 text-[8px] font-bold text-amber-600 bg-amber-100 px-1 rounded leading-tight">REC</span>}
                         <span className="font-semibold text-[11px] text-gray-800 shrink-0 whitespace-nowrap">{emp.last_name.toUpperCase()}</span>
                         {emp.first_name && <span className="text-[11px] text-gray-700 truncate min-w-0">{emp.first_name}</span>}
                         {emp.fonction && <span className="ml-0.5 text-gray-600 text-[9px] shrink-0 whitespace-nowrap" title={emp.fonction}>· {getFnCode(emp.fonction, jobFunctions)}</span>}
+                        {!isArchived && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setAbsenceResult(null); setAbsenceForm({ code: absenceCodes[0]?.code ?? '', startDate: toISO(new Date(year, month, 1)), endDate: toISO(new Date(year, month, 1)), note: '' }); setAbsenceModal({ emp }) }}
+                            className="ml-auto shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded text-gray-400 hover:text-orange-500 hover:bg-orange-50"
+                            title="Déclarer une absence"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                     {days.map(d => {
@@ -2129,6 +2232,70 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                 Fermer
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale déclaration absence */}
+      {absenceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { if (!absenceSaving) { setAbsenceModal(null); setAbsenceResult(null) } }} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Déclarer une absence</h2>
+            <p className="text-xs text-gray-600 mb-4">{absenceModal.emp.last_name.toUpperCase()} {absenceModal.emp.first_name}</p>
+            {absenceResult ? (
+              <>
+                <p className={`text-sm rounded-lg px-4 py-3 ${absenceResult.startsWith('Erreur') ? 'text-red-700 bg-red-50 border border-red-200' : 'text-emerald-700 bg-emerald-50 border border-emerald-200'}`}>
+                  {absenceResult}
+                </p>
+                <div className="flex justify-end mt-4">
+                  <button onClick={() => { setAbsenceModal(null); setAbsenceResult(null) }}
+                    className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800">
+                    Fermer
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Code absence</label>
+                  <select value={absenceForm.code} onChange={e => setAbsenceForm(f => ({ ...f, code: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300">
+                    {absenceCodes.map(ac => (
+                      <option key={ac.id} value={ac.code}>{ac.code} — {ac.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Date de début</label>
+                    <input type="date" value={absenceForm.startDate} onChange={e => setAbsenceForm(f => ({ ...f, startDate: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Date de fin</label>
+                    <input type="date" value={absenceForm.endDate} onChange={e => setAbsenceForm(f => ({ ...f, endDate: e.target.value }))}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">Note (optionnelle)</label>
+                  <textarea value={absenceForm.note} onChange={e => setAbsenceForm(f => ({ ...f, note: e.target.value }))}
+                    rows={2} placeholder="Motif, commentaire…"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300 resize-none" />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => setAbsenceModal(null)} disabled={absenceSaving}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+                    Annuler
+                  </button>
+                  <button onClick={submitAbsence} disabled={absenceSaving || !absenceForm.code || !absenceForm.startDate || !absenceForm.endDate || absenceForm.startDate > absenceForm.endDate}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50">
+                    {absenceSaving ? 'Enregistrement…' : 'Valider'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
