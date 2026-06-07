@@ -540,10 +540,11 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     try {
       const emp = absenceModal.emp
       // 1. Créer absence_request (status approved directement — saisie manager)
+      const selectedAc = absenceCodes.find(c => c.code === absenceForm.code)
       const { error: arErr } = await supabase.from('absence_requests').insert({
         employee_id: emp.id,
         team_id: teamId,
-        absence_code: absenceForm.code,
+        absence_code_id: selectedAc?.id ?? null,
         start_date: absenceForm.startDate,
         end_date: absenceForm.endDate,
         note: absenceForm.note || null,
