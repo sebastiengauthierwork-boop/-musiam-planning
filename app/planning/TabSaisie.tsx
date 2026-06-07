@@ -547,7 +547,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         absence_code_id: selectedAc?.id ?? null,
         start_date: absenceForm.startDate,
         end_date: absenceForm.endDate,
-        note: absenceForm.note || null,
+        notes: absenceForm.note || null,
         status: 'approved',
       })
       if (arErr) throw arErr
