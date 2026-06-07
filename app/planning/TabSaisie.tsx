@@ -569,8 +569,22 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       const REPOS_CODES = new Set(['R', 'REP', 'FER', 'RH', 'RTT'])
       let coverageCount = 0
 
+      const { data: existingSchedules } = await supabase
+        .from('schedules')
+        .select('date, code')
+        .eq('employee_id', emp.id)
+        .gte('date', absenceForm.startDate)
+        .lte('date', absenceForm.endDate)
+
+      const existingByDate: Record<string, string> = {}
+      for (const s of existingSchedules ?? []) {
+        if (s.code) existingByDate[s.date] = s.code
+      }
+
       for (const dateStr of periodDays) {
-        const existingCode = cellValuesRef.current[`${emp.id}|${dateStr}`] ?? null
+        const existingCode = existingByDate[dateStr]
+          ?? cellValuesRef.current[`${emp.id}|${dateStr}`]
+          ?? null
 
         if (existingCode) {
           // a+b. Archiver dans employee_history
