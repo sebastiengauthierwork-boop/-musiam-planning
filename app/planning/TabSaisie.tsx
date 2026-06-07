@@ -268,7 +268,7 @@ type AllCode = { code: string; label: string; kind: 'shift' | 'absence'; start_t
 
 function CellInput({
   saved, status, errorMsg, shiftCodes, absenceCodes, teamShiftCodes, onSave, isWeekend,
-  isSelected, onNormalClick, onShiftClick, onContextMenu, cellKey, onNavigate,
+  isSelected, onNormalClick, onShiftClick, onContextMenu, cellKey, onNavigate, onShiftArrowDown,
 }: {
   saved: string
   status: CellStatus
@@ -284,6 +284,7 @@ function CellInput({
   onContextMenu: (e: React.MouseEvent) => void
   cellKey: string
   onNavigate: (dir: 'up' | 'down' | 'left' | 'right') => void
+  onShiftArrowDown?: () => void
 }) {
   const [val, setVal] = useState(saved)
   const [open, setOpen] = useState(false)
@@ -391,6 +392,7 @@ function CellInput({
             else if (e.key === 'Tab') { e.preventDefault(); commit(val); onNavigate(e.shiftKey ? 'left' : 'right') }
           } else {
             if (e.key === 'ArrowUp')    { e.preventDefault(); commit(val); onNavigate('up') }
+            else if (e.key === 'ArrowDown' && e.shiftKey) { e.preventDefault(); commit(val); onShiftArrowDown?.() }
             else if (e.key === 'ArrowDown')  { e.preventDefault(); commit(val); onNavigate('down') }
             else if (e.key === 'ArrowLeft')  { e.preventDefault(); commit(val); onNavigate('left') }
             else if (e.key === 'ArrowRight') { e.preventDefault(); commit(val); onNavigate('right') }
@@ -544,11 +546,23 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const anchorRef = useRef<{ empId: string; dateStr: string } | null>(null)
 
+  // ── Undo / Redo ───────────────────────────────────────────────────────────
+  type UndoEntry = { empId: string; date: string; previousCode: string; newCode: string }
+  const undoStackRef = useRef<UndoEntry[]>([])
+  const redoStackRef = useRef<UndoEntry[]>([])
+  const isUndoingRef = useRef(false)
+  const [fillDownConfirm, setFillDownConfirm] = useState<{ cells: string[]; code: string } | null>(null)
+
   // ── Save ──────────────────────────────────────────────────────────────────
   const saveCell = useCallback(async (empId: string, dateStr: string, code: string) => {
     const key = `${empId}|${dateStr}`
     const prevCode = cellValuesRef.current[key] ?? ''
     if (code === prevCode) return
+
+    if (!isUndoingRef.current) {
+      undoStackRef.current = [...undoStackRef.current.slice(-49), { empId, date: dateStr, previousCode: prevCode, newCode: code }]
+      redoStackRef.current = []
+    }
 
     setCellValues(cur => { const n = { ...cur }; if (code) n[key] = code; else delete n[key]; return n })
     setCellErrors(cur => { const n = { ...cur }; delete n[key]; return n })
@@ -976,6 +990,71 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
     setContextMenu(null)
   }, [selected, saveCell])
 
+  const handleUndo = useCallback(() => {
+    if (!undoStackRef.current.length) return
+    const entry = undoStackRef.current.pop()!
+    redoStackRef.current.push(entry)
+    isUndoingRef.current = true
+    saveCell(entry.empId, entry.date, entry.previousCode)
+    isUndoingRef.current = false
+  }, [saveCell])
+
+  const handleRedo = useCallback(() => {
+    if (!redoStackRef.current.length) return
+    const entry = redoStackRef.current.pop()!
+    undoStackRef.current.push(entry)
+    isUndoingRef.current = true
+    saveCell(entry.empId, entry.date, entry.newCode)
+    isUndoingRef.current = false
+  }, [saveCell])
+
+  function extendSelectionDown(targetEmpId: string, dateStr: string) {
+    if (!anchorRef.current || anchorRef.current.dateStr !== dateStr) return
+    const ordered = [...employees.filter(e => !isTemporaire(e.contract_type)), ...employees.filter(e => isTemporaire(e.contract_type))]
+    const anchorIdx = ordered.findIndex(e => e.id === anchorRef.current!.empId)
+    const targetIdx = ordered.findIndex(e => e.id === targetEmpId)
+    if (anchorIdx === -1 || targetIdx === -1) return
+    const min = Math.min(anchorIdx, targetIdx), max = Math.max(anchorIdx, targetIdx)
+    const next = new Set<string>()
+    for (let i = min; i <= max; i++) next.add(`${ordered[i].id}|${dateStr}`)
+    setSelected(next)
+  }
+
+  function handleShiftArrowDown(empId: string, dateStr: string) {
+    const ordered = [...employees.filter(e => !isTemporaire(e.contract_type)), ...employees.filter(e => isTemporaire(e.contract_type))]
+    if (!anchorRef.current || anchorRef.current.dateStr !== dateStr) {
+      anchorRef.current = { empId, dateStr }
+      setSelected(new Set([`${empId}|${dateStr}`]))
+      return
+    }
+    const colKeys = Array.from(selected).filter(k => k.endsWith(`|${dateStr}`))
+    const idxs = colKeys.map(k => ordered.findIndex(e => e.id === k.split('|')[0])).filter(i => i >= 0)
+    const maxIdx = idxs.length > 0 ? Math.max(...idxs) : ordered.findIndex(e => e.id === empId)
+    const nextIdx = Math.min(maxIdx + 1, ordered.length - 1)
+    if (nextIdx <= maxIdx) return
+    extendSelectionDown(ordered[nextIdx].id, dateStr)
+  }
+
+  const handleFillDown = useCallback(() => {
+    if (!anchorRef.current || selected.size <= 1) return
+    const { empId: anchorEmpId, dateStr: anchorDate } = anchorRef.current
+    const selArr = Array.from(selected)
+    if (!selArr.every(k => k.endsWith(`|${anchorDate}`))) return
+    const sourceCode = cellValuesRef.current[`${anchorEmpId}|${anchorDate}`] ?? ''
+    if (!sourceCode) return
+    const destCells = selArr.filter(k => k !== `${anchorEmpId}|${anchorDate}`)
+    if (!destCells.length) return
+    const overwritten = destCells.filter(k => (cellValuesRef.current[k] ?? '') !== '')
+    if (overwritten.length > 0) {
+      setFillDownConfirm({ cells: destCells, code: sourceCode })
+      return
+    }
+    for (const k of destCells) {
+      const [eid, ds] = k.split('|')
+      saveCell(eid, ds, sourceCode)
+    }
+  }, [selected, saveCell])
+
   function navigateCell(empId: string, dateStr: string, dir: 'up' | 'down' | 'left' | 'right') {
     const ordered = [
       ...employees.filter(e => !isTemporaire(e.contract_type)),
@@ -1002,12 +1081,27 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
   useEffect(() => {
     function handle(e: KeyboardEvent) {
       if (!e.ctrlKey && !e.metaKey) return
-      if (e.key === 'c' && selected.size > 0) { e.preventDefault(); copySelected() }
-      if (e.key === 'v' && clipboard.length > 0) { e.preventDefault(); pasteToSelected() }
+      const activeEl = document.activeElement
+      const isNonGridInput = (activeEl instanceof HTMLInputElement || activeEl instanceof HTMLTextAreaElement)
+        && !tableRef.current?.contains(activeEl)
+      if (e.key === 'z' && !e.shiftKey) {
+        if (isNonGridInput) return
+        e.preventDefault(); handleUndo()
+      } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {
+        if (isNonGridInput) return
+        e.preventDefault(); handleRedo()
+      } else if (e.key === 'c' && selected.size > 0) {
+        e.preventDefault(); copySelected()
+      } else if (e.key === 'v' && clipboard.length > 0) {
+        e.preventDefault(); pasteToSelected()
+      } else if (e.key === 'd') {
+        if (isNonGridInput) return
+        e.preventDefault(); handleFillDown()
+      }
     }
     document.addEventListener('keydown', handle)
     return () => document.removeEventListener('keydown', handle)
-  }, [selected, clipboard, copySelected, pasteToSelected])
+  }, [selected, clipboard, copySelected, pasteToSelected, handleUndo, handleRedo, handleFillDown])
 
   // ── Close context menu on outside click ───────────────────────────────────
   useEffect(() => {
@@ -1694,6 +1788,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                               }}
                               cellKey={key}
                               onNavigate={dir => navigateCell(emp.id, dateStr, dir)}
+                              onShiftArrowDown={() => handleShiftArrowDown(emp.id, dateStr)}
                             />
                           )}
                         </td>
@@ -1829,6 +1924,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
                               }}
                               cellKey={key}
                               onNavigate={dir => navigateCell(emp.id, dateStr, dir)}
+                              onShiftArrowDown={() => handleShiftArrowDown(emp.id, dateStr)}
                             />
                           )}
                         </td>
@@ -1910,7 +2006,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         </span>
         <span className="inline-flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded outline outline-2 outline-emerald-400" />Sauvegardé</span>
         <span className="inline-flex items-center gap-1.5 text-blue-400"><span className="inline-block w-3 h-3 rounded" style={{ boxShadow: 'inset 0 0 0 2px #3b82f6' }} />Sélectionné</span>
-        <span className="ml-auto">Clic = sélect · Shift+clic = plage · Ctrl+C/V = copier/coller</span>
+        <span className="ml-auto">Clic = sélect · Shift+↓ = sélect colonne · Ctrl+D = fill-down · Ctrl+C/V = copier/coller · Ctrl+Z/Y = annuler/rétablir</span>
       </div>
 
       {/* Modal intérimaire */}
@@ -2031,6 +2127,35 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
               <button onClick={() => setShowComplianceModal(false)}
                 className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fill-down confirmation */}
+      {fillDownConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setFillDownConfirm(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Confirmer le fill-down</h2>
+            <p className="text-sm text-gray-700 mb-5">
+              {fillDownConfirm.cells.filter(k => (cellValuesRef.current[k] ?? '') !== '').length} cellule{fillDownConfirm.cells.filter(k => (cellValuesRef.current[k] ?? '') !== '').length > 1 ? 's' : ''} déjà remplie{fillDownConfirm.cells.filter(k => (cellValuesRef.current[k] ?? '') !== '').length > 1 ? 's' : ''} seront écrasées. Continuer ?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setFillDownConfirm(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+                Annuler
+              </button>
+              <button onClick={() => {
+                  for (const k of fillDownConfirm.cells) {
+                    const [eid, ds] = k.split('|')
+                    saveCell(eid, ds, fillDownConfirm.code)
+                  }
+                  setFillDownConfirm(null)
+                }}
+                className="px-4 py-2 text-sm font-medium text-white bg-slate-900 rounded-lg hover:bg-slate-800">
+                Oui, écraser
               </button>
             </div>
           </div>
