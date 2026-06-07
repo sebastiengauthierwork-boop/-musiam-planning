@@ -410,6 +410,7 @@ export default function MonPlanningPage() {
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [dashboardSiteId, setDashboardSiteId] = useState<string>('')
   const [dashboardTeamId, setDashboardTeamId] = useState<string>('')
+  const [ganttDayOffset, setGanttDayOffset] = useState(0)
 
   // PWA
   useEffect(() => {
@@ -453,11 +454,14 @@ export default function MonPlanningPage() {
       if (!resolvedTeamId) return
       teamIds.push(resolvedTeamId)
     }
+    const ganttDate = new Date(now)
+    ganttDate.setDate(ganttDate.getDate() + ganttDayOffset)
+    const ganttDateKey = dateStr(ganttDate.getFullYear(), ganttDate.getMonth(), ganttDate.getDate())
     setLoadingDashboard(true)
     Promise.all([
       supabase.from('schedules')
         .select('employee_id, code, start_time, end_time, employees(first_name, last_name, statut)')
-        .in('team_id', teamIds).eq('date', todayKey),
+        .in('team_id', teamIds).eq('date', ganttDateKey),
       supabase.from('shift_codes').select('code, start_time, end_time'),
       supabase.from('absence_codes').select('code'),
     ]).then(([schedRes, scRes, absRes]) => {
@@ -497,7 +501,7 @@ export default function MonPlanningPage() {
       setDashboardEntries(entries)
       setLoadingDashboard(false)
     }).catch(() => setLoadingDashboard(false))
-  }, [authLoading, isMgmt, allTeams.map(t => t.id).join(','), (team as any)?.id, dashboardTeamId, todayKey])
+  }, [authLoading, isMgmt, allTeams.map(t => t.id).join(','), (team as any)?.id, dashboardTeamId, ganttDayOffset])
 
   // ── Management : chargement sites + équipes ──
   useEffect(() => {
@@ -669,6 +673,10 @@ export default function MonPlanningPage() {
     const sc = code ? shiftCodes.find(c => c.code === code) : null
     return { d, ds, code, colors, sc, isToday: ds === todayKey, isWE: d.getDay() === 0 || d.getDay() === 6 }
   })
+
+  const ganttDayDate = new Date(now)
+  ganttDayDate.setDate(ganttDayDate.getDate() + ganttDayOffset)
+  const ganttDateLabel = `${DAYS[ganttDayDate.getDay()]} ${ganttDayDate.getDate()} ${MONTHS[ganttDayDate.getMonth()]} ${ganttDayDate.getFullYear()}`
 
   // Équipes filtrées par site courant (pour le dropdown de l'onglet Équipes)
   const teamsForSite = role === 'manager' ? allTeams : allTeams.filter(t => t.site_id === selectedSiteId)
@@ -899,13 +907,34 @@ export default function MonPlanningPage() {
             </div>
           )}
           <div className="bg-white border-b border-gray-100 px-4 py-3 shrink-0">
-            <p className="text-sm font-bold text-gray-900">Effectifs du jour</p>
-            <p className="text-xs text-gray-600 mt-0.5">
-              {DAYS[now.getDay()]} {now.getDate()} {MONTHS[now.getMonth()]} {now.getFullYear()}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-bold text-gray-900">Effectifs</p>
               {!loadingDashboard && (
-                <span className="ml-2">· {dashboardEntries.length} présent{dashboardEntries.length > 1 ? 's' : ''}</span>
+                <span className="text-xs text-gray-600">{dashboardEntries.length} présent{dashboardEntries.length > 1 ? 's' : ''}</span>
               )}
-            </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setGanttDayOffset(o => o - 1)}
+                disabled={ganttDayOffset <= -7}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-gray-200 text-gray-700 active:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-lg font-bold transition-colors">
+                ‹
+              </button>
+              <div className="flex-1 min-w-0 text-center text-sm font-semibold text-gray-800">{ganttDateLabel}</div>
+              <button
+                onClick={() => setGanttDayOffset(0)}
+                disabled={ganttDayOffset === 0}
+                title="Aujourd'hui"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-gray-200 text-gray-600 active:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-base">
+                ·
+              </button>
+              <button
+                onClick={() => setGanttDayOffset(o => o + 1)}
+                disabled={ganttDayOffset >= 7}
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl border border-gray-200 text-gray-700 active:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-lg font-bold transition-colors">
+                ›
+              </button>
+            </div>
           </div>
           {loadingDashboard ? (
             <div className="flex items-center justify-center py-16 text-gray-600 text-sm">Chargement…</div>
