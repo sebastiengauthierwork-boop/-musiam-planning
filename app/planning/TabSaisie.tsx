@@ -541,7 +541,7 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       const emp = absenceModal.emp
       // 1. Créer absence_request (status approved directement — saisie manager)
       const selectedAc = absenceCodes.find(c => c.code === absenceForm.code)
-      const { error: arErr } = await supabase.from('absence_requests').insert({
+      const { data: arData, error: arErr } = await supabase.from('absence_requests').insert({
         employee_id: emp.id,
         team_id: teamId,
         absence_code_id: selectedAc?.id ?? null,
@@ -549,8 +549,9 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
         end_date: absenceForm.endDate,
         notes: absenceForm.note || null,
         status: 'approved',
-      })
+      }).select('id').single()
       if (arErr) throw arErr
+      const absenceRequestId = arData?.id ?? null
 
       // 2. Pour chaque jour de la période
       const start = new Date(absenceForm.startDate + 'T00:00:00')
@@ -563,21 +564,24 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
       }
 
       const ac = absenceCodes.find(c => c.code === absenceForm.code)
+      const absenceCodeSet = new Set(absenceCodes.map(a => a.code))
+      // Codes repos/fermeture qui ne génèrent pas de besoin de couverture
+      const REPOS_CODES = new Set(['R', 'REP', 'FER', 'RH', 'RTT'])
       let coverageCount = 0
 
       for (const dateStr of periodDays) {
         const existingCode = cellValuesRef.current[`${emp.id}|${dateStr}`] ?? null
-        const isShift = existingCode && shiftCodes.some(c => c.code === existingCode)
 
         if (existingCode) {
           // a+b. Archiver dans employee_history
-          await supabase.from('employee_history').insert({
+          const { error: histErr } = await supabase.from('employee_history').insert({
             employee_id: emp.id,
             field_name: 'schedule_overwrite_absence',
             old_value: existingCode,
             new_value: absenceForm.code,
             effective_date: dateStr,
           })
+          if (histErr) throw histErr
         }
 
         // c. Écraser le code dans schedules avec le code absence
@@ -592,17 +596,20 @@ export default function TabSaisie({ employees, schedules, shiftCodes, absenceCod
           .upsert(upsertPayload, { onConflict: 'employee_id,date' })
         if (schedErr) throw schedErr
 
-        // d. Créer coverage_need si code horaire existait
-        if (isShift) {
-          const sc = shiftCodes.find(c => c.code === existingCode)
-          await supabase.from('coverage_needs').insert({
+        // d. Créer coverage_need si le code existant n'est ni repos ni absence
+        const needsCoverage = existingCode
+          && !REPOS_CODES.has(existingCode)
+          && !absenceCodeSet.has(existingCode)
+        if (needsCoverage) {
+          const sc = shiftCodes.find(c => c.code === existingCode && (c.team_id === teamId || c.team_id === null))
+          const { error: cnErr } = await supabase.from('coverage_needs').insert({
+            absence_request_id: absenceRequestId,
             team_id: teamId,
             date: dateStr,
-            absent_employee_id: emp.id,
             shift_code_id: sc?.id ?? null,
-            shift_code: existingCode,
             status: 'open',
           })
+          if (cnErr) throw cnErr
           coverageCount++
         }
 
